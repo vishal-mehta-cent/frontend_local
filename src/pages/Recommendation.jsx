@@ -20,12 +20,8 @@ export default function Recommendations() {
     new Date().toISOString().split("T")[0]
   );
 
-  // Main button (Intraday / BTST / Short-term)
   const [activeType, setActiveType] = useState("Intraday");
-
-  // Sub filter only for Intraday
   const [subIntraday, setSubIntraday] = useState("All");
-
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
 
   const API =
@@ -33,34 +29,26 @@ export default function Recommendations() {
       .toString()
       .replace(/\/+$/, "");
 
-  // ---------------------------
   const toNum = (v) => {
     if (v === null || v === undefined) return undefined;
     const n = Number.parseFloat(typeof v === "string" ? v.replace(/[, ]/g, "") : v);
     return Number.isFinite(n) ? n : undefined;
   };
 
-  // ---------------------------
-  // Normalise date from CSV
-  // ---------------------------
   const normalizeDate = (raw) => {
     if (!raw) return "";
 
     let s = String(raw).trim();
 
-    // Already yyyy-mm-dd
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
-    // Remove time
     s = s.split(" ")[0];
 
-    // MM/DD/YYYY
     if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
       const [m, d, y] = s.split("/");
       return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
     }
 
-    // MM/DD/YY
     if (/^\d{1,2}\/\d{1,2}\/\d{2}$/.test(s)) {
       let [m, d, y] = s.split("/");
       y = "20" + y;
@@ -70,7 +58,6 @@ export default function Recommendations() {
     return "";
   };
 
-  // ---------------------------
   const getField = (row, candidates) => {
     if (!row) return undefined;
     const norm = (s) =>
@@ -84,9 +71,7 @@ export default function Recommendations() {
     return undefined;
   };
 
-  // ---------------------------
   // Pickers
-  // ---------------------------
   const pickConfidence = (r) => {
     let raw = getField(r, [
       "backtest_accuracy",
@@ -114,46 +99,19 @@ export default function Recommendations() {
     );
 
   const pickCurrentPrice = (r) =>
-    toNum(
-      getField(
-        r,
-        segment === "F&O"
-          ? ["live_fnoprice", "live_price", "LTP", "ltp"]
-          : ["live_price", "LTP", "ltp"]
-      )
-    );
+    toNum(r.currentPrice);
 
   const pickStoploss = (r) =>
-    toNum(
-      getField(
-        r,
-        ["stoploss", "Stoploss", "fno_stoploss", "FNO_stoploss"]
-      )
-    );
+    toNum(getField(r, ["stoploss", "Stoploss", "fno_stoploss", "FNO_stoploss"]));
 
   const pickTarget = (r) =>
-    toNum(
-      getField(
-        r,
-        ["target", "Target", "fno_target", "FNO_target"]
-      )
-    );
+    toNum(getField(r, ["target", "Target", "fno_target", "FNO_target"]));
 
   const pickSupport = (r) =>
-    toNum(
-      getField(
-        r,
-        ["support", "Support", "sup", "SUP", "pivot_support"]
-      )
-    );
+    toNum(getField(r, ["support", "Support", "sup", "SUP"]));
 
   const pickResistance = (r) =>
-    toNum(
-      getField(
-        r,
-        ["resistance", "Resistance", "res", "RES", "pivot_resistance"]
-      )
-    );
+    toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
 
   const pickAlertType = (r) =>
     getField(r, ["signal_type", "Signal_type"]) || "N/A";
@@ -167,45 +125,41 @@ export default function Recommendations() {
   };
 
   const pickScreener = (r) =>
-    getField(r, ["screener", "Screener", "screener_name"]) || "Unknown";
+    getField(r, ["screener", "Screener"]) || "Unknown";
 
   const pickRawDate = (r) =>
-    getField(r, ["raw_datetime", "Date", "date", "Date_daily", "signal_date"]);
+    getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
 
-  // ⭐ Extract TIME from raw CSV
   const pickTime = (row) => {
-    const raw = pickRawDate(row);
-    if (!raw) return "";
+    const raw = getField(row, ["raw_datetime", "Date", "date", "signal_date"]);
 
-    const cleaned = raw.trim().replace(/\s+/g, " ");
-    const parts = cleaned.split(" ");
-    if (parts.length < 2) return "";
+    if (!raw) return "--:--";
 
-    let t = parts[1].trim();
-    const tParts = t.split(":");
+    // raw contains: "11/10/2025 9:27"
+    const match = raw.match(/(\d{1,2}):(\d{2})/);
+    if (!match) return "--:--";
 
-    if (tParts.length >= 2) {
-      return `${tParts[0]}:${tParts[1]}`;
-    }
+    let hour = parseInt(match[1], 10);
+    let minute = match[2];
 
-    return t;
+    const ampm = hour >= 12 ? "PM" : "AM";
+    if (hour > 12) hour -= 12;
+    if (hour === 0) hour = 12;
+
+    return `${hour.toString().padStart(2, "0")}:${minute} ${ampm}`;
   };
 
-  // Match your CSV exactly:
   const pickStrategy = (r) => {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
     raw = String(raw).trim();
 
     if (raw === "Intraday") return "intraday";
-    if (raw === "Intraday - Fast Alerts") return "intraday-fast-alerts";
+    if (raw === "Intraday - Fast Alerts") return "intraday-fast";
     if (raw === "Shortterm") return "short-term";
     if (raw === "BTST") return "btst";
 
     return raw.toLowerCase();
   };
-
-  const pickPriceCloseTo = (r) =>
-    getField(r, ["price_closeto", "Price_Close_to"]) || "None";
 
   const pickAlertText = (r) =>
     getField(r, ["alert", "ALERT", "Alert"]) || "";
@@ -215,76 +169,61 @@ export default function Recommendations() {
 
 
 
-  // ---------------------------
-  // Normalize Row
-  // ---------------------------
   const normalize = (row) => {
     const script = pickScript(row);
-    const screener = pickScreener(row);
-    const alertType = pickAlertType(row);
-    const confidence = pickConfidence(row);
-    const description = pickDescription(row);
-    const strategy = pickStrategy(row);
-    const priceCloseTo = pickPriceCloseTo(row);
 
+    const sigPrice = pickSignalPrice(row);
+    let live = pickCurrentPrice(row);
+    if (live === null || live === undefined) live = sigPrice;
+
+
+    const sup = pickSupport(row) || 0;
+    const st = pickStoploss(row) || 0;
+    const t = pickTarget(row) || 0;
+    const res = pickResistance(row) || 0;
+
+    const strategy = pickStrategy(row);
     const rawDate = pickRawDate(row);
     const dateVal = normalizeDate(rawDate);
     const timeVal = pickTime(row);
-    const alertText = pickAlertText(row);
-    const userActions = pickUserActions(row);
-
-
-
-
-    const sup = pickSupport(row) ?? 0;
-    const st = pickStoploss(row) ?? 0;
-    const t = pickTarget(row) ?? 0;
-    const res = pickResistance(row) ?? 0;
-
-    const signalPrice = pickSignalPrice(row) ?? 0;
-    let currentPrice = pickCurrentPrice(row) ?? signalPrice;
 
     let outcome = null;
-    if (t > 0 && currentPrice >= t) outcome = "PROFIT";
-    else if (st > 0 && currentPrice <= st) outcome = "LOSS";
+    if (t > 0 && live >= t) outcome = "PROFIT";
+    else if (st > 0 && live <= st) outcome = "LOSS";
 
     return {
       id: `${script}-${dateVal}-${timeVal}-${strategy}`,
       script,
-      screener,
-      alertType,
-      confidence,
-      description,
+      screener: pickScreener(row),
+      alertType: pickAlertType(row),
+      confidence: pickConfidence(row),
+      description: pickDescription(row),
       strategy,
-      priceCloseTo,
       sup,
       st,
       t,
       res,
-      signalPrice,
-      currentPrice,
+      signalPrice: sigPrice,
+      currentPrice: live,
       outcome,
       dateVal,
       timeVal,
-      alertText,
-      userActions,
+      alertText: pickAlertText(row),
+      userActions: pickUserActions(row),
     };
   };
 
-  const mergeStable = (prev, next) => {
-    const map = new Map(prev.map((r) => [r.id, r]));
-    return next.map((n) => (map.has(n.id) ? map.get(n.id) : n));
-  };
-
-  // ---------------------------
-  // Fetch backend (CSV)
-  // ---------------------------
-  const pollingRef = useRef({ first: true });
+  // Fetch CSV
+  // Fetch CSV + keep backend alive
   useEffect(() => {
     let alive = true;
+
     const fetchOnce = async () => {
       try {
-        const res = await fetch(`${API}/recommendations/data`, { cache: "no-store" });
+        const res = await fetch(`${API}/recommendations/data?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
+
         const json = await res.json();
         if (!alive) return;
 
@@ -292,6 +231,7 @@ export default function Recommendations() {
 
         const seen = new Set();
         const ordered = [];
+
         for (const r of normalized) {
           if (!r.script || r.script === "N/A") continue;
           if (seen.has(r.id)) continue;
@@ -305,83 +245,33 @@ export default function Recommendations() {
         startTransition(() => {
           setScreenerList(uniqueScreeners);
           setAlertTypeList(uniqueAlertTypes);
-          setRows(prev => mergeStable(prev, ordered));
-
-          if (pollingRef.current.first) {
-            setInitialLoading(false);
-            pollingRef.current.first = false;
-          }
-        });
-      } catch (err) {
-        console.error("Fetch recommendations failed:", err);
-        if (pollingRef.current.first) {
+          setRows(ordered);
           setInitialLoading(false);
-          pollingRef.current.first = false;
-        }
+        });
+
+      } catch (e) {
+        console.error("Fetch failed:", e);
+        setInitialLoading(false);
       }
     };
 
+    // Hit backend immediately
     fetchOnce();
+
+    // PING every 5 seconds (keep server awake)
     const id = setInterval(fetchOnce, 5000);
+
     return () => {
       alive = false;
       clearInterval(id);
     };
-  }, [API, segment]);
+  }, []);  // RUNS ONLY ONCE ALWAYS
 
-  // ---------------------------
-  // ⭐ LIVE PRICE POLLING (EVERY 10 SECONDS)
-  // ---------------------------
-  useEffect(() => {
-    if (rows.length === 0) return;
 
-    const pollLive = async () => {
-      try {
-        const symbols = [...new Set(rows.map((r) => r.script))];
-
-        const res = await fetch(`${API}/recommendations/live-prices`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ symbols }),
-        });
-
-        const data = await res.json();
-
-        // Update only currentPrice — keep everything else same
-        setRows((prev) =>
-          prev.map((r) => {
-            const sym = r.script?.toUpperCase();
-            const newPrice = data[sym];
-            if (!newPrice) return r;
-
-            let outcome = r.outcome;
-            if (r.t > 0 && newPrice >= r.t) outcome = "PROFIT";
-            else if (r.st > 0 && newPrice <= r.st) outcome = "LOSS";
-            else outcome = null;
-
-            return {
-              ...r,
-              currentPrice: newPrice,
-              outcome,
-            };
-          })
-        );
-      } catch (err) {
-        console.error("Live price fetch failed:", err);
-      }
-    };
-
-    pollLive();
-    const id = setInterval(pollLive, 10000);
-    return () => clearInterval(id);
-  }, [rows, API]);
-
-  // ---------------------------
-  // Filtering logic
-  // ---------------------------
+  // Filtering
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
-      const matchDate = selectedDate ? r.dateVal === selectedDate : true;
+      const matchDate = r.dateVal === selectedDate;
 
       const matchScreener =
         selectedScreener === "All" ||
@@ -393,9 +283,7 @@ export default function Recommendations() {
 
       let matchStrategy = true;
       if (activeType === "Intraday") {
-        matchStrategy =
-          r.strategy === "intraday" ||
-          r.strategy === "intraday-fast-alerts";
+        matchStrategy = ["intraday", "intraday-fast"].includes(r.strategy);
       } else if (activeType === "BTST") {
         matchStrategy = r.strategy === "btst";
       } else if (activeType === "Short-term") {
@@ -404,11 +292,9 @@ export default function Recommendations() {
 
       let matchSub = true;
       if (activeType === "Intraday") {
-        if (subIntraday === "Intraday")
-          matchSub = r.strategy === "intraday";
+        if (subIntraday === "Intraday") matchSub = r.strategy === "intraday";
         else if (subIntraday === "Intraday - Fast Alerts")
           matchSub = r.strategy === "intraday-fast-alerts";
-        else matchSub = true;
       }
 
       const matchPriceClose =
@@ -427,7 +313,6 @@ export default function Recommendations() {
     priceCloseFilter,
   ]);
 
-  // ---------------------------
   const activeSignals = useMemo(() => {
     const allActive = filteredRows.filter((r) => !r.outcome);
     return allActive.slice(0, 10);
@@ -438,14 +323,10 @@ export default function Recommendations() {
     [filteredRows]
   );
 
-  // ---------------------------
   const renderSignalLayout = () => (
     <div className="intraday-section">
-
-      {/* Subtype (only Intraday) */}
       <div className="filters-row">
 
-        {/* DATE */}
         <div className="filter-item">
           <label>Date:</label>
           <input
@@ -455,7 +336,6 @@ export default function Recommendations() {
           />
         </div>
 
-        {/* NEW — INTRADAY TYPE IN SAME ROW */}
         {activeType === "Intraday" && (
           <div className="filter-item">
             <label>Intraday Type:</label>
@@ -467,7 +347,6 @@ export default function Recommendations() {
           </div>
         )}
 
-        {/* SEGMENT */}
         <div className="filter-item">
           <label>Segment:</label>
           <select value={segment} onChange={(e) => setSegment(e.target.value)}>
@@ -477,7 +356,6 @@ export default function Recommendations() {
         </div>
       </div>
 
-      {/* MAIN FILTER ROW */}
       <div className="filters-row">
         <div className="filter-item">
           <label>Alert Type:</label>
@@ -503,8 +381,6 @@ export default function Recommendations() {
           </select>
         </div>
 
-
-
         <div className="filter-item">
           <label>Price Close To:</label>
           <select
@@ -521,7 +397,6 @@ export default function Recommendations() {
         </div>
       </div>
 
-      {/* LEGEND */}
       <div className="signals-section">
         <div className="legend-row">
           <div className="legend-box">
@@ -533,7 +408,6 @@ export default function Recommendations() {
           </div>
         </div>
 
-        {/* SIGNAL COLUMNS */}
         <div className="signals-columns">
           <div className="signals-column">
             <h3>Active Signals</h3>
@@ -556,9 +430,9 @@ export default function Recommendations() {
                       t={sig.t}
                       res={sig.res}
                       timeVal={sig.timeVal}
-                      livePriceFeed={true}
                       alertText={sig.alertText}
                       userActions={sig.userActions}
+                      isClosed={false}
                     />
                   ))
                 ) : (
@@ -575,6 +449,7 @@ export default function Recommendations() {
                 closedSignals.map((sig) => {
                   const isProfit = sig.outcome === "PROFIT";
                   const color = isProfit ? "#00C853" : "#E53935";
+
                   return (
                     <div
                       className="closed-card-wrapper"
@@ -584,7 +459,9 @@ export default function Recommendations() {
                       <div className="closed-badge" style={{ color }}>
                         {sig.outcome}
                       </div>
+
                       <SignalCard
+                        key={sig.id}
                         script={sig.script}
                         confidence={sig.confidence}
                         alertType={sig.alertType}
@@ -596,9 +473,9 @@ export default function Recommendations() {
                         t={sig.t}
                         res={sig.res}
                         timeVal={sig.timeVal}
-                        livePriceFeed={false}
                         alertText={sig.alertText}
                         userActions={sig.userActions}
+                        isClosed={true}
                       />
                     </div>
                   );
@@ -639,5 +516,3 @@ export default function Recommendations() {
     </div>
   );
 }
-
-// -------------------- END OF FILE --------------------
