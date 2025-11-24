@@ -15,41 +15,33 @@ export default function SignalCard({
   timeVal,
   dateVal,
   userActions,
-
-  // NEW: from parent (Active/Closed)
   isClosed = false,
 }) {
   // ----------------- TIME FORMAT -----------------
   const formatTime = (t) => {
     if (!t) return "--:--";
-    let parts = t.trim().split(":");
-    if (parts.length < 2) return "--:--";
 
-    let hour = parseInt(parts[0], 10);
-    let minute = parts[1];
-    if (isNaN(hour) || isNaN(parseInt(minute))) return "--:--";
+    // If already cleaned (09:27)
+    if (/^\d{1,2}:\d{2}/.test(t)) {
+      return t.replace(/AM|PM/i, "").trim();
+    }
 
-    const ampm = hour >= 12 ? "PM" : "AM";
-    if (hour > 12) hour -= 12;
-    if (hour === 0) hour = 12;
-    return `${hour.toString().padStart(2, "0")}:${minute.padStart(
-      2,
-      "0"
-    )} ${ampm}`;
+    const match = t.match(/(\d{1,2}):(\d{2})/);
+    if (match) {
+      return `${match[1].padStart(2, "0")}:${match[2]}`;
+    }
+
+    return "--:--";
   };
 
   const formattedTime = formatTime(timeVal);
 
   // ----------------- CLOSED SIGNAL LOGIC -----------------
-
   let closedPrice = currentPrice;
-
   if (isClosed) {
-    // freeze live price to closing price
-    closedPrice = t || res || signalPrice || currentPrice;
+    closedPrice = currentPrice; // freeze
   }
 
-  // Use "display price"
   const displayPrice = isClosed ? closedPrice : currentPrice;
 
   // ----------------- RAW VALUES -----------------
@@ -57,13 +49,12 @@ export default function SignalCard({
     .map(Number)
     .filter((v) => !isNaN(v) && v !== 0);
 
-  let minRaw = Math.min(...rawVals);
-  let maxRaw = Math.max(...rawVals);
+  const minRaw = Math.min(...rawVals);
+  const maxRaw = Math.max(...rawVals);
   const diffRaw = maxRaw - minRaw;
 
-  // ----------------- C2 SCALING (≥15 units) -----------------
+  // ----------------- SCALING -----------------
   let scaleMin, scaleMax;
-
   if (diffRaw < 15) {
     const center = (minRaw + maxRaw) / 2;
     scaleMin = center - 7.5;
@@ -74,12 +65,10 @@ export default function SignalCard({
     scaleMax = maxRaw + pad;
   }
 
-  // ----------------- SIGNAL PRICE FIX -----------------
+  // Fix if signalPrice <= stoploss
   if (
     signalPrice !== undefined &&
     st !== undefined &&
-    signalPrice !== null &&
-    st !== null &&
     !isNaN(signalPrice) &&
     !isNaN(st) &&
     signalPrice <= st
@@ -88,14 +77,13 @@ export default function SignalCard({
     signalPrice = st + adjust;
   }
 
-  // Convert price → % position
   const getPos = (val) =>
     ((val - scaleMin) / (scaleMax - scaleMin)) * 100;
 
   const isProfit = displayPrice > signalPrice;
   const color = isProfit ? "#00C853" : "#E53935";
 
-  // ----------------- MARKERS -----------------
+  // ----------------- MARKER POSITIONS -----------------
   const markers = [
     { key: "SUP", value: Number(sup) },
     { key: "ST", value: Number(st) },
@@ -115,14 +103,14 @@ export default function SignalCard({
   const MIN_GAP = 12;
   const SAFE_OFFSET = 4;
 
-  // PASS 1 — spacing
+  // spacing pass 1
   for (let i = 1; i < positions.length; i++) {
     if (positions[i].pos - positions[i - 1].pos < MIN_GAP) {
       positions[i].pos = positions[i - 1].pos + MIN_GAP;
     }
   }
 
-  // Right clamp
+  // right clamp
   let overflowRight = positions[positions.length - 1].pos - (100 - SAFE_OFFSET);
   if (overflowRight > 0) {
     for (let i = 0; i < positions.length; i++) {
@@ -130,7 +118,7 @@ export default function SignalCard({
     }
   }
 
-  // Left clamp
+  // left clamp
   let overflowLeft = SAFE_OFFSET - positions[0].pos;
   if (overflowLeft > 0) {
     for (let i = 0; i < positions.length; i++) {
@@ -138,46 +126,23 @@ export default function SignalCard({
     }
   }
 
-  // PASS 2 spacing
+  // spacing pass 2
   for (let i = 1; i < positions.length; i++) {
     if (positions[i].pos - positions[i - 1].pos < MIN_GAP) {
       positions[i].pos = positions[i - 1].pos + MIN_GAP;
     }
   }
 
-  // CLAMP 1
   positions = positions.map((p) => ({
     key: p.key,
     pos: Math.max(SAFE_OFFSET, Math.min(100 - SAFE_OFFSET, p.pos)),
   }));
 
-  // Hard clamp spacing again
-  for (let i = 1; i < positions.length; i++) {
-    if (positions[i].pos - positions[i - 1].pos < MIN_GAP) {
-      positions[i].pos = positions[i - 1].pos + MIN_GAP;
-
-      if (positions[i].pos > 100 - SAFE_OFFSET) {
-        const shift = positions[i].pos - (100 - SAFE_OFFSET);
-        for (let j = 0; j < positions.length; j++) {
-          positions[j].pos -= shift;
-        }
-      }
-    }
-  }
-
-  // CLAMP 2
-  positions = positions.map((p) => ({
-    key: p.key,
-    pos: Math.max(SAFE_OFFSET, Math.min(100 - SAFE_OFFSET, p.pos)),
-  }));
-
-  // Convert to dictionary
   let finalPos = {};
   positions.forEach((p) => {
     finalPos[p.key] = p.pos;
   });
 
-  // Clamp TEXT inside line
   const clampText = (pos) => {
     const leftLimit = SAFE_OFFSET + 2;
     const rightLimit = 100 - SAFE_OFFSET - 2;
@@ -188,7 +153,7 @@ export default function SignalCard({
     if (finalPos[k] !== undefined) finalPos[k] = clampText(finalPos[k]);
   });
 
-  // ----------------- Fill Bar -----------------
+  // ----------------- FILL BAR (ALWAYS VISIBLE) -----------------
   const fillLeft = Math.min(finalPos["SIGNAL"], finalPos["LIVE"]);
   const fillWidth = Math.abs(finalPos["SIGNAL"] - finalPos["LIVE"]);
 
@@ -197,7 +162,7 @@ export default function SignalCard({
     <div
       className="signal-card-advanced clean-line-layout"
       style={{
-        opacity: isClosed ? 0.55 : 1, // GRAY OUT
+        opacity: isClosed ? 0.55 : 1,
         filter: isClosed ? "grayscale(70%)" : "none",
       }}
     >
@@ -255,17 +220,15 @@ export default function SignalCard({
       <div className="indicator-container">
         <div className="indicator-line"></div>
 
-        {/* NO FILL BAR for CLOSED */}
-        {!isClosed && (
-          <div
-            className="indicator-fill"
-            style={{
-              left: `${fillLeft}%`,
-              width: `${fillWidth}%`,
-              backgroundColor: color,
-            }}
-          ></div>
-        )}
+        {/* ⭐ ALWAYS VISIBLE — even for CLOSED ⭐ */}
+        <div
+          className="indicator-fill"
+          style={{
+            left: `${fillLeft}%`,
+            width: `${fillWidth}%`,
+            backgroundColor: color,
+          }}
+        ></div>
 
         {/* SUP */}
         <div className="marker" style={{ left: `${finalPos["SUP"]}%` }}>
@@ -287,15 +250,13 @@ export default function SignalCard({
           <div className="price-bubble">{signalPrice?.toFixed(2) || "--"}</div>
         </div>
 
-        {/* LIVE — Hide on CLOSED */}
-        {!isClosed && (
-          <div className="marker" style={{ left: `${finalPos["LIVE"]}%` }}>
-            <div className="shape triangle"></div>
-            <div className="price-bubble price-bubble-live">
-              {displayPrice?.toFixed(2) || "--"}
-            </div>
+        {/* LIVE — Always visible */}
+        <div className="marker" style={{ left: `${finalPos["LIVE"]}%` }}>
+          <div className="shape triangle"></div>
+          <div className="price-bubble price-bubble-live">
+            {displayPrice?.toFixed(2) || "--"}
           </div>
-        )}
+        </div>
 
         {/* T */}
         <div className="marker" style={{ left: `${finalPos["T"]}%` }}>
