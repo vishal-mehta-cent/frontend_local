@@ -9,6 +9,34 @@ import {
   AlignVerticalJustifyStart
 } from "lucide-react";
 
+// Convert CSV date ("2025-11-21 12:29:00+05:30") → UNIX seconds
+function parseISTDateToUnix(dstr) {
+    try {
+        return Math.floor(new Date(dstr).getTime() / 1000);
+    } catch {
+        return null;
+    }
+}
+
+// Find nearest candle timestamp for better alignment
+function findNearestCandleTime(candles, targetTime) {
+    if (!Array.isArray(candles) || !candles.length) return targetTime;
+    let nearest = candles[0].time;
+    let minDiff = Math.abs(targetTime - nearest);
+
+    for (const c of candles) {
+        const diff = Math.abs(c.time - targetTime);
+        if (diff < minDiff) {
+            minDiff = diff;
+            nearest = c.time;
+        }
+    }
+    return nearest;
+}
+
+
+
+
 const RayIcon = ArrowRight;
 
 const API =
@@ -17,7 +45,9 @@ const API =
     .replace(/\/+$/, "");
 
 const HEADER_H = 56;
-const TF_MIN = { "1m": 1, "5m": 5, "15m": 15, "1h": 60, "1d": 1440 };
+const TF_MIN = { "1m": 1, "2m": 2, "5m": 5, "15m": 15, "1h": 60, "1d": 1440 };
+
+
 
 /* ----------------------- math helpers ----------------------- */
 const SMA = (arr, p) => {
@@ -433,6 +463,24 @@ function pointToSegDist(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - xx, py - yy);
 }
 
+function startLiveFeed(symbol, onTick) {
+  const ws = new WebSocket(`ws://127.0.0.1:8000/market/ticks?symbol=${symbol}`);
+
+  ws.onmessage = (ev) => {
+    try {
+      const js = JSON.parse(ev.data);
+      if (js.price) onTick(js);
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    console.log("WS closed… reconnecting in 2s");
+    setTimeout(() => startLiveFeed(symbol, onTick), 2000);
+  };
+
+  return ws;
+}
+
 /* ---------- IST helpers ---------- */
 const IST_OFFSET_SEC = 5.5 * 3600;
 function fmtISTFromUnixSec(sec, withDate=false) {
@@ -448,12 +496,21 @@ function fmtISTFromUnixSec(sec, withDate=false) {
 }
 
 export default function ChartPage() {
+const cleanupFns = useRef([]).current;
+const [desc1, setDesc1] = useState("");
+const [desc2, setDesc2] = useState("");
+const [desc3, setDesc3] = useState("");
+const [desc4, setDesc4] = useState("");
+
+const [signalData, setSignalData] = useState(null);
+
   const { symbol: rawSym } = useParams();
   const symbol = useMemo(() => (rawSym || "").toUpperCase(), [rawSym]);
   const navigate = useNavigate();
 
   const [tf, setTf] = useState("1m");
   const [lastPrice, setLastPrice] = useState(null);
+  const liveTimerRef = useRef(null);
   const [status, setStatus] = useState("loading");
 
   const [openIndModal, setOpenIndModal] = useState(false);
@@ -463,17 +520,22 @@ export default function ChartPage() {
 
   const mainRef = useRef(null);
   const overlayRef = useRef(null);
-  const volumeRef = useRef(null);            // ✅ separate volume pane
+  const volumeRef = useRef(null);            // separate volume pane
   const oscRef = useRef(null);
   const mainChart = useRef(null);
-  const volumeChart = useRef(null);          // ✅ separate volume chart ref
+  const volumeChart = useRef(null);
   const oscChart = useRef(null);
   const priceSeries = useRef(null);
-  const volSeries = useRef(null);            // ✅ series on volume chart
+  const livePriceLine = useRef(null);
+  const volSeries = useRef(null);
 
   // ▶ INDICATORS — series managers
   const indSeriesMain = useRef({});
   const indSeriesOsc  = useRef({});
+
+  // ▶ Store the data we set on each indicator series for hit-testing
+  const indDataMain = useRef({}); // { key: [{ series, data:[{time,value}]}] }
+  const indDataOsc  = useRef({});
 
   const tfSec = useMemo(() => TF_MIN[tf] * 60, [tf]);
 
@@ -494,6 +556,7 @@ export default function ChartPage() {
     if (left + menuW + 8 > vw) left = Math.max(8, vw - menuW - 8);
     setCtPos({ top: rect.bottom + gap, left });
   }, []);
+  
 
   useEffect(() => {
     const onDocClick = (e) => {
@@ -534,7 +597,12 @@ export default function ChartPage() {
   const [tbPos, setTbPos] = useState({ x: 0, y: 0 });
   const [toolbarOpen, setToolbarOpen] = useState(false);
 
-  // freeze UI while toolbar is used (prevents dropdowns from auto closing)
+  // indicator toolbar
+  const [indTbOpen, setIndTbOpen] = useState(false);
+  const [indTbPos, setIndTbPos] = useState({ x: 0, y: 0 });
+  const [selectedIndicator, setSelectedIndicator] = useState(null); // {series}
+
+  // freeze UI while toolbar is used
   const uiFreezeRef = useRef(false);
   const freezeUI = () => { uiFreezeRef.current = true; };
   const unfreezeUI = () => { uiFreezeRef.current = false; };
@@ -547,11 +615,102 @@ export default function ChartPage() {
         setActiveTool(null);
         setToolbarOpen(false);
         setSelectedId(null);
+        setIndTbOpen(false);
+        setSelectedIndicator(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+ 
+
+
+// ---------------------------------------------------------
+// LOAD ALL SIGNALS (FINAL VERSION - FULL FIX)
+// ---------------------------------------------------------
+async function loadAllSignals(symbol) {
+  try {
+    console.log("loadAllSignals called for TF:", tf);
+
+    // ----------------------------------------------------
+    // STEP 1 — BLOCK SIGNALS FOR OTHER TIMEFRAMES
+    // ----------------------------------------------------
+    const blocked = ["1m", "1h", "1d"];
+
+    if (blocked.includes(tf)) {
+      console.log("TF BLOCKED → Clearing markers");
+      if (priceSeries.current) {
+        priceSeries.current.setMarkers([]);
+        priceSeries.current._markers = [];
+      }
+      return; // <---- STOP HERE
+    }
+
+    // ONLY allow 2m + 15m
+    if (tf !== "2m" && tf !== "15m") {
+      console.log("TF not allowed → Clearing markers");
+      if (priceSeries.current) {
+        priceSeries.current.setMarkers([]);
+        priceSeries.current._markers = [];
+      }
+      return;
+    }
+
+    // ----------------------------------------------------
+    // STEP 2 — FETCH SIGNALS FROM BACKEND
+    // ----------------------------------------------------
+    const url = `${API}/market/all-signals?symbol=${symbol}`;
+    const r = await fetch(url);
+    if (!r.ok) return;
+
+    const js = await r.json();
+    if (!js.signals || !Array.isArray(js.signals)) return;
+
+    // ----------------------------------------------------
+    // STEP 3 — SORT SIGNALS BY TIMESTAMP
+    // ----------------------------------------------------
+    const sorted = js.signals.sort((a, b) => a.timestamp - b.timestamp);
+
+    // ----------------------------------------------------
+    // STEP 4 — CONVERT INTO MARKERS
+    // ----------------------------------------------------
+    const markers = sorted.map(sig => ({
+      time: Number(sig.timestamp),
+      position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
+      shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
+      color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
+      text: `${sig.signal} @ ${sig.close_price}`,
+    }));
+
+    console.log("=== LOADED SIGNALS FROM BACKEND (SORTED) ===");
+    markers.forEach((m, i) => {
+      console.log(
+        `Marker #${i + 1} | Time=${m.time} | Position=${m.position} | Text=${m.text}`
+      );
+    });
+
+    // ----------------------------------------------------
+    // STEP 5 — APPLY MARKERS ONLY WHEN TF IS VALID (2m/15m)
+    // ----------------------------------------------------
+    if (priceSeries.current) {
+      priceSeries.current.setMarkers(markers);
+      priceSeries.current._markers = markers;
+    }
+
+    console.log("✔ Loaded markers:", markers.length);
+
+  } catch (err) {
+    console.error("Signal Load Error:", err);
+  }
+}
+
+
+
+
+
+
+
 
   /* ---------------- Fetch candles ---------------- */
   const [candles, setCandles] = useState([]);
@@ -571,7 +730,8 @@ export default function ChartPage() {
   const applySeriesData = useCallback((t, rows) => {
     const dataToUse = mapDataForType(t, rows);
 
-    if (t === "hist" || t === "line" || t === "linemk" || t === "step" || t === "area" || t === "baseline") {
+    // --- Candle / Line / etc. series ---
+    if (["hist", "line", "linemk", "step", "area", "baseline"].includes(t)) {
       priceSeries.current?.setData(
         dataToUse.map(d => ({ time: d.time, value: d.close }))
       );
@@ -586,8 +746,9 @@ export default function ChartPage() {
         }))
       );
     }
-
-    // ✅ Volume histogram on the SEPARATE volume pane
+    
+    
+    // --- Volume bars on separate pane (time-synced with main) ---
     if (volSeries.current) {
       volSeries.current.setData(
         dataToUse.map((d, i) => ({
@@ -595,13 +756,23 @@ export default function ChartPage() {
           value: d.volume ?? 0,
           color:
             d.close >= (dataToUse[i - 1]?.close ?? d.open)
-              ? "rgba(34,197,94,0.6)"   // green
-              : "rgba(239,68,68,0.6)",  // red
+              ? "rgba(16, 185, 129, 0.7)"
+              : "rgba(239, 68, 68, 0.7)",
         }))
       );
     }
-  }, []);
 
+    // Keep both panes synced
+    const main = mainChart.current;
+    const vol = volumeChart.current;
+    if (main && vol) {
+      try {
+        const lr = main.timeScale().getVisibleLogicalRange();
+        if (lr && lr.from && lr.to)
+          vol.timeScale().setVisibleLogicalRange(lr);
+      } catch {}
+    }
+  }, []);
 
   const tryFetchOlder = useCallback(async (oldest) => {
     const qs = [
@@ -642,7 +813,6 @@ export default function ChartPage() {
         const t = chartType.type;
         applySeriesData(t, merged);
 
-        // keep the viewport stable by shifting logical range by bars added
         if (logicalRangeBefore && typeof logicalRangeBefore.from === "number" && typeof logicalRangeBefore.to === "number") {
           const barsAdded = older.length;
           const newRange = {
@@ -653,7 +823,7 @@ export default function ChartPage() {
         }
       }
     } catch {
-      // ignore fetch errors (no more data etc.)
+      // ignore fetch errors
     } finally {
       loadingMoreRef.current = false;
       setIsFetchingOlder(false);
@@ -677,7 +847,20 @@ export default function ChartPage() {
         borderVisible: false,
         timeVisible: true,
         secondsVisible: false,
-        tickMarkFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t) : "",
+        tickMarkFormatter: (t, tickMarkType) => {
+          if (typeof t !== "number") return "";
+          const d = new Date((t + 5.5 * 3600) * 1000);
+          const hh = d.getUTCHours().toString().padStart(2, "0");
+          const mm = d.getUTCMinutes().toString().padStart(2, "0");
+          const istHour = d.getUTCHours();
+          const istMinute = d.getUTCMinutes();
+          if ((istHour === 9 && istMinute < 25) || (tickMarkType === 0)) {
+            const day = d.getUTCDate().toString().padStart(2, "0");
+            const month = d.toLocaleString("en-GB", { month: "short" });
+            return `${day} ${month}`;
+          }
+          return `${hh}:${mm}`;
+        },
         rightOffset: 5,
         barSpacing: 7,
         fixLeftEdge: false,
@@ -724,7 +907,7 @@ export default function ChartPage() {
       series = main.addHistogramSeries({ base: 0 });
     }
 
-    // ✅ Separate VOLUME chart below main
+    // Volume chart below, time-synced
     const vol = createChart(volumeRef.current, {
       width: volumeRef.current.clientWidth,
       height: Math.max(120, Math.floor((window.innerHeight - HEADER_H) * 0.18)),
@@ -749,16 +932,6 @@ export default function ChartPage() {
       base: 0,
     });
 
-    mainChart.current = main;
-    volumeChart.current = vol;
-    priceSeries.current = series;
-    volSeries.current = volHist;
-
-    if (Array.isArray(candles) && candles.length) {
-      applySeriesData(t, candles);
-      requestAnimationFrame(() => main.timeScale().scrollToPosition(-10, false));
-    }
-
     const osc = createChart(oscRef.current, {
       width: oscRef.current.clientWidth,
       height: Math.max(180, Math.floor((window.innerHeight - HEADER_H) * 0.22) - 8),
@@ -776,7 +949,27 @@ export default function ChartPage() {
         timeFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t, true) : "",
       },
     });
+
+    mainChart.current = main;
+    volumeChart.current = vol;
     oscChart.current = osc;
+    priceSeries.current = series;
+    // LIVE MOVING PRICE LINE (Zerodha style)
+livePriceLine.current = priceSeries.current.createPriceLine({
+  price: 0,
+  color: "#dc2626",
+  lineWidth: 2,
+  lineStyle: 2,
+  axisLabelVisible: true,
+  title: "LTP"
+});
+
+    volSeries.current = volHist;
+
+    if (Array.isArray(candles) && candles.length) {
+      applySeriesData(t, candles);
+      requestAnimationFrame(() => main.timeScale().scrollToPosition(-10, false));
+    }
 
     // keep panes in sync
     const sync = () => {
@@ -786,8 +979,10 @@ export default function ChartPage() {
       try { osc.timeScale().setVisibleLogicalRange(lr); } catch {}
     };
     main.timeScale().subscribeVisibleLogicalRangeChange(sync);
+    vol.timeScale().subscribeVisibleLogicalRangeChange(sync);
+    osc.timeScale().subscribeVisibleLogicalRangeChange(sync);
 
-    // robust "need more bars" detector
+    // need-more detector (scroll-left)
     const onNeedMore = () => {
       const ts = main.timeScale();
       const lr = ts.getVisibleLogicalRange();
@@ -796,27 +991,21 @@ export default function ChartPage() {
       try {
         const info = priceSeries.current.barsInLogicalRange(lr);
         const leftEdgeTime = ts.coordinateToTime(0);
-
-        // normal path
         if (info && typeof info.barsBefore === "number") {
           if (info.barsBefore < 20) loadMoreLeft();
           return;
         }
-
-        // fallback: if left screen edge already at/before first candle time
         const first = earliestRef.current;
         if (typeof leftEdgeTime === "number" && typeof first === "number") {
           if (leftEdgeTime <= first + tfSec) loadMoreLeft();
         }
-      } catch {
-        // ignore
-      }
+      } catch {}
     };
 
     main.timeScale().subscribeVisibleLogicalRangeChange(onNeedMore);
     main.timeScale().subscribeVisibleTimeRangeChange(onNeedMore);
 
-    // debounced resize that respects toolbar freeze
+    // debounced resize with freeze protection
     let resizeTimer = null;
     const handleResize = () => {
       if (uiFreezeRef.current) return;
@@ -846,7 +1035,7 @@ export default function ChartPage() {
       try { main.timeScale().unsubscribeVisibleTimeRangeChange(onNeedMore); } catch {}
       window.removeEventListener("resize", handleResize);
     };
-// NOTE: avoid rebuilding on every candles merge; don't include `candles`
+// NOTE: don't include `candles` so we don't rebuild chart on every merge
   }, [symbol, tf, chartType, applySeriesData, loadMoreLeft, tfSec]);
 
   /* ---------------- Fetch candles ---------------- */
@@ -863,15 +1052,14 @@ export default function ChartPage() {
         if (cancelled) return;
 
         const setAll = (rows) => {
-          setCandles(rows);
-          const t = chartType.type;
-          applySeriesData(t, rows);
-          setLastPrice(rows[rows.length - 1]?.close ?? null);
-          earliestRef.current = rows[0]?.time ?? null;
-          // give some right whitespace
-          requestAnimationFrame(() => mainChart.current?.timeScale()?.scrollToPosition(-10, false));
-          setStatus("live");
-        };
+    setCandles(rows);
+    const t = chartType.type;
+    applySeriesData(t, rows);
+    
+
+    setLastPrice(rows[rows.length - 1]?.close ?? null);
+  };
+
 
         if (Array.isArray(data) && data.length) {
           setAll(data);
@@ -889,9 +1077,118 @@ export default function ChartPage() {
         if (!cancelled) setStatus("error");
       }
     }
+
+    
     load();
-    return () => { cancelled = true; };
-  }, [symbol, tf, tfSec, chartType, applySeriesData]);
+    // ========== LIVE PRICE UPDATE ========== //
+let ws = null;
+
+function handleTick(tick) {
+  if (!priceSeries.current) return;
+
+  const price = tick.price;
+  const time = Math.floor(Date.now() / 1000);
+
+  setLastPrice(price);
+
+  // Update last candle live
+  setCandles(prev => {
+    if (!prev.length) return prev;
+
+    const newArr = [...prev];
+    const last = { ...newArr[newArr.length - 1] };
+
+    if (time - last.time < tfSec) {
+      // update existing candle
+      last.high = Math.max(last.high, price);
+      last.low = Math.min(last.low, price);
+      last.close = price;
+      newArr[newArr.length - 1] = last;
+    } else {
+      // new candle
+      newArr.push({
+        time,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: 0,
+      });
+    }
+
+    // apply new data to chart
+    applySeriesData(chartType.type, newArr);
+
+    return newArr;
+  });
+
+  // Moving price line (Zerodha-style)
+  priceSeries.current.applyOptions({
+    priceLineVisible: true,
+    lastValueVisible: true,
+    priceLineColor: price >= lastPrice ? "#16a34a" : "#dc2626",
+  });
+}
+
+// Start websocket after initial load
+ws = startLiveFeed(symbol, handleTick);
+
+cleanupFns.push(() => ws?.close());
+
+   return () => {
+    cancelled = true;
+    cleanupFns.forEach(fn => fn && fn());
+  };
+}, [symbol, tf, tfSec, chartType, applySeriesData]);
+  
+// LIVE PRICE UPDATER (updates every second)
+// LIVE PRICE UPDATER — NO BLINK
+useEffect(() => {
+  if (!priceSeries.current) return;
+
+  const timer = setInterval(async () => {
+    try {
+      const res = await fetch(
+        `${API}/market/ohlc?symbol=${symbol}&interval=${tf}&limit=1`
+      );
+      const js = await res.json();
+      if (!Array.isArray(js) || js.length === 0) return;
+
+      const live = js[js.length - 1];
+
+      // update last price in header
+      setLastPrice(live.close);
+
+      // move horizontal price line
+      livePriceLine.current?.applyOptions({ price: live.close });
+
+      // update ONLY last candle without re-render
+      priceSeries.current.update(live);
+
+      // update volume also without re-render
+      volSeries.current?.update({
+        time: live.time,
+        value: live.volume,
+        color:
+          live.close >= live.open
+            ? "rgba(16,185,129,0.7)"
+            : "rgba(239,68,68,0.7)"
+      });
+
+      // scroll to latest candle
+     if (isAtEnd) {
+  mainChart.current?.timeScale()?.scrollToRealTime();
+}
+
+      
+    } catch (e) {
+      console.error("Live price error:", e);
+    }
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, [symbol, tf]);
+
 
   /* ---------------- Overlay drawing helpers ---------------- */
   const pickTool = (key) => {
@@ -899,6 +1196,8 @@ export default function ChartPage() {
     setDrawerOpen(false);
     setSelectedId(null);
     setToolbarOpen(false);
+    setIndTbOpen(false);
+    setSelectedIndicator(null);
   };
 
   const toChartPoint = useCallback((evt) => {
@@ -918,10 +1217,10 @@ export default function ChartPage() {
       const ps = priceSeries.current.coordinateToPrice(y);
       if (typeof ps === "number" && isFinite(ps)) price = ps;
     } catch {}
-    return { time, price, px: { x, y } };
+    return { time, price, px: { x, y }, client: { x: evt.clientX, y: evt.clientY } };
   }, []);
 
-  // SAFE ensureXY: never call timeToCoordinate / priceToCoordinate with null/undefined
+  // SAFE ensureXY:
   const ensureXY = (pt) => {
     const chart = mainChart.current;
     const series = priceSeries.current;
@@ -992,6 +1291,36 @@ export default function ChartPage() {
     return null;
   };
 
+  // --- Indicator hit-test on MAIN pane
+  const hitTestIndicatorMain = (mouseX, mouseY) => {
+    const chart = mainChart.current;
+    if (!chart) return null;
+    const ts = chart.timeScale();
+    const priceToY = (series, price) => {
+      try { return series.priceToCoordinate(price); } catch { return null; }
+    };
+    const timeToX = (time) => {
+      try { return ts.timeToCoordinate(time); } catch { return null; }
+    };
+    const maxPx = 6;
+
+    for (const arr of Object.values(indDataMain.current || {})) {
+      for (const { series, data } of arr) {
+        if (!series || !data?.length) continue;
+        for (let i = 1; i < data.length; i++) {
+          const a = data[i - 1], b = data[i];
+          if (!a || !b || a.value == null || b.value == null) continue;
+          const xa = timeToX(a.time), xb = timeToX(b.time);
+          const ya = priceToY(series, a.value), yb = priceToY(series, b.value);
+          if (xa == null || xb == null || ya == null || yb == null) continue;
+          const dpx = Math.abs((yb - ya) * mouseX - (xb - xa) * mouseY + (xb * ya - yb * xa)) / Math.hypot(yb - ya, xb - xa);
+          if (dpx <= maxPx) return { series };
+        }
+      }
+    }
+    return null;
+  };
+
   const updateToolbarPos = useCallback((d) => {
     if (!d) return setToolbarOpen(false);
     const P = d.points.map(ensureXY).filter(Boolean);
@@ -1012,19 +1341,39 @@ export default function ChartPage() {
     const p = toChartPoint(e);
     if (!p) return;
 
+    // If not in draw mode, try picking drawings or indicators
     if (!activeTool) {
+      // Drawings first
       const id = hitTest(p.px.x, p.px.y);
       if (id) {
         const d = drawingsRef.current.find(x => x.id === id);
         setSelectedId(id);
+        setSelectedIndicator(null);
+        setIndTbOpen(false);
         updateToolbarPos(d);
         return;
       }
+
+      // Indicators on main pane
+      const hitInd = hitTestIndicatorMain(p.px.x, p.px.y);
+      if (hitInd?.series) {
+        setSelectedId(null);
+        setSelectedIndicator(hitInd.series);
+        setToolbarOpen(false);
+        setIndTbOpen(true);
+        setIndTbPos({ x: p.client.x, y: p.client.y });
+        return;
+      }
+
+      // nothing picked
       setSelectedId(null);
+      setSelectedIndicator(null);
       setToolbarOpen(false);
+      setIndTbOpen(false);
       return;
     }
 
+    // drawing mode
     pushPoint(p);
     draggingRef.current = true;
   };
@@ -1123,7 +1472,7 @@ export default function ChartPage() {
                   const active = !disabled && it.type === chartType.type;
                   return (
                     <button key={it.key} disabled={disabled} onClick={() => pickType(it)}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${disabled ? "opacity-40 cursor-not-allowed" : active ? "bg-blue-50 border border-blue-200" : "hover:bg-gray-50"}`}>
+                      className={`w-full flex itemsCENTER gap-2 px-2 py-1.5 rounded text-sm ${disabled ? "opacity-40 cursor-not-allowed" : active ? "bg-blue-50 border border-blue-200" : "hover:bg-gray-50"}`}>
                       <LineChart className="w-4 h-4" />
                       <span className="flex-1 text-left">{it.label}</span>
                     </button>
@@ -1234,15 +1583,20 @@ export default function ChartPage() {
     Object.values(indSeriesOsc.current).flat().forEach(s => { try { s.remove(); } catch {} });
     indSeriesMain.current = {};
     indSeriesOsc.current = {};
+    indDataMain.current = {};
+    indDataOsc.current = {};
   }, []);
 
   const updateIndicators = useCallback(() => {
     if (!mainChart.current || !oscChart.current || !candles.length) return;
 
+    // clear existing
     Object.values(indSeriesMain.current).flat().forEach(s => { try { s.remove(); } catch {} });
     Object.values(indSeriesOsc.current).flat().forEach(s => { try { s.remove(); } catch {} });
     indSeriesMain.current = {};
     indSeriesOsc.current = {};
+    indDataMain.current = {};
+    indDataOsc.current = {};
 
     const main = mainChart.current;
     const osc  = oscChart.current;
@@ -1259,20 +1613,31 @@ export default function ChartPage() {
     const addOscHist = (color="#64748b") =>
       osc.addHistogramSeries({ color, priceLineVisible:false, base:0 });
 
+    const pushMain = (key, s, data) => {
+      indSeriesMain.current[key] = (indSeriesMain.current[key] || []).concat(s);
+      indDataMain.current[key]   = (indDataMain.current[key]   || []).concat({ series: s, data });
+    };
+    const pushOsc = (key, s, data) => {
+      indSeriesOsc.current[key] = (indSeriesOsc.current[key] || []).concat(s);
+      indDataOsc.current[key]   = (indDataOsc.current[key]   || []).concat({ series: s, data });
+    };
+
     if (active.hi52) {
       const { hi, lo } = highLow52w(candles, 252);
       const sHi = addMainLine("#f59e0b", 1);
       const sLo = addMainLine("#10b981", 1);
-      sHi.setData(times.map((t,i)=> hi[i]==null? null : { time:t, value:hi[i] }).filter(Boolean));
-      sLo.setData(times.map((t,i)=> lo[i]==null? null : { time:t, value:lo[i] }).filter(Boolean));
-      indSeriesMain.current.hi52 = [sHi, sLo];
+      const dHi = times.map((t,i)=> hi[i]==null? null : { time:t, value:hi[i] }).filter(Boolean);
+      const dLo = times.map((t,i)=> lo[i]==null? null : { time:t, value:lo[i] }).filter(Boolean);
+      sHi.setData(dHi); sLo.setData(dLo);
+      pushMain("hi52", sHi, dHi); pushMain("hi52", sLo, dLo);
     }
 
     if (active.avgprice) {
       const avg = AvgPrice(candles, 14);
       const s = addMainLine("#3b82f6", 2);
-      s.setData(times.map((t,i)=> avg[i]==null? null : { time:t, value:avg[i] }).filter(Boolean));
-      indSeriesMain.current.avgprice = [s];
+      const d = times.map((t,i)=> avg[i]==null? null : { time:t, value:avg[i] }).filter(Boolean);
+      s.setData(d);
+      pushMain("avgprice", s, d);
     }
 
     if (active.bbands || active.bb_pctb || active.bb_width) {
@@ -1282,28 +1647,32 @@ export default function ChartPage() {
         const sU = addMainLine("#0ea5e9", 1);
         const sM = addMainLine("#6366f1", 1);
         const sL = addMainLine("#0ea5e9", 1);
-        sU.setData(times.map((t,i)=> upper[i]==null? null : { time:t, value:upper[i] }).filter(Boolean));
-        sM.setData(times.map((t,i)=> ma[i]==null? null : { time:t, value:ma[i] }).filter(Boolean));
-        sL.setData(times.map((t,i)=> lower[i]==null? null : { time:t, value:lower[i] }).filter(Boolean));
-        indSeriesMain.current.bbands = [sU,sM,sL];
+        const dU = times.map((t,i)=> upper[i]==null? null : { time:t, value:upper[i] }).filter(Boolean);
+        const dM = times.map((t,i)=> ma[i]==null? null : { time:t, value:ma[i] }).filter(Boolean);
+        const dL = times.map((t,i)=> lower[i]==null? null : { time:t, value:lower[i] }).filter(Boolean);
+        sU.setData(dU); sM.setData(dM); sL.setData(dL);
+        pushMain("bbands", sU, dU); pushMain("bbands", sM, dM); pushMain("bbands", sL, dL);
       }
       if (active.bb_pctb) {
         const s = addOscLine("#10b981", 2);
-        s.setData(times.map((t,i)=> pctB[i]==null? null : { time:t, value:pctB[i]*100 }).filter(Boolean));
-        indSeriesOsc.current.bb_pctb = [s];
+        const d = times.map((t,i)=> pctB[i]==null? null : { time:t, value:pctB[i]*100 }).filter(Boolean);
+        s.setData(d);
+        pushOsc("bb_pctb", s, d);
       }
       if (active.bb_width) {
         const s = addOscLine("#f59e0b", 2);
-        s.setData(times.map((t,i)=> width[i]==null? null : { time:t, value:width[i] }).filter(Boolean));
-        indSeriesOsc.current.bb_width = [s];
+        const d = times.map((t,i)=> width[i]==null? null : { time:t, value:width[i] }).filter(Boolean);
+        s.setData(d);
+        pushOsc("bb_width", s, d);
       }
     }
 
     if (active.supertrend) {
       const { trend } = Supertrend(candles, 10, 3);
       const s = addMainLine("#22c55e", 2);
-      s.setData(times.map((t,i)=> trend[i]==null? null : { time:t, value:trend[i] }).filter(Boolean));
-      indSeriesMain.current.supertrend = [s];
+      const d = times.map((t,i)=> trend[i]==null? null : { time:t, value:trend[i] }).filter(Boolean);
+      s.setData(d);
+      pushMain("supertrend", s, d);
     }
 
     if (active.adx) {
@@ -1311,10 +1680,11 @@ export default function ChartPage() {
       const s1 = addOscLine("#22c55e", 1);
       const s2 = addOscLine("#ef4444", 1);
       const s3 = addOscLine("#3b82f6", 2);
-      s1.setData(times.map((t,i)=> plusDI[i]==null? null : { time:t, value:plusDI[i] }).filter(Boolean));
-      s2.setData(times.map((t,i)=> minusDI[i]==null? null : { time:t, value:minusDI[i] }).filter(Boolean));
-      s3.setData(times.map((t,i)=> adx[i]==null? null : { time:t, value:adx[i] }).filter(Boolean));
-      indSeriesOsc.current.adx = [s1,s2,s3];
+      const d1 = times.map((t,i)=> plusDI[i]==null? null : { time:t, value:plusDI[i] }).filter(Boolean);
+      const d2 = times.map((t,i)=> minusDI[i]==null? null : { time:t, value:minusDI[i] }).filter(Boolean);
+      const d3 = times.map((t,i)=> adx[i]==null? null : { time:t, value:adx[i] }).filter(Boolean);
+      s1.setData(d1); s2.setData(d2); s3.setData(d3);
+      pushOsc("adx", s1, d1); pushOsc("adx", s2, d2); pushOsc("adx", s3, d3);
     }
 
     if (active.aroon) {
@@ -1322,53 +1692,60 @@ export default function ChartPage() {
       const s1 = addOscLine("#22c55e", 1);
       const s2 = addOscLine("#ef4444", 1);
       const s3 = addOscLine("#6366f1", 2);
-      s1.setData(times.map((t,i)=> up[i]==null? null : { time:t, value:up[i] }).filter(Boolean));
-      s2.setData(times.map((t,i)=> down[i]==null? null : { time:t, value:down[i] }).filter(Boolean));
-      s3.setData(times.map((t,i)=> arOsc[i]==null? null : { time:t, value:arOsc[i] }).filter(Boolean));
-      indSeriesOsc.current.aroon = [s1,s2,s3];
+      const d1 = times.map((t,i)=> up[i]==null? null : { time:t, value:up[i] }).filter(Boolean);
+      const d2 = times.map((t,i)=> down[i]==null? null : { time:t, value:down[i] }).filter(Boolean);
+      const d3 = times.map((t,i)=> arOsc[i]==null? null : { time:t, value:arOsc[i] }).filter(Boolean);
+      s1.setData(d1); s2.setData(d2); s3.setData(d3);
+      pushOsc("aroon", s1, d1); pushOsc("aroon", s2, d2); pushOsc("aroon", s3, d3);
     }
 
     if (active.adline) {
       const ad = ADLine(candles);
       const s = addOscLine("#0ea5e9", 2);
-      s.setData(times.map((t,i)=> ({ time:t, value:ad[i] })));
-      indSeriesOsc.current.adline = [s];
+      const d = times.map((t,i)=> ({ time:t, value:ad[i] }));
+      s.setData(d);
+      pushOsc("adline", s, d);
     }
 
     if (active.bop) {
       const bop = BOP(candles);
       const s = addOscHist("#64748b");
-      s.setData(times.map((t,i)=> ({ time:t, value:bop[i] ?? 0 })));
-      indSeriesOsc.current.bop = [s];
+      const d = times.map((t,i)=> ({ time:t, value:bop[i] ?? 0 }));
+      s.setData(d);
+      pushOsc("bop", s, d);
     }
 
     if (active.cci) {
       const cci = CCI(candles, 20);
       const s = addOscLine("#f59e0b", 2);
-      s.setData(times.map((t,i)=> cci[i]==null? null : { time:t, value:cci[i] }).filter(Boolean));
-      indSeriesOsc.current.cci = [s];
+      const d = times.map((t,i)=> cci[i]==null? null : { time:t, value:cci[i] }).filter(Boolean);
+      s.setData(d);
+      pushOsc("cci", s, d);
     }
 
     if (active.rsi_stoch) {
       const { k, d } = StochRSI(closes, 14, 14, 3);
       const s1 = addOscLine("#22c55e", 2);
       const s2 = addOscLine("#3b82f6", 1);
-      s1.setData(times.map((t,i)=> k[i]==null? null : { time:t, value:k[i] }).filter(Boolean));
-      s2.setData(times.map((t,i)=> d[i]==null? null : { time:t, value:d[i] }).filter(Boolean));
-      indSeriesOsc.current.rsi_stoch = [s1,s2];
+      const d1 = times.map((t,i)=> k[i]==null? null : { time:t, value:k[i] }).filter(Boolean);
+      const d2 = times.map((t,i)=> d[i]==null? null : { time:t, value:d[i] }).filter(Boolean);
+      s1.setData(d1); s2.setData(d2);
+      pushOsc("rsi_stoch", s1, d1); pushOsc("rsi_stoch", s2, d2);
     }
 
     if (active.ao || active.ac) {
       const { ao, ac } = AO_AC(candles);
       if (active.ao) {
         const s = addOscHist("#06b6d4");
-        s.setData(times.map((t,i)=> ao[i]==null? null : { time:t, value:ao[i] }).filter(Boolean));
-        indSeriesOsc.current.ao = [s];
+        const d = times.map((t,i)=> ao[i]==null? null : { time:t, value:ao[i] }).filter(Boolean);
+        s.setData(d);
+        pushOsc("ao", s, d);
       }
       if (active.ac) {
         const s = addOscHist("#a78bfa");
-        s.setData(times.map((t,i)=> ac[i]==null? null : { time:t, value:ac[i] }).filter(Boolean));
-        indSeriesOsc.current.ac = [s];
+        const d = times.map((t,i)=> ac[i]==null? null : { time:t, value:ac[i] }).filter(Boolean);
+        s.setData(d);
+        pushOsc("ac", s, d);
       }
     }
   }, [candles, active]);
@@ -1376,7 +1753,7 @@ export default function ChartPage() {
   useEffect(() => { updateIndicators(); }, [updateIndicators, chartType, redrawTick]);
   useEffect(() => () => removeAllIndicatorSeries(), [removeAllIndicatorSeries]);
 
-  /* ---------------- Floating edit toolbar ---------------- */
+  /* ---------------- Floating edit toolbar for drawings ---------------- */
   const SelectedToolbar = () => {
     if (!toolbarOpen || !selectedId) return null;
     const d = drawingsRef.current.find(x => x.id === selectedId);
@@ -1421,19 +1798,291 @@ export default function ChartPage() {
     );
   };
 
-  /* --------------------------- UI --------------------------- */
+  /* ---------------- Indicator Toolbar (for overlay indicators) ---------------- */
+  const IndicatorToolbar = () => {
+    if (!indTbOpen || !selectedIndicator) return null;
+
+    const onColor = (e) => {
+      const v = e.target.value;
+      selectedIndicator.applyOptions({ color: v });
+    };
+    const onWidth = (e) => {
+      const v = Number(e.target.value);
+      selectedIndicator.applyOptions({ lineWidth: v });
+    };
+    const onDash = (e) => {
+      const v = e.target.value;
+      selectedIndicator.applyOptions({
+        lineStyle: v === "dash" ? 2 : v === "dot" ? 3 : 0,
+      });
+    };
+    const onClose = () => setIndTbOpen(false);
+
+    // ✅ Robust delete: always removes the selected series from the chart AND state
+    const onDeleteIndicator = () => {
+      const s = selectedIndicator;
+      if (!s) return;
+
+      // best-effort: clear and remove series from the chart immediately
+      try { s.setData([]); } catch {}
+      try { s.remove(); } catch {}
+
+      // purge from main/osc maps
+      let mutatedKeys = new Set();
+
+      for (const [key, arr] of Object.entries(indSeriesMain.current)) {
+        if (!Array.isArray(arr)) continue;
+        const before = arr.length;
+        indSeriesMain.current[key] = arr.filter(series => series !== s);
+        if (indDataMain.current[key])
+          indDataMain.current[key] = indDataMain.current[key].filter(o => o.series !== s);
+        if (indSeriesMain.current[key].length !== before) mutatedKeys.add(key);
+      }
+      for (const [key, arr] of Object.entries(indSeriesOsc.current)) {
+        if (!Array.isArray(arr)) continue;
+        const before = arr.length;
+        indSeriesOsc.current[key] = arr.filter(series => series !== s);
+        if (indDataOsc.current[key])
+          indDataOsc.current[key] = indDataOsc.current[key].filter(o => o.series !== s);
+        if (indSeriesOsc.current[key].length !== before) mutatedKeys.add(key);
+      }
+
+      // any indicator that has no series left -> toggle off
+      if (mutatedKeys.size) {
+        setActive(prev => {
+          const next = { ...prev };
+          for (const key of mutatedKeys) {
+            const noneLeft =
+              (indSeriesMain.current[key]?.length ?? 0) === 0 &&
+              (indSeriesOsc.current[key]?.length ?? 0) === 0;
+            if (noneLeft) next[key] = false;
+          }
+          return next;
+        });
+      }
+
+      setSelectedIndicator(null);
+      setIndTbOpen(false);
+    };
+
+    return (
+      <div
+        className="fixed z-[9994] bg-white/95 border rounded-xl shadow-lg px-2 py-1 flex items-center gap-2"
+        style={{ left: indTbPos.x, top: indTbPos.y }}
+        onMouseEnter={freezeUI}
+        onMouseLeave={unfreezeUI}
+      >
+        <input type="color" defaultValue="#3b82f6" onChange={onColor} className="w-8 h-8 p-0 border rounded" title="Color" />
+        <select defaultValue={2} onChange={onWidth} className="text-xs border rounded px-2 py-1" title="Stroke width">
+          {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}px</option>)}
+        </select>
+        <select defaultValue="solid" onChange={onDash} className="text-xs border rounded px-2 py-1" title="Line style">
+          <option value="solid">Solid</option>
+          <option value="dash">Dashed</option>
+          <option value="dot">Dotted</option>
+        </select>
+        <button onClick={onDeleteIndicator} className="text-xs px-2 py-1 rounded border hover:bg-gray-100" title="Delete indicator">🗑</button>
+        <button onClick={onClose} className="text-xs px-2 py-1 rounded border hover:bg-gray-100">Close</button>
+      </div>
+    );
+  };
+
+  /* ---------- NEW: make indicator clicks work even when overlay is passthrough ---------- */
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const handleMouseDown = (e) => {
+      // only when NOT drawing and not using drawing toolbar
+      if (activeTool || toolbarOpen || drawerOpen) return;
+      if (!mainChart.current) return;
+      const rect = el.getBoundingClientRect();
+      const x = clamp(e.clientX - rect.left, 0, rect.width);
+      const y = clamp(e.clientY - rect.top, 0, rect.height);
+      const hitInd = hitTestIndicatorMain(x, y);
+      if (hitInd?.series) {
+        setSelectedId(null);
+        setSelectedIndicator(hitInd.series);
+        setIndTbOpen(true);
+        setToolbarOpen(false);
+        setIndTbPos({ x: e.clientX, y: e.clientY });
+      } else {
+        setIndTbOpen(false);
+        setSelectedIndicator(null);
+      }
+    };
+    el.addEventListener("mousedown", handleMouseDown);
+    return () => el.removeEventListener("mousedown", handleMouseDown);
+  }, [activeTool, toolbarOpen, drawerOpen]); // keep small deps
+  
+  async function sendWhatsappAlert() {
+  try {
+    const res = await fetch(`${API}/market/send-whatsapp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ symbol }),
+    });
+
+    const data = await res.json();
+    if (data.status === "success") {
+      alert("WhatsApp Alert Sent Successfully!");
+    } else {
+      alert("Error: " + data.message);
+    }
+  } catch (err) {
+    alert("Failed: " + err.message);
+  }
+}
+
+async function generateSignal() {
+  console.log("=== GENERATE SIGNAL CLICKED ===");
+
+  // ----------------------------------------------------
+  // RULE 1: ONLY 2m and 15m CAN HAVE SIGNALS
+  // ----------------------------------------------------
+  if (tf !== "2m" && tf !== "15m") {
+    alert("❌ No signals available for this timeframe");
+    if (priceSeries.current) {
+      priceSeries.current.setMarkers([]);
+      priceSeries.current._markers = [];
+    }
+    return;
+  }
+
+  try {
+    // STEP A — Backend regenerate signals
+    const run = await fetch(`${API}/market/generate-signal`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol }),
+    });
+
+    const runJs = await run.json();
+    console.log("Backend Response:", runJs);
+
+    if (runJs.status !== "success") {
+      alert(runJs.message || "Error generating signal");
+      return;
+    }
+
+    // ----------------------------------------------------
+    // STEP B — SHOW LATEST 4 signals in box
+    // ----------------------------------------------------
+    if (runJs.latest_signals && Array.isArray(runJs.latest_signals)) {
+      let boxHTML = "";
+
+      runJs.latest_signals.slice(0, 4).forEach((sig) => {
+        const color = sig.signal_type.includes("BULL") ? "green" : "red";
+
+        boxHTML += `
+          <div style="
+              padding:10px;
+              border:1px solid #ddd;
+              border-radius:8px;
+              margin-bottom:10px;
+              background:#fffef2;
+              box-shadow:0 0 6px rgba(255,215,0,0.4);
+          ">
+
+            <div style="display:flex; justify-content:space-between; font-weight:600;">
+              <span>${sig.datetime}</span>
+              <span style="color:${color};">${sig.signal_type}</span>
+            </div>
+
+            <div style="margin-top:4px; color:#444;">
+              ${sig.alert_details || ""}
+              ${sig.screener ? `, ${sig.screener}` : ""}
+            </div>
+
+            <div style="margin-top:4px; color:#777; font-size:13px;">
+              ${sig.user_action || ""}
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById("alertBox").innerHTML = boxHTML;
+    }
+
+    // ----------------------------------------------------
+    // STEP C — Fetch filtered signals
+    // ----------------------------------------------------
+    const r = await fetch(`${API}/market/all-signals?symbol=${symbol}&tf=${tf}`);
+    const js = await r.json();
+
+    if (!js.signals || !Array.isArray(js.signals)) {
+      alert("No signals returned");
+      return;
+    }
+
+    // ----------------------------------------------------
+    // STEP D — Convert to chart markers
+    // ----------------------------------------------------
+    const filtered = js.signals.map((s) => ({
+      time: Number(s.timestamp),
+      position: s.signal === "BUY" ? "belowBar" : "aboveBar",
+      shape: s.signal === "BUY" ? "arrowUp" : "arrowDown",
+      color: s.signal === "BUY" ? "#16a34a" : "#dc2626",
+      text: `${s.signal} @ ${s.close_price}`,
+    }));
+
+    // ----------------------------------------------------
+    // STEP E — Show markers
+    // ----------------------------------------------------
+    priceSeries.current.setMarkers(filtered);
+    priceSeries.current._markers = filtered;
+
+    alert("✔ Signals applied!");
+
+  } catch (err) {
+    console.error("Generate-Signal Error:", err);
+    alert(`Error generating signal: ${err.message}`);
+  }
+}
+
+
+
+ /* --------------------------- UI --------------------------- */
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="fixed top-0 left-0 right-0 z-[9990] flex items-center justify-between px-3 py-2 h-14 bg-white border-b pr-28 md:pr-36" style={{ backdropFilter: "saturate(120%) blur(4px)" }}>
         <button onClick={() => navigate(-1)} className="text-sm px-3 py-1 rounded border hover:bg-gray-100">← Back</button>
         <div className="font-semibold text-center truncate mx-2">{symbol} • {tf.toUpperCase()}{lastPrice ? ` • ₹${Number(lastPrice).toLocaleString("en-IN")}` : ""}</div>
-        <div className="flex items-center gap-2 overflow-x-auto max-w-[45vw] sm:max-w-[40vw] md:max-w-[35vw]">
-          {["1m", "5m", "15m", "1h", "1d"].map((k) => (
-            <button key={k} onClick={() => setTf(k)} className={`text-xs px-2 py-1 rounded border whitespace-nowrap ${tf === k ? "bg-blue-600 text-white border-blue-600" : "hover:bg-gray-100"}`}>{k}</button>
+        <div className="flex items-center gap-2 flex-wrap justify-center">
+          {["1m", "2m", "15m", "1h", "1d"].map((k) => (
+            <button
+              key={k}
+              onClick={() => setTf(k)}
+              className={`text-xs px-2 py-1 rounded border whitespace-nowrap ${tf === k ? "bg-blue-600 text-white border-blue-600" : "hover:bg-gray-100"}`}
+            >
+              {k}
+            </button>
           ))}
           <ChartTypeDropdown />
-          <button onClick={() => setOpenIndModal(true)} className="text-xs px-2 py-1 rounded border hover:bg-gray-100 whitespace-nowrap">Indicators</button>
+          <button
+            onClick={() => setOpenIndModal(true)}
+            className="text-xs px-2 py-1 rounded border hover:bg-gray-100 whitespace-nowrap"
+          >
+            Indicators
+          </button>
+
+          {/* App buttons */}
+          <button
+  onClick={generateSignal}
+  className="text-xs px-2 py-1 rounded border hover:bg-green-100 whitespace-nowrap text-green-600 border-green-500"
+>
+  Generate Signal
+</button>
+
+          <button
+            onClick={sendWhatsappAlert}
+            className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
+          >
+           Add to alert WhatsApp
+          </button>
+
         </div>
         <div className="w-12 md:w-20 shrink-0" />
       </div>
@@ -1455,7 +2104,8 @@ export default function ChartPage() {
             position: "absolute",
             inset: 0,
             zIndex: 10,
-            pointerEvents: activeTool ? "auto" : "none",
+            // allow chart scroll/pan when not interacting with tools
+            pointerEvents: (activeTool || toolbarOpen || indTbOpen || drawerOpen) ? "auto" : "none",
             cursor: activeTool ? "crosshair" : "default",
             transition: "opacity 120ms ease"
           }}
@@ -1471,12 +2121,36 @@ export default function ChartPage() {
         )}
       </div>
 
-      {/* Volume pane (separate) */}
-      <div className="mt-2 border-t">
+      {/* Volume pane (separate, time-synced) */}
+      <div className="mt-2 border-t pb-2">
         <div ref={volumeRef} style={{ width: "100%" }} />
       </div>
 
-      {/* Osc pane */}
+      {/* Alert Description Section */}
+    {/* Alert Description Section */}
+<div className="mt-4 px-4 pb-4">
+  <h3 className="text-sm font-semibold text-gray-700 mb-2">Alert Description</h3>
+
+  <div 
+    id="alertBox"
+    style={{
+      background: "#ffffff",
+      borderRadius: "8px",
+      padding: "10px 14px",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+      fontFamily: "Inter, sans-serif",
+      fontSize: "14px",
+      lineHeight: "18px",
+      minHeight: "80px"
+    }}
+  >
+    {/* Dynamically filled by JS */}
+  </div>
+</div>
+
+
+
+      {/* Oscillator pane */}
       <div className="mt-2 border-t">
         <div ref={oscRef} style={{ width: "100%" }} />
       </div>
@@ -1487,8 +2161,9 @@ export default function ChartPage() {
         {status === "error" && <span className="text-red-600">Error loading data</span>}
       </div>
 
-      {/* floating toolbar for selected line */}
+      {/* floating toolbars */}
       <SelectedToolbar />
+      <IndicatorToolbar />
 
       {/* Indicators modal */}
       {openIndModal && (
