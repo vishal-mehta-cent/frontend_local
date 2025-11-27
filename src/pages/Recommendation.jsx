@@ -24,6 +24,9 @@ export default function Recommendations() {
   const [subIntraday, setSubIntraday] = useState("All");
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
 
+  // ⭐ NEW: store frozen closed prices here
+  const [closedPriceMap, setClosedPriceMap] = useState({});
+
   const API =
     (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
       .toString()
@@ -39,7 +42,6 @@ export default function Recommendations() {
     if (!raw) return "";
 
     let s = String(raw).trim();
-
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
     s = s.split(" ")[0];
@@ -89,32 +91,19 @@ export default function Recommendations() {
   };
 
   const pickSignalPrice = (r) =>
-    toNum(
-      getField(r, [
-        "signal_price",
-        "close_price",
-        "Signal_price",
-        "Signal Price",
-      ])
-    );
+    toNum(getField(r, ["signal_price", "close_price", "Signal_price", "Signal Price"]));
 
-  const pickCurrentPrice = (r) =>
-    toNum(r.currentPrice);
+  const pickCurrentPrice = (r) => toNum(r.currentPrice);
 
-  const pickStoploss = (r) =>
-    toNum(getField(r, ["stoploss", "Stoploss", "fno_stoploss", "FNO_stoploss"]));
+  const pickStoploss = (r) => toNum(getField(r, ["stoploss", "Stoploss", "fno_stoploss", "FNO_stoploss"]));
 
-  const pickTarget = (r) =>
-    toNum(getField(r, ["target", "Target", "fno_target", "FNO_target"]));
+  const pickTarget = (r) => toNum(getField(r, ["target", "Target", "fno_target", "FNO_target"]));
 
-  const pickSupport = (r) =>
-    toNum(getField(r, ["support", "Support", "sup", "SUP"]));
+  const pickSupport = (r) => toNum(getField(r, ["support", "Support", "sup", "SUP"]));
 
-  const pickResistance = (r) =>
-    toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
+  const pickResistance = (r) => toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
 
-  const pickAlertType = (r) =>
-    getField(r, ["signal_type", "Signal_type"]) || "N/A";
+  const pickAlertType = (r) => getField(r, ["signal_type", "Signal_type"]) || "N/A";
 
   const pickDescription = (r) =>
     getField(r, ["Alert_description", "description", "Description"]) || "";
@@ -124,18 +113,14 @@ export default function Recommendations() {
     return s ? String(s).trim() : "N/A";
   };
 
-  const pickScreener = (r) =>
-    getField(r, ["screener", "Screener"]) || "Unknown";
+  const pickScreener = (r) => getField(r, ["screener", "Screener"]) || "Unknown";
 
   const pickRawDate = (r) =>
     getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
 
   const pickTime = (row) => {
     const raw = getField(row, ["raw_datetime", "Date", "date", "signal_date"]);
-
     if (!raw) return "--:--";
-
-    // raw contains: "11/10/2025 9:27"
     const match = raw.match(/(\d{1,2}):(\d{2})/);
     if (!match) return "--:--";
 
@@ -161,21 +146,37 @@ export default function Recommendations() {
     return raw.toLowerCase();
   };
 
-  const pickAlertText = (r) =>
-    getField(r, ["alert", "ALERT", "Alert"]) || "";
+  const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
 
-  const pickUserActions = (r) =>
-    getField(r, ["user_actions"]) || "";
+  const pickUserActions = (r) => getField(r, ["user_actions"]) || "";
+  // 🔥 Fetch LIVE PRICE from Zerodha for active signals
+  async function fetchLivePrice(script) {
+    try {
+      const res = await fetch(`${API}/quotes/price?symbol=${encodeURIComponent(script)}`);
+      const json = await res.json();
+      return Number(json?.price || json?.ltp || json?.last_price || json?.currentPrice);
+    } catch (e) {
+      console.error("Live price error for:", script, e);
+      return null;
+    }
+  }
 
-
-
+  // ⭐ FROZEN-CLOSED-PRICE LOGIC ADDED INTO NORMALIZE() ⭐
   const normalize = (row) => {
     const script = pickScript(row);
 
     const sigPrice = pickSignalPrice(row);
     let live = pickCurrentPrice(row);
-    if (live === null || live === undefined) live = sigPrice;
 
+    // If backend didn't provide live price → fetch from Zerodha
+    if (!row.outcome) {
+      live = row.__liveFetched || live;
+
+      if (!live || live === sigPrice) {
+        // mark script so that we will fetch live price later
+        row.__needLive = true;
+      }
+    }
 
     const sup = pickSupport(row) || 0;
     const st = pickStoploss(row) || 0;
@@ -188,11 +189,32 @@ export default function Recommendations() {
     const timeVal = pickTime(row);
 
     let outcome = null;
-    if (t > 0 && live >= t) outcome = "PROFIT";
-    else if (st > 0 && live <= st) outcome = "LOSS";
+
+    // ⭐ Detect close condition first
+    const hitTarget = t > 0 && live >= t;
+    const hitStop = st > 0 && live <= st;
+
+    if (hitTarget) outcome = "PROFIT";
+    else if (hitStop) outcome = "LOSS";
+
+    const ID = `${script}-${dateVal}-${timeVal}-${strategy}`;
+
+    // ⭐ If closed & no frozen price exists → freeze it NOW
+    if (outcome && closedPriceMap[ID] === undefined) {
+      setClosedPriceMap((prev) => ({
+        ...prev,
+        [ID]: live, // freeze exact live price at hit
+      }));
+    }
+
+    // ⭐ If closed → use frozen price
+    let finalPrice = live;
+    if (outcome && closedPriceMap[ID] !== undefined) {
+      finalPrice = closedPriceMap[ID];
+    }
 
     return {
-      id: `${script}-${dateVal}-${timeVal}-${strategy}`,
+      id: ID,
       script,
       screener: pickScreener(row),
       alertType: pickAlertType(row),
@@ -204,7 +226,7 @@ export default function Recommendations() {
       t,
       res,
       signalPrice: sigPrice,
-      currentPrice: live,
+      currentPrice: finalPrice, // ⭐ USE FROZEN PRICE FOR CLOSED SIGNALS
       outcome,
       dateVal,
       timeVal,
@@ -213,7 +235,6 @@ export default function Recommendations() {
     };
   };
 
-  // Fetch CSV
   // Fetch CSV + keep backend alive
   useEffect(() => {
     let alive = true;
@@ -239,33 +260,29 @@ export default function Recommendations() {
           ordered.push(r);
         }
 
-        const uniqueScreeners = ["All", ...new Set(ordered.map(r => r.screener))];
-        const uniqueAlertTypes = ["All", ...new Set(ordered.map(r => r.alertType))];
+        const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
+        const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
 
         startTransition(() => {
           setScreenerList(uniqueScreeners);
           setAlertTypeList(uniqueAlertTypes);
+
           setRows(ordered);
           setInitialLoading(false);
         });
-
       } catch (e) {
         console.error("Fetch failed:", e);
         setInitialLoading(false);
       }
     };
 
-    // Hit backend immediately
     fetchOnce();
-
-    // PING every 5 seconds (keep server awake)
     const id = setInterval(fetchOnce, 5000);
-
     return () => {
       alive = false;
       clearInterval(id);
     };
-  }, []);  // RUNS ONLY ONCE ALWAYS
+  }, [closedPriceMap]); // ⭐ VERY IMPORTANT — updates UI when frozen prices change
 
 
   // Filtering
@@ -325,7 +342,8 @@ export default function Recommendations() {
 
   const renderSignalLayout = () => (
     <div className="intraday-section">
-      <div className="filters-row">
+      <div className="filters-row date-row-centered">
+
 
         <div className="filter-item">
           <label>Date:</label>
@@ -354,9 +372,10 @@ export default function Recommendations() {
             <option>F&O</option>
           </select>
         </div>
+
       </div>
 
-      <div className="filters-row">
+      <div className="filters-row filters-row-legend">
         <div className="filter-item">
           <label>Alert Type:</label>
           <select
@@ -395,71 +414,33 @@ export default function Recommendations() {
             <option value="Bullish">Bullish</option>
           </select>
         </div>
+
+      </div>
+      <div className="legend-row">
+        <div className="legend-box">
+          <h4>Accromance</h4>
+          <p><strong>RES</strong> = Resistance | <strong>SUP</strong> = Support</p>
+          <p><strong>T</strong> = Target | <strong>ST</strong> = Stoploss</p>
+          <p>▲ = Current Price | ● = Signal Price</p>
+
+        </div>
       </div>
 
       <div className="signals-section">
         <div className="legend-row">
-          <div className="legend-box">
-            <h4>Legend</h4>
-            <p><strong>RES</strong> = Resistance | <strong>SUP</strong> = Support</p>
-            <p><strong>T</strong> = Target | <strong>ST</strong> = Stoploss</p>
-            <p>▲ = Current Price | ● = Signal Price</p>
-            <p>% = Confidence</p>
-          </div>
         </div>
 
         <div className="signals-columns">
           <div className="signals-column">
-            <h3>Active Signals</h3>
+            <h3 className="section-title active-title">Active Signals</h3>
+            <p><strong>%</strong> = Confidence</p>
             {initialLoading ? (
               <p>Loading data...</p>
             ) : (
-              <div className="signal-grid">
-                {activeSignals.length > 0 ? (
-                  activeSignals.map((sig) => (
-                    <SignalCard
-                      key={sig.id}
-                      script={sig.script}
-                      confidence={sig.confidence}
-                      alertType={sig.alertType}
-                      description={sig.description}
-                      sup={sig.sup}
-                      st={sig.st}
-                      signalPrice={sig.signalPrice}
-                      currentPrice={sig.currentPrice}
-                      t={sig.t}
-                      res={sig.res}
-                      timeVal={sig.timeVal}
-                      alertText={sig.alertText}
-                      userActions={sig.userActions}
-                      isClosed={false}
-                    />
-                  ))
-                ) : (
-                  <p>No active signals.</p>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="signals-column">
-            <h3>Closed Signals</h3>
-            <div className="signal-grid">
-              {closedSignals.length > 0 ? (
-                closedSignals.map((sig) => {
-                  const isProfit = sig.outcome === "PROFIT";
-                  const color = isProfit ? "#00C853" : "#E53935";
-
-                  return (
-                    <div
-                      className="closed-card-wrapper"
-                      style={{ borderColor: color }}
-                      key={sig.id}
-                    >
-                      <div className="closed-badge" style={{ color }}>
-                        {sig.outcome}
-                      </div>
-
+              <div className="active-signals-container">
+                <div className="signal-grid">
+                  {activeSignals.length > 0 ? (
+                    activeSignals.map((sig) => (
                       <SignalCard
                         key={sig.id}
                         script={sig.script}
@@ -475,15 +456,97 @@ export default function Recommendations() {
                         timeVal={sig.timeVal}
                         alertText={sig.alertText}
                         userActions={sig.userActions}
-                        isClosed={true}
+                        isClosed={false}
                       />
-                    </div>
-                  );
-                })
-              ) : (
-                <p>No closed signals.</p>
-              )}
-            </div>
+
+                    ))
+                  ) : (
+                    <p>No active signals.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="signals-column">
+            <h3 className="section-title closed-title">Closed Signals</h3>
+            <p><strong>%</strong> = Gain</p>
+            <div className="closed-signals-container">
+              <div className="signal-grid">
+                {closedSignals.length > 0 ? (
+                  closedSignals.map((sig) => {
+                    const isProfit = sig.outcome === "PROFIT";
+                    const color = isProfit ? "#00C853" : "#E53935";
+
+                    return (
+                      <div
+                        className="closed-card-wrapper"
+                        style={{
+                          backgroundColor: sig.outcome === "PROFIT" ? "#e6ffe6" : "#ffe5e5",
+                        }}
+                        key={sig.id}
+                      >
+
+                        {/* Outcome Badge */}
+
+                        {/* ----- NEW: P&L % positioned under script ----- */}
+                        {(() => {
+                          const sp = Number(sig.signalPrice);
+                          const cp = Number(sig.currentPrice);
+                          const type = String(sig.alertType).toLowerCase();
+
+                          let pnl = 0;
+                          if (type === "buy") pnl = (cp / sp - 1) * 100;
+                          else if (type === "sell") pnl = (1 - cp / sp) * 100;
+
+                          const pnlColor = pnl >= 0 ? "#00C853" : "#E53935";
+
+                          return (
+                            <div
+                              style={{
+                                width: "100%",
+                                textAlign: "right",
+                                fontSize: "13px",
+                                fontWeight: "700",
+                                color: pnlColor,
+                                paddingRight: "10px",
+                                marginTop: "4px",
+                                marginBottom: "-6px",  // tightly fits without enlarging card height
+                              }}
+                            >
+                            </div>
+                          );
+                        })()}
+
+                        {/* Main Signal Card */}
+                        <SignalCard
+                          key={sig.id}
+                          script={sig.script}
+                          confidence={sig.confidence}
+                          alertType={sig.alertType}
+                          description={sig.description}
+                          sup={sig.sup}
+                          st={sig.st}
+                          signalPrice={sig.signalPrice}
+                          currentPrice={sig.currentPrice}
+                          t={sig.t}
+                          res={sig.res}
+                          timeVal={sig.timeVal}
+                          alertText={sig.alertText}
+                          userActions={sig.userActions}
+                          isClosed={true}
+                        />
+
+                      </div>
+
+
+                    );
+                  })
+                ) : (
+                  <p>No closed signals.</p>
+                )}
+              </div>{/* signal-grid */}
+            </div>{/* closed-signals-container */}
           </div>
         </div>
       </div>
