@@ -35,6 +35,7 @@
 }
 
 .filter-item {
+  width: 200px;
   display: flex;
   flex-direction: column;
   text-align: left;
@@ -171,21 +172,37 @@
   color: #000;
 }
 
-/* Make yellow alert box auto-grow */
 .alert-description-box {
-  background-color: #fff8c4;
-  border: 1px solid #e6d88a;
-  border-radius: 8px;
-  padding: 10px 12px;
+  background: #fff8c4;
+  border-top: 1px solid #e0c75a;
+  border-bottom: 1px solid #e0c75a;
+
   width: 100%;
-  margin-top: 10px;
-  box-sizing: border-box;
-  min-height: 70px;
-  height: auto !important;
-  /* ⭐ ALLOW EXPANSION */
-  line-height: 1.35;
-  overflow-wrap: break-word;
-  /* ⭐ PREVENT TEXT OVERFLOW */
+  padding: 12px 14px;
+
+  border-radius: 0;
+  margin: 0;
+  margin-top: auto;
+
+  height: 68px;
+  max-height: 68px;
+
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-wrap: break-word;
+}
+
+
+/* Scrollbar style */
+.alert-description-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.alert-description-box::-webkit-scrollbar-thumb {
+  background: #c8b04a;
+  border-radius: 10px;
 }
 
 /* ---------- Legend Box ---------- */
@@ -193,7 +210,7 @@
   background-color: #f8faff;
   border: 1.5px solid #e0e6f0;
   border-radius: 10px;
-  padding: 15px 20px;
+  padding: 100px 18px;
   min-width: 220px;
   height: fit-content;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
@@ -201,6 +218,7 @@
   flex-direction: column;
   justify-content: center;
   gap: 8px;
+  width: 240px;
 }
 
 .legend-box h4 {
@@ -282,7 +300,7 @@
 /* Gray horizontal line */
 .indicator-line {
   position: absolute;
-  top: 50%;
+  top: 54%;
   left: 5%;
   width: 90%;
   height: 3px;
@@ -294,7 +312,7 @@
 /* Dynamic fill (green/red segment) */
 .indicator-fill {
   position: absolute;
-  top: 50%;
+  top: 54%;
   height: 5px;
   /* slightly thicker for visibility */
   border-radius: 3px;
@@ -392,21 +410,40 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
+/* FINAL: centered small legend */
 .legend-row {
+  width: 100%;
   display: flex;
   justify-content: center;
-  align-items: center;
-  margin: 15px 0;
+  margin: 10px 0 20px 0;
+  padding: 0;
 }
 
+/* small fixed size legend card */
 .legend-box {
   background: white;
+  border: 1.5px solid #e0e6f0;
   border-radius: 12px;
+  padding: 15px 20px;
+  width: 300px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  padding: 12px 20px;
-  font-size: 14px;
   text-align: left;
-  min-width: 240px;
+}
+
+/* ---------------------------
+   DESKTOP ONLY (≥ 1024px)
+   Move legend RIGHT and UP
+---------------------------- */
+@media (min-width: 1024px) {
+  .legend-row {
+    justify-content: flex-end;
+    /* move to right */
+    padding-right: 250px;
+    /* adjust distance from right */
+    margin-top: -200px;
+    /* move UP */
+    margin-bottom: 10px;
+  }
 }
 
 .signals-columns {
@@ -485,17 +522,25 @@
 }
 
 /* Closed Signals Wrapper */
+/* Closed signal card — dynamic bg, no border */
 .closed-card-wrapper {
-  border: 2px solid;
-  border-radius: 12px;
-  padding: 6px;
+  border: none !important;
+  border-radius: 14px;
+  padding: 10px;
   width: 100%;
   max-width: 360px;
   margin: 0 auto 15px auto;
-  background: white;
   position: relative;
   box-sizing: border-box;
+  transition: background-color 0.25s ease;
 }
+
+/* REMOVE inner gray background for CLOSED cards */
+.closed-card-wrapper .signal-card-advanced {
+  box-shadow: none !important;
+  border: none !important;
+}
+
 
 /* Closed card badge (PROFIT / LOSS) */
 .closed-badge {
@@ -541,3 +586,192 @@
   margin-bottom: 3px;
   text-align: right;
 }
+
+/* Legend inside filters row (aligned to right) */
+.filters-row-legend {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 25px;
+  width: 100%;
+  position: relative;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+
+
+/* Center the alert-type row */
+.alert-row-centered {
+  justify-content: center !important;
+  gap: 40px;
+  /* spacing between dropdowns */
+  width: 100%;
+}
+
+/* Force Alert row to be centered */
+.alert-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  gap: 40px;
+  /* Adjust spacing */
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* Move legend slightly right and shift up */
+.legend-shift {
+  margin-left: 100px !important;
+  /* push right */
+  position: relative;
+  top: -10px;
+  /* move UP */
+}
+
+.date-row-centered {
+  display: flex;
+  justify-content: center !important;
+  gap: 25px;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* Full container that highlights closed signals */
+.closed-signals-container {
+  background: #cecece;
+  /* soft light red */
+  border: 2px solid #777777;
+  /* stronger red border */
+  border-radius: 12px;
+  padding: 20px 25px;
+  margin-top: 10px;
+  box-shadow: 0 2px 6px rgba(255, 0, 0, 0.1);
+}
+
+.active-signals-container {
+  background: #e8f1ff;
+  border: 2px solid #2962ff;
+  border-radius: 12px;
+  padding: 20px 25px;
+  margin-top: 10px;
+  box-shadow: 0 2px 6px rgba(41, 98, 255, 0.15);
+}
+
+
+.section-title {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+/* Active */
+.active-title {
+
+  color: #0d47a1;
+
+}
+
+/* Closed */
+.closed-title {
+
+  color: #0d47a1;
+
+}
+
+/* ============================================================
+   NEW — 3-SECTION SIGNAL CARD LAYOUT (HEADER / CHART / FOOTER)
+   ============================================================ */
+
+.signal-card {
+  width: 280px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- SECTION 1 (Header) ---------- */
+.signal-card-header {
+  padding: 10px 14px;
+  background: #f4f8ff;
+  border-bottom: 1px solid #e3e7f1;
+
+  display: grid;
+  grid-template-columns: 45px auto 45px;
+  align-items: center;
+  text-align: center;
+}
+
+.header-time {
+  font-size: 12px;
+  color: #555;
+  font-weight: 600;
+}
+
+.header-center {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header-script {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2962ff;
+}
+
+.header-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.header-confidence {
+  font-size: 12px;
+  font-weight: 700;
+  color: #00c853;
+}
+
+/* ---------- SECTION 2 (Chart / Indicators) ---------- */
+.signal-card-chart {
+  padding: 15px 10px;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+}
+
+/* ---------- SECTION 3 (Alert box) ---------- */
+.signal-card-footer {
+  background: #fffbe8;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.35;
+  min-height: 60px;
+  border-top: 1px solid #e6d98a;
+}
+
+.signal-card-footer strong {
+  color: #000;
+}
+
+.section-divider {
+  width: 100%;
+  height: 2px;
+  background: black;
+  margin: 4px 0;
+}
+
+
+/* ===============================
+   DESKTOP — Legend floats right
+   =============================== */
