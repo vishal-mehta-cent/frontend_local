@@ -1,5 +1,12 @@
 // src/pages/Chart.jsx
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, { 
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback
+} from "react";
+
 import { useParams, useNavigate } from "react-router-dom";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import {
@@ -47,6 +54,9 @@ const API =
 const HEADER_H = 56;
 const TF_MIN = { "1m": 1, "2m": 2, "5m": 5, "15m": 15, "1h": 60, "1d": 1440 };
 
+const openRecommendations = () => {
+  navigate(`/recommendations/${symbol}/${tf}`);
+};
 
 
 /* ----------------------- math helpers ----------------------- */
@@ -502,7 +512,13 @@ const [desc2, setDesc2] = useState("");
 const [desc3, setDesc3] = useState("");
 const [desc4, setDesc4] = useState("");
 
+const [latestSignals, setLatestSignals] = useState([]);
+
+
 const [signalData, setSignalData] = useState(null);
+
+
+
 
   const { symbol: rawSym } = useParams();
   const symbol = useMemo(() => (rawSym || "").toUpperCase(), [rawSym]);
@@ -633,23 +649,9 @@ async function loadAllSignals(symbol) {
   try {
     console.log("loadAllSignals called for TF:", tf);
 
-    // ----------------------------------------------------
-    // STEP 1 — BLOCK SIGNALS FOR OTHER TIMEFRAMES
-    // ----------------------------------------------------
-    const blocked = ["1m", "1h", "1d"];
-
-    if (blocked.includes(tf)) {
-      console.log("TF BLOCKED → Clearing markers");
-      if (priceSeries.current) {
-        priceSeries.current.setMarkers([]);
-        priceSeries.current._markers = [];
-      }
-      return; // <---- STOP HERE
-    }
-
-    // ONLY allow 2m + 15m
+    // Only allow 2m + 15m
     if (tf !== "2m" && tf !== "15m") {
-      console.log("TF not allowed → Clearing markers");
+      console.log("TF BLOCKED → Clearing markers");
       if (priceSeries.current) {
         priceSeries.current.setMarkers([]);
         priceSeries.current._markers = [];
@@ -657,53 +659,121 @@ async function loadAllSignals(symbol) {
       return;
     }
 
-    // ----------------------------------------------------
-    // STEP 2 — FETCH SIGNALS FROM BACKEND
-    // ----------------------------------------------------
-    const url = `${API}/market/all-signals?symbol=${symbol}`;
+    // -------------------------------
+    // FIX: Pass TF to backend
+    // -------------------------------
+    const url = `${API}/market/all-signals?symbol=${symbol}&tf=${tf}`;
+    console.log("Fetching URL:", url);
+
     const r = await fetch(url);
     if (!r.ok) return;
 
     const js = await r.json();
+    console.log("Backend signals:", js);
+
     if (!js.signals || !Array.isArray(js.signals)) return;
 
-    // ----------------------------------------------------
-    // STEP 3 — SORT SIGNALS BY TIMESTAMP
-    // ----------------------------------------------------
     const sorted = js.signals.sort((a, b) => a.timestamp - b.timestamp);
 
-    // ----------------------------------------------------
-    // STEP 4 — CONVERT INTO MARKERS
-    // ----------------------------------------------------
     const markers = sorted.map(sig => ({
       time: Number(sig.timestamp),
       position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
       shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
       color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-      text: `${sig.signal} @ ${sig.close_price}`,
+      text: `${sig.signal} || ${sig.close_price}`
     }));
 
-    console.log("=== LOADED SIGNALS FROM BACKEND (SORTED) ===");
-    markers.forEach((m, i) => {
-      console.log(
-        `Marker #${i + 1} | Time=${m.time} | Position=${m.position} | Text=${m.text}`
-      );
-    });
-
-    // ----------------------------------------------------
-    // STEP 5 — APPLY MARKERS ONLY WHEN TF IS VALID (2m/15m)
-    // ----------------------------------------------------
     if (priceSeries.current) {
       priceSeries.current.setMarkers(markers);
       priceSeries.current._markers = markers;
     }
+    // Store last 4 signals for description box
+    setLatestSignals(sorted.slice(-4));
 
-    console.log("✔ Loaded markers:", markers.length);
+    console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
 
   } catch (err) {
     console.error("Signal Load Error:", err);
   }
 }
+
+// 🔥 FIX — update signals whenever TF changes
+useEffect(() => {
+  loadAllSignals(symbol);
+}, [tf, symbol]);
+
+
+async function openRecommendations() {
+  if (!["15m", "1d"].includes(tf)) {
+    alert("Recommendations available only in 15m or 1d timeframe");
+    return;
+  }
+
+  try {
+    // STEP 1 → Tell backend to MERGE (Recommendations_Data + sig_15m/1d)
+    console.log("Running merge before loading chart recommendations:", tf);
+
+    const mergeURL = `${API}/market/merge-recommendations?tf=${tf}`;
+    const mergeRes = await fetch(mergeURL);
+    const mergeJs = await mergeRes.json();
+
+    console.log("Merge result:", mergeJs);
+
+    if (mergeJs.status !== "success") {
+      alert("Merge failed: " + mergeJs.message);
+      return;
+    }
+
+    // STEP 2 → Fetch merged signals for this TF (BTST.csv, INTRADAY.csv, SHORTTERM.csv)
+    const url = `${API}/market/signals?tf=${tf}`;
+    console.log("🔵 Fetching Signals:", url);
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      alert("Failed to load signals");
+      return;
+    }
+
+    const js = await res.json();
+    console.log("Merged signals:", js);
+
+    // Combine 3 categories
+    const final = [
+      ...js.data.btst,
+      ...js.data.intraday,
+      ...js.data.shortterm
+    ];
+
+    // Sort by time for modal display
+    final.sort((a, b) => a.timestamp - b.timestamp);
+
+    // Push into UI
+    setRecoData(final);
+    setShowRecoModal(true);
+
+     console.log("🟡 Applying markers to chart...");
+
+    // STEP 3 → ALSO apply markers on chart immediately
+    const markers = final.map(s => ({
+      time: Number(s.timestamp),
+      position: s.signal === "BUY" ? "belowBar" : "aboveBar",
+      shape: s.signal === "BUY" ? "arrowUp" : "arrowDown",
+      color: s.signal === "BUY" ? "#16a34a" : "#dc2626",
+      text: `${s.strategy?.toUpperCase() || ""} ${s.signal} || ${s.close_price}`
+    }));
+
+    if (priceSeries.current) {
+      priceSeries.current.setMarkers(markers);
+      priceSeries.current._markers = markers;
+    }
+
+  } catch (err) {
+    console.error("Recommendation Error:", err);
+    alert("Error fetching recommendations");
+  }
+}
+
+
 
 
 
@@ -1935,111 +2005,127 @@ useEffect(() => {
   }
 }
 
+// ---------------------------------------------------------
+// AUTO SIGNAL GENERATION CONTROLLER
+// ---------------------------------------------------------
+const autoRunRef = useRef(null);
+const isRunningRef = useRef(false);
+
+// ---------------------------------------------------------
+// MERGE SIGNAL DATA (2m + 15m)
+// ---------------------------------------------------------
+function mergeSignals(sig2, sig15) {
+  const final = [];
+
+  [...sig2, ...sig15].forEach(s => final.push({
+    time: Number(s.timestamp),
+    position: s.signal === "BUY" ? "belowBar" : "aboveBar",
+    shape: s.signal === "BUY" ? "arrowUp" : "arrowDown",
+    color: s.signal === "BUY" ? "#16a34a" : "#dc2626",
+    text: `${s.signal} || ${s.close_price}`
+  }));
+
+  return final.sort((a, b) => a.time - b.time);
+}
+
+
+// ---------------------------------------------------------
+// MAIN FUNCTION — NEW VERSION
+// ---------------------------------------------------------
 async function generateSignal() {
   console.log("=== GENERATE SIGNAL CLICKED ===");
 
-  // ----------------------------------------------------
-  // RULE 1: ONLY 2m and 15m CAN HAVE SIGNALS
-  // ----------------------------------------------------
-  if (tf !== "2m" && tf !== "15m") {
-    alert("❌ No signals available for this timeframe");
-    if (priceSeries.current) {
-      priceSeries.current.setMarkers([]);
-      priceSeries.current._markers = [];
+  // TURN OFF MODE
+  if (isRunningRef.current) {
+    clearInterval(autoRunRef.current);
+    isRunningRef.current = false;
+
+    const btn = document.querySelector("#genBtn");
+    if (btn) {
+      btn.style.background = "";
+      btn.style.color = "";
+      btn.style.borderColor = "";
     }
+
+    alert("🛑 Auto signal generation stopped");
     return;
   }
 
+  // TURN ON MODE
+  if (!["2m", "15m"].includes(tf)) {
+    alert("❌ Signals only available in 2m or 15m");
+    return;
+  }
+
+  isRunningRef.current = true;
+
+  const btn = document.querySelector("#genBtn");
+  if (btn) {
+    btn.style.background = "#16a34a";
+    btn.style.color = "white";
+    btn.style.borderColor = "#16a34a";
+  }
+
+  await runSignalOnce();              // run immediately
+  autoRunRef.current = setInterval(runSignalOnce, 20000); // then every 20 sec
+}
+
+
+
+// ---------------------------------------------------------
+// RUN SIGNAL ONCE (2m + 15m)
+// ---------------------------------------------------------
+async function runSignalOnce() {
   try {
-    // STEP A — Backend regenerate signals
-    const run = await fetch(`${API}/market/generate-signal`, {
+    console.log("RUN SIGNAL ONCE");
+
+    // regenerate signals on backend
+    await fetch(`${API}/market/generate-signal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ symbol }),
     });
 
-    const runJs = await run.json();
-    console.log("Backend Response:", runJs);
+    // 🔥 Load ONLY current TF signals
+    await loadAllSignals(symbol);
 
-    if (runJs.status !== "success") {
-      alert(runJs.message || "Error generating signal");
-      return;
-    }
-
-    // ----------------------------------------------------
-    // STEP B — SHOW LATEST 4 signals in box
-    // ----------------------------------------------------
-    if (runJs.latest_signals && Array.isArray(runJs.latest_signals)) {
-      let boxHTML = "";
-
-      runJs.latest_signals.slice(0, 4).forEach((sig) => {
-        const color = sig.signal_type.includes("BULL") ? "green" : "red";
-
-        boxHTML += `
-          <div style="
-              padding:10px;
-              border:1px solid #ddd;
-              border-radius:8px;
-              margin-bottom:10px;
-              background:#fffef2;
-              box-shadow:0 0 6px rgba(255,215,0,0.4);
-          ">
-
-            <div style="display:flex; justify-content:space-between; font-weight:600;">
-              <span>${sig.datetime}</span>
-              <span style="color:${color};">${sig.signal_type}</span>
-            </div>
-
-            <div style="margin-top:4px; color:#444;">
-              ${sig.alert_details || ""}
-              ${sig.screener ? `, ${sig.screener}` : ""}
-            </div>
-
-            <div style="margin-top:4px; color:#777; font-size:13px;">
-              ${sig.user_action || ""}
-            </div>
-          </div>
-        `;
-      });
-
-      document.getElementById("alertBox").innerHTML = boxHTML;
-    }
-
-    // ----------------------------------------------------
-    // STEP C — Fetch filtered signals
-    // ----------------------------------------------------
-    const r = await fetch(`${API}/market/all-signals?symbol=${symbol}&tf=${tf}`);
-    const js = await r.json();
-
-    if (!js.signals || !Array.isArray(js.signals)) {
-      alert("No signals returned");
-      return;
-    }
-
-    // ----------------------------------------------------
-    // STEP D — Convert to chart markers
-    // ----------------------------------------------------
-    const filtered = js.signals.map((s) => ({
-      time: Number(s.timestamp),
-      position: s.signal === "BUY" ? "belowBar" : "aboveBar",
-      shape: s.signal === "BUY" ? "arrowUp" : "arrowDown",
-      color: s.signal === "BUY" ? "#16a34a" : "#dc2626",
-      text: `${s.signal} @ ${s.close_price}`,
-    }));
-
-    // ----------------------------------------------------
-    // STEP E — Show markers
-    // ----------------------------------------------------
-    priceSeries.current.setMarkers(filtered);
-    priceSeries.current._markers = filtered;
-
-    alert("✔ Signals applied!");
+    console.log("✔ Updated signals for:", tf);
 
   } catch (err) {
-    console.error("Generate-Signal Error:", err);
-    alert(`Error generating signal: ${err.message}`);
+    console.error("Signal error:", err);
   }
 }
+
+
+// ---------------------------------------------------------
+// RECOMMENDATIONS FEATURE
+// ---------------------------------------------------------
+const [showRecoModal, setShowRecoModal] = useState(false);
+const [recoData, setRecoData] = useState([]);
+
+async function openRecommendations() {
+  if (!["15m", "1d"].includes(tf)) {
+    alert("Recommendations available only in 15m or 1d timeframe");
+    return;
+  }
+
+  try {
+    const url = `${API}/chart-reco/generate?symbol=${symbol}&tf=${tf}`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      alert("Failed to fetch recommendations");
+      return;
+    }
+
+    const js = await res.json();
+    setRecoData(js.recommendations || []);
+    setShowRecoModal(true);
+  } catch (err) {
+    console.error("Recommendation Error:", err);
+  }
+}
+
 
 
 
@@ -2070,11 +2156,13 @@ async function generateSignal() {
 
           {/* App buttons */}
           <button
+  id="genBtn"
   onClick={generateSignal}
   className="text-xs px-2 py-1 rounded border hover:bg-green-100 whitespace-nowrap text-green-600 border-green-500"
 >
   Generate Signal
 </button>
+
 
           <button
             onClick={sendWhatsappAlert}
@@ -2082,12 +2170,22 @@ async function generateSignal() {
           >
            Add to alert WhatsApp
           </button>
+          
+          <button
+            onClick={openRecommendations}
+            className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
+          >
+           Recommendation
+          </button>
+
 
         </div>
         <div className="w-12 md:w-20 shrink-0" />
       </div>
 
       <div style={{ height: HEADER_H }} />
+      
+      
 
       {/* Left toolbar */}
       <LeftRail />
@@ -2127,26 +2225,47 @@ async function generateSignal() {
       </div>
 
       {/* Alert Description Section */}
-    {/* Alert Description Section */}
+   {/* Alert Description Section */}
 <div className="mt-4 px-4 pb-4">
-  <h3 className="text-sm font-semibold text-gray-700 mb-2">Alert Description</h3>
+  <h3 className="text-sm font-semibold text-gray-700 mb-2">Latest 4 Signals</h3>
 
   <div 
-    id="alertBox"
     style={{
       background: "#ffffff",
       borderRadius: "8px",
-      padding: "10px 14px",
+      padding: "14px",
       boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
       fontFamily: "Inter, sans-serif",
       fontSize: "14px",
-      lineHeight: "18px",
+      lineHeight: "20px",
       minHeight: "80px"
     }}
   >
-    {/* Dynamically filled by JS */}
+    {latestSignals.length === 0 ? (
+      <div>No signals found</div>
+    ) : (
+      latestSignals.map((sig, idx) => (
+        <div key={idx} style={{ paddingBottom: "10px", borderBottom: "1px solid #eee", marginBottom: "10px" }}>
+          
+          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
+            <span>{new Date(sig.timestamp * 1000).toLocaleString()}</span>
+            <span style={{ color: sig.signal === "BUY" ? "green" : "red" }}>
+              {sig.signal} || {sig.close_price}
+            </span>
+          </div>
+
+          <div style={{ marginTop: "5px" }}>
+            <strong>Alert Details:</strong> {sig.alert_details || "--"}<br />
+            <strong>Screener:</strong> {sig.screener || "--"}<br />
+            <strong>User Action:</strong> {sig.user_action || "--"}
+          </div>
+
+        </div>
+      ))
+    )}
   </div>
 </div>
+
 
 
 
@@ -2165,21 +2284,91 @@ async function generateSignal() {
       <SelectedToolbar />
       <IndicatorToolbar />
 
+      {/* ---------------- RECOMMENDATION MODAL ---------------- */}
+      {showRecoModal && (
+        <div className="fixed inset-0 bg-black/40 z-[9999] flex items-center justify-center">
+          <div className="bg-white w-[90vw] max-w-md rounded-xl shadow-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="font-semibold text-lg">
+                Recommendations ({tf.toUpperCase()})
+              </h2>
+              <button
+                onClick={() => setShowRecoModal(false)}
+                className="text-gray-600 hover:text-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            {recoData.length === 0 && (
+              <div className="text-center py-4 text-gray-600">
+                No recommendations found.
+              </div>
+            )}
+
+            {recoData.map((r, i) => (
+              <div
+                key={i}
+                className="border rounded-lg p-3 mb-2 bg-gray-50 shadow-sm"
+              >
+                <div className="flex justify-between font-semibold">
+                  <span>{r.label}</span>
+                  <span
+                    className={
+                      r.direction === "BUY" ? "text-green-600" : "text-red-600"
+                    }
+                  >
+                    {r.direction}
+                  </span>
+                </div>
+
+                <div className="text-sm mt-1">
+                  <div>Price: ₹{r.price}</div>
+                  <div>Date: {r.date}</div>
+                  <div>Time: {r.time}</div>
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={() => setShowRecoModal(false)}
+              className="mt-2 w-full py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Indicators modal */}
       {openIndModal && (
         <div className="fixed inset-0 bg-black/40 z-[9992] flex items-start justify-center pt-16">
           <div className="bg-white rounded-xl shadow-xl w-[92vw] max-w-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="font-semibold">Indicators</div>
-              <button onClick={() => setOpenIndModal(false)} className="text-gray-500">✕</button>
+              <button
+                onClick={() => setOpenIndModal(false)}
+                className="text-gray-500"
+              >
+                ✕
+              </button>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[60vh] overflow-auto">
               {INDICATORS.map((ind) => (
-                <label key={ind.key} className="flex items-center gap-2 border rounded p-2">
+                <label
+                  key={ind.key}
+                  className="flex items-center gap-2 border rounded p-2"
+                >
                   <input
                     type="checkbox"
                     checked={!!active[ind.key]}
-                    onChange={(e) => setActive((prev) => ({ ...prev, [ind.key]: e.target.checked }))}
+                    onChange={(e) =>
+                      setActive((prev) => ({
+                        ...prev,
+                        [ind.key]: e.target.checked,
+                      }))
+                    }
                   />
                   <span className="text-sm">{ind.label}</span>
                   <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
@@ -2188,10 +2377,20 @@ async function generateSignal() {
                 </label>
               ))}
             </div>
+
             <div className="mt-3 text-right">
-              <button onClick={() => setOpenIndModal(false)} className="text-sm px-3 py-1 rounded border hover:bg-gray-100">Done</button>
+              <button
+                onClick={() => setOpenIndModal(false)}
+                className="text-sm px-3 py-1 rounded border hover:bg-gray-100"
+              >
+                Done
+              </button>
             </div>
-            <p className="mt-3 text-xs text-gray-500">Note: A/D requires volume. If your backend doesn’t send volume, we assume 1.</p>
+
+            <p className="mt-3 text-xs text-gray-500">
+              Note: A/D requires volume. If your backend doesn’t send volume, we
+              assume 1.
+            </p>
           </div>
         </div>
       )}
