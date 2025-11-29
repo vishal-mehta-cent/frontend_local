@@ -54,9 +54,7 @@ const API =
 const HEADER_H = 56;
 const TF_MIN = { "1m": 1, "2m": 2, "5m": 5, "15m": 15, "1h": 60, "1d": 1440 };
 
-const openRecommendations = () => {
-  navigate(`/recommendations/${symbol}/${tf}`);
-};
+
 
 
 /* ----------------------- math helpers ----------------------- */
@@ -516,6 +514,10 @@ const [latestSignals, setLatestSignals] = useState([]);
 
 
 const [signalData, setSignalData] = useState(null);
+// NEW STATES
+const [generateMode, setGenerateMode] = useState(false);
+const [recoMode, setRecoMode] = useState(false);
+
 
 
 
@@ -684,8 +686,10 @@ async function loadAllSignals(symbol) {
     }));
 
     if (priceSeries.current) {
-      priceSeries.current.setMarkers(markers);
-      priceSeries.current._markers = markers;
+      priceSeries.current._genMarkers = markers;
+      applyUnifiedMarkers();
+                         
+
     }
     // Store last 4 signals for description box
     setLatestSignals(sorted.slice(-4));
@@ -703,75 +707,9 @@ useEffect(() => {
 }, [tf, symbol]);
 
 
-async function openRecommendations() {
-  if (!["15m", "1d"].includes(tf)) {
-    alert("Recommendations available only in 15m or 1d timeframe");
-    return;
-  }
 
-  try {
-    // STEP 1 → Tell backend to MERGE (Recommendations_Data + sig_15m/1d)
-    console.log("Running merge before loading chart recommendations:", tf);
 
-    const mergeURL = `${API}/market/merge-recommendations?tf=${tf}`;
-    const mergeRes = await fetch(mergeURL);
-    const mergeJs = await mergeRes.json();
 
-    console.log("Merge result:", mergeJs);
-
-    if (mergeJs.status !== "success") {
-      alert("Merge failed: " + mergeJs.message);
-      return;
-    }
-
-    // STEP 2 → Fetch merged signals for this TF (BTST.csv, INTRADAY.csv, SHORTTERM.csv)
-    const url = `${API}/market/signals?tf=${tf}`;
-    console.log("🔵 Fetching Signals:", url);
-    const res = await fetch(url);
-
-    if (!res.ok) {
-      alert("Failed to load signals");
-      return;
-    }
-
-    const js = await res.json();
-    console.log("Merged signals:", js);
-
-    // Combine 3 categories
-    const final = [
-      ...js.data.btst,
-      ...js.data.intraday,
-      ...js.data.shortterm
-    ];
-
-    // Sort by time for modal display
-    final.sort((a, b) => a.timestamp - b.timestamp);
-
-    // Push into UI
-    setRecoData(final);
-    setShowRecoModal(true);
-
-     console.log("🟡 Applying markers to chart...");
-
-    // STEP 3 → ALSO apply markers on chart immediately
-    const markers = final.map(s => ({
-      time: Number(s.timestamp),
-      position: s.signal === "BUY" ? "belowBar" : "aboveBar",
-      shape: s.signal === "BUY" ? "arrowUp" : "arrowDown",
-      color: s.signal === "BUY" ? "#16a34a" : "#dc2626",
-      text: `${s.strategy?.toUpperCase() || ""} ${s.signal} || ${s.close_price}`
-    }));
-
-    if (priceSeries.current) {
-      priceSeries.current.setMarkers(markers);
-      priceSeries.current._markers = markers;
-    }
-
-  } catch (err) {
-    console.error("Recommendation Error:", err);
-    alert("Error fetching recommendations");
-  }
-}
 
 
 
@@ -800,23 +738,27 @@ async function openRecommendations() {
   const applySeriesData = useCallback((t, rows) => {
     const dataToUse = mapDataForType(t, rows);
 
-    // --- Candle / Line / etc. series ---
-    if (["hist", "line", "linemk", "step", "area", "baseline"].includes(t)) {
-      priceSeries.current?.setData(
-        dataToUse.map(d => ({ time: d.time, value: d.close }))
-      );
-    } else {
-      priceSeries.current?.setData(
-        dataToUse.map(d => ({
-          time: d.time,
-          open: d.open,
-          high: d.high,
-          low: d.low,
-          close: d.close,
-        }))
-      );
-    }
-    
+// ALWAYS call before updating candles
+applyUnifiedMarkers();
+
+if (["hist", "line", "linemk", "step", "area", "baseline"].includes(t)) {
+   applyUnifiedMarkers();
+} else {
+   priceSeries.current?.setData(
+      dataToUse.map(d => ({
+        time: d.time,
+        open: d.open,
+        high: d.high,
+        low: d.low,
+        close: d.close,
+      }))
+   );
+}
+
+// ALWAYS call after updating
+applyUnifiedMarkers();
+
+
     
     // --- Volume bars on separate pane (time-synced with main) ---
     if (volSeries.current) {
@@ -1024,6 +966,9 @@ async function openRecommendations() {
     volumeChart.current = vol;
     oscChart.current = osc;
     priceSeries.current = series;
+    priceSeries.current._genMarkers = [];
+    priceSeries.current._recoMarkers = [];
+
     // LIVE MOVING PRICE LINE (Zerodha style)
 livePriceLine.current = priceSeries.current.createPriceLine({
   price: 0,
@@ -1234,6 +1179,8 @@ useEffect(() => {
 
       // update ONLY last candle without re-render
       priceSeries.current.update(live);
+      applyUnifiedMarkers();
+
 
       // update volume also without re-render
       volSeries.current?.update({
@@ -1245,9 +1192,14 @@ useEffect(() => {
             : "rgba(239,68,68,0.7)"
       });
 
-      // scroll to latest candle
-     if (isAtEnd) {
-  mainChart.current?.timeScale()?.scrollToRealTime();
+    try {
+  const ts = mainChart.current?.timeScale();
+  const range = ts?.getVisibleLogicalRange();
+  if (range && range.to >= candles.length - 2) {
+    ts.scrollToRealTime();
+  }
+} catch (e) {
+  console.warn("scrollToRealTime failed:", e);
 }
 
       
@@ -2058,6 +2010,8 @@ async function generateSignal() {
   }
 
   isRunningRef.current = true;
+  setGenerateMode(true);
+
 
   const btn = document.querySelector("#genBtn");
   if (btn) {
@@ -2066,9 +2020,15 @@ async function generateSignal() {
     btn.style.borderColor = "#16a34a";
   }
 
-  await runSignalOnce();              // run immediately
-  autoRunRef.current = setInterval(runSignalOnce, 20000); // then every 20 sec
-}
+  await runSignalOnce();
+autoRunRef.current = setInterval(runSignalOnce, 20000);
+
+if (recoMode) {
+  setInterval(() => {
+    openRecommendations();
+  }, 20000);
+}}
+
 
 
 
@@ -2096,6 +2056,29 @@ async function runSignalOnce() {
   }
 }
 
+// --------------------------------------------------
+// UNIVERSAL MARKER MERGER (STEP-4)
+// --------------------------------------------------
+function applyUnifiedMarkers() {
+  if (!priceSeries.current) return;
+
+  const gen = priceSeries.current._genMarkers || [];
+  const reco = priceSeries.current._recoMarkers || [];
+
+  // FIX: Merge + sort by time
+  const merged = [...gen, ...reco]
+    .filter(m => m && m.time)
+    .sort((a, b) => a.time - b.time);
+
+  try {
+    priceSeries.current.setMarkers(merged);
+  } catch (e) {
+    console.error("❌ Marker apply error:", e, merged);
+  }
+}
+
+
+
 
 // ---------------------------------------------------------
 // RECOMMENDATIONS FEATURE
@@ -2104,27 +2087,46 @@ const [showRecoModal, setShowRecoModal] = useState(false);
 const [recoData, setRecoData] = useState([]);
 
 async function openRecommendations() {
+  console.log("📌 Recommendations button clicked");
+
+  setRecoMode(true);        // ✅ FIX
+
   if (!["15m", "1d"].includes(tf)) {
     alert("Recommendations available only in 15m or 1d timeframe");
     return;
   }
 
-  try {
-    const url = `${API}/chart-reco/generate?symbol=${symbol}&tf=${tf}`;
-    const res = await fetch(url);
 
+  try {
+    const url = `${API}/market/reco-load?symbol=${symbol}&tf=${tf}`;
+    console.log("Fetching RECO:", url);
+
+    const res = await fetch(url);
     if (!res.ok) {
-      alert("Failed to fetch recommendations");
+  console.warn("⚠ Non-200 RECO:", res.status);
+  // continue anyway — backend still sends usable JSON
+}
+
+    const js = await res.json();
+    if (!js.markers || !Array.isArray(js.markers)) {
+      alert("No recommendations found");
       return;
     }
 
-    const js = await res.json();
-    setRecoData(js.recommendations || []);
-    setShowRecoModal(true);
+    // Existing generate-signals markers
+    priceSeries.current._recoMarkers = js.markers;  // store recommendations only
+    applyUnifiedMarkers();                          // merge both
+
+
+    console.log("📌 RECO Applied. Count:", js.markers.length);
+
   } catch (err) {
-    console.error("Recommendation Error:", err);
+    console.error("Recommendation load error:", err);
+    alert("Failed to load recommendations");
   }
 }
+
+
 
 
 
