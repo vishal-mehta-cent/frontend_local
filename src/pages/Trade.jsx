@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ClipboardList, User, Briefcase, Clock } from "lucide-react";
+import { Search, ClipboardList, User, Briefcase, Clock, Lightbulb } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
 import { moneyINR } from "../utils/format";
 import ChartLauncher from "../components/ChartLauncher";
+import { FaWhatsapp } from "react-icons/fa";
+
 
 
 const API =
@@ -95,7 +97,7 @@ export default function Trade({ username }) {
           (arr || []).forEach((q) => (map[q.symbol] = q));
           setQuotes(map);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchQuotes();
@@ -105,7 +107,7 @@ export default function Trade({ username }) {
 
   // ========== SEARCH HELPERS ==========
   const MONTHS = [
-    "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","SEPT","OCT","NOV","DEC"
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "SEPT", "OCT", "NOV", "DEC"
   ];
   const normMonth = (m) => (m === "SEPT" ? "SEP" : m || "");
 
@@ -189,7 +191,7 @@ export default function Trade({ username }) {
         const res = await fetch(`${API}/search?q=${encodeURIComponent(seed)}`);
         const data = await res.json().catch(() => []);
         if (Array.isArray(data)) bag = bag.concat(data);
-      } catch {}
+      } catch { }
     }
 
     // Dedupe by symbol field
@@ -322,7 +324,7 @@ export default function Trade({ username }) {
           const latestQuote = Array.isArray(arr) && arr[0] ? arr[0] : null;
           if (latestQuote) setSelectedQuote(latestQuote);
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 2000);
   }
 
@@ -402,7 +404,7 @@ export default function Trade({ username }) {
       setSellPreviewData(data);
       setSellConfirmMsg(
         data?.message ||
-          `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
+        `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
       );
       setSellConfirmOpen(true);
     } catch (e) {
@@ -454,11 +456,10 @@ export default function Trade({ username }) {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`pb-1 ${
-                  tab === t
-                    ? "text-blue-500 border-b-2 border-blue-500"
-                    : "text-gray-500"
-                }`}
+                className={`pb-1 ${tab === t
+                  ? "text-blue-500 border-b-2 border-blue-500"
+                  : "text-gray-500"
+                  }`}
               >
                 {t === "mylist" ? "My List" : "Must Watch"}
               </button>
@@ -477,6 +478,13 @@ export default function Trade({ username }) {
           </div>
           <div
             className="flex flex-col items-center cursor-pointer"
+            onClick={() => nav("/Recommendations")}
+          >
+            <Lightbulb size={22} className="text-gray-600 hover:text-blue-600" />
+            <span className="text-xs text-gray-500">Reco.</span>
+          </div>
+          <div
+            className="flex flex-col items-center cursor-pointer"
             onClick={() => nav("/history")}
           >
             <Clock size={22} className="text-gray-600 hover:text-blue-600" />
@@ -489,6 +497,7 @@ export default function Trade({ username }) {
             <User size={22} className="text-gray-600 hover:text-blue-600" />
             <span className="text-xs text-gray-500">Profile</span>
           </div>
+
         </div>
       </div>
 
@@ -533,6 +542,7 @@ export default function Trade({ username }) {
           </div>
 
           {/* Watchlist Items */}
+          {/* Watchlist Items */}
           <div className="flex-1 overflow-auto p-4 space-y-3 bg-gray-100">
             {watchlist.length === 0 ? (
               <div className="text-center text-gray-500 mt-10">
@@ -542,58 +552,78 @@ export default function Trade({ username }) {
               watchlist.map((sym) => {
                 const q = quotes[sym] || {};
                 const isPos = Number(q.change || 0) >= 0;
+
                 return (
                   <div
                     key={sym}
-                    className="bg-white px-4 py-3 rounded-xl hover:shadow-md flex justify-between items-start cursor-pointer"
+                    className="bg-white px-4 py-2 rounded-xl hover:shadow-md cursor-pointer"
                     onClick={() => goDetail(sym)}
                   >
-                    <div>
-                      <div className="text-lg font-semibold text-gray-800">
-                        {sym}
+                    {/* FIRST LINE → TCS | PRICE | - */}
+                    <div className="flex justify-between items-center">
+                      <div className="text-left">
+                        <div className="text-lg font-semibold text-gray-800">{sym}</div>
                       </div>
-                      <div className="text-xs text-gray-600">
-                        {q.exchange || "NSE"}
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <div className="text-right">
+
+                      <div className="flex items-center space-x-2">
                         <div
-                          className={`text-xl font-medium ${
-                            isPos ? "text-green-600" : "text-red-600"
-                          }`}
+                          className={`text-xl font-medium ${isPos ? "text-green-600" : "text-red-600"
+                            }`}
                         >
                           {q.price != null
                             ? Number(q.price).toLocaleString("en-IN")
                             : "--"}
                         </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveFromWatchlist(sym);
+                          }}
+                          className="text-xs bg-red-100 text-red-600 rounded px-2 py-0.5 hover:bg-red-200"
+                        >
+                          &minus;
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECOND LINE → NSE | CHANGE% | WA */}
+                    <div className="flex justify-between items-center mt-1">
+
+                      {/* Left side: NSE */}
+                      <div className="text-xs text-gray-600">
+                        {q.exchange || "NSE"}
+                      </div>
+
+                      {/* Right side: Change + WhatsApp */}
+                      <div className="flex items-center gap-2">
                         <div className="text-xs text-gray-600">
                           {q.change != null
-                            ? `${isPos ? "+" : ""}${Number(q.change).toFixed(
-                                2
-                              )} (${isPos ? "+" : ""}${Number(
-                                q.pct_change || 0
-                              ).toFixed(2)}%)`
+                            ? `${isPos ? "+" : ""}${Number(q.change).toFixed(2)} (${Number(
+                              q.pct_change || 0
+                            ).toFixed(2)}%)`
                             : "--"}
                         </div>
+
+                        <FaWhatsapp
+                          className="text-green-500 text-lg cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.log("WhatsApp clicked for:", sym);
+                          }}
+                        />
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveFromWatchlist(sym);
-                        }}
-                        className="text-xs bg-red-100 text-red-600 rounded px-2 py-0.5 hover:bg-red-200"
-                      >
-                        &minus;
-                      </button>
                     </div>
                   </div>
+
                 );
               })
             )}
           </div>
+
         </>
-      )}
+      )
+      }
 
       {/* Bottom Nav */}
       <div className="flex bg-gray-800 p-2 justify-around">
@@ -610,6 +640,13 @@ export default function Trade({ username }) {
         >
           <ClipboardList size={24} />
           <span className="text-xs">Orders</span>
+        </button>
+        <button
+          onClick={() => nav("/whatsapp")}
+          className="flex flex-col items-center text-gray-400"
+        >
+          <FaWhatsapp size={24} />
+          <span className="text-xs">WhatsApp</span>
         </button>
       </div>
 
@@ -638,39 +675,41 @@ export default function Trade({ username }) {
       />
 
       {/* SELL confirmation modal */}
-      {sellConfirmOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm w-full">
-            <p className="mb-4 text-gray-800 font-semibold">
-              {sellConfirmMsg ||
-                `You have 0 qty of ${sellSymbol}. Do you still want to sell first?`}
-            </p>
-            <div className="flex justify-center gap-4">
-              <button
-                className="bg-gray-400 text-white px-4 py-2 rounded"
-                onClick={() => setSellConfirmOpen(false)}
-              >
-                NO
-              </button>
-              <button
-                className="bg-red-600 text-white px-4 py-2 rounded"
-                onClick={() => {
-                  setSellConfirmOpen(false);
-                  nav(`/sell/${sellSymbol}`, {
-                    state: {
-                      requestedQty: 1,
-                      allow_short: true,
-                      preview: sellPreviewData,
-                    },
-                  });
-                }}
-              >
-                YES
-              </button>
+      {
+        sellConfirmOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm w-full">
+              <p className="mb-4 text-gray-800 font-semibold">
+                {sellConfirmMsg ||
+                  `You have 0 qty of ${sellSymbol}. Do you still want to sell first?`}
+              </p>
+              <div className="flex justify-center gap-4">
+                <button
+                  className="bg-gray-400 text-white px-4 py-2 rounded"
+                  onClick={() => setSellConfirmOpen(false)}
+                >
+                  NO
+                </button>
+                <button
+                  className="bg-red-600 text-white px-4 py-2 rounded"
+                  onClick={() => {
+                    setSellConfirmOpen(false);
+                    nav(`/sell/${sellSymbol}`, {
+                      state: {
+                        requestedQty: 1,
+                        allow_short: true,
+                        preview: sellPreviewData,
+                      },
+                    });
+                  }}
+                >
+                  YES
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
