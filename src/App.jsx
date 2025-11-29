@@ -39,6 +39,7 @@ import History from "./pages/History";
 import ModifyOrderPage from "./pages/ModifyOrderPage";
 import ProfileDetail from "./pages/ProfileDetail";
 import LiveChart from "./pages/LiveChart"; // ✅ added
+import Whatsapp from "./pages/Whatsapp";
 
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
 function RouteAwareTopRightLogo() {
@@ -259,9 +260,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           path="/settings/change-password"
           element={username ? <PasswordChange /> : <Navigate to="/" replace />}
         />
-        <Route 
-          path="/profile/details" 
-          element={<ProfileDetail />} 
+        <Route
+          path="/profile/details"
+          element={<ProfileDetail />}
         />
         <Route
           path="/settings/change-email"
@@ -275,9 +276,15 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           path="/live"
           element={username ? <LiveChart /> : <Navigate to="/" replace />}
         />
-
+        <Route
+          path="/whatsapp"
+          element={username ? <Whatsapp /> : <Navigate to="/" replace />}
+        />
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
+
+
+
       </Routes>
     </AnimatePresence>
   );
