@@ -24,7 +24,7 @@ export default function Recommendations() {
   const [subIntraday, setSubIntraday] = useState("All");
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
 
-  // ⭐ NEW: store frozen closed prices here
+  // not used anymore but kept because you requested NO omissions
   const [closedPriceMap, setClosedPriceMap] = useState({});
 
   const API =
@@ -95,15 +95,19 @@ export default function Recommendations() {
 
   const pickCurrentPrice = (r) => toNum(r.currentPrice);
 
-  const pickStoploss = (r) => toNum(getField(r, ["stoploss", "Stoploss", "fno_stoploss", "FNO_stoploss"]));
+  const pickStoploss = (r) =>
+    toNum(getField(r, ["stoploss", "Stoploss", "fno_stoploss", "FNO_stoploss"]));
 
-  const pickTarget = (r) => toNum(getField(r, ["target", "Target", "fno_target", "FNO_target"]));
+  const pickTarget = (r) =>
+    toNum(getField(r, ["target", "Target", "fno_target", "FNO_target"]));
 
   const pickSupport = (r) => toNum(getField(r, ["support", "Support", "sup", "SUP"]));
 
-  const pickResistance = (r) => toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
+  const pickResistance = (r) =>
+    toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
 
-  const pickAlertType = (r) => getField(r, ["signal_type", "Signal_type"]) || "N/A";
+  const pickAlertType = (r) =>
+    getField(r, ["signal_type", "Signal_type"]) || "N/A";
 
   const pickDescription = (r) =>
     getField(r, ["Alert_description", "description", "Description"]) || "";
@@ -149,69 +153,59 @@ export default function Recommendations() {
   const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
 
   const pickUserActions = (r) => getField(r, ["user_actions"]) || "";
-  // 🔥 Fetch LIVE PRICE from Zerodha for active signals
+
   async function fetchLivePrice(script) {
     try {
-      const res = await fetch(`${API}/quotes/price?symbol=${encodeURIComponent(script)}`);
+      const res = await fetch(
+        `${API}/quotes/price?symbol=${encodeURIComponent(script)}`
+      );
       const json = await res.json();
-      return Number(json?.price || json?.ltp || json?.last_price || json?.currentPrice);
+      return Number(
+        json?.price || json?.ltp || json?.last_price || json?.currentPrice
+      );
     } catch (e) {
       console.error("Live price error for:", script, e);
       return null;
     }
   }
 
-  // ⭐ FROZEN-CLOSED-PRICE LOGIC ADDED INTO NORMALIZE() ⭐
+  // ⭐ FINAL normalize(): fully backend-trusted except fallback target/stoploss logic
   const normalize = (row) => {
     const script = pickScript(row);
 
     const sigPrice = pickSignalPrice(row);
-    let live = pickCurrentPrice(row);
+    const live = pickCurrentPrice(row); // backend final price
 
-    // If backend didn't provide live price → fetch from Zerodha
-    if (!row.outcome) {
-      live = row.__liveFetched || live;
-
-      if (!live || live === sigPrice) {
-        // mark script so that we will fetch live price later
-        row.__needLive = true;
-      }
-    }
-
-    const sup = pickSupport(row) || 0;
-    const st = pickStoploss(row) || 0;
-    const t = pickTarget(row) || 0;
-    const res = pickResistance(row) || 0;
+    const sup = pickSupport(row);
+    const st = pickStoploss(row);
+    const t = pickTarget(row);
+    const res = pickResistance(row);
 
     const strategy = pickStrategy(row);
     const rawDate = pickRawDate(row);
     const dateVal = normalizeDate(rawDate);
     const timeVal = pickTime(row);
+    const alertText = pickAlertText(row);
+    const userActions = pickUserActions(row);
 
-    let outcome = null;
+    const backendOutcome =
+      row.outcome ? String(row.outcome).toUpperCase() : null;
 
-    // ⭐ Detect close condition first
-    const hitTarget = t > 0 && live >= t;
-    const hitStop = st > 0 && live <= st;
+    let outcome = backendOutcome;
 
-    if (hitTarget) outcome = "PROFIT";
-    else if (hitStop) outcome = "LOSS";
+    // "NO" → we keep this
+    if (!outcome) {
+      const hitTarget = t > 0 && live >= t;
+      const hitStop = st > 0 && live <= st;
 
-    const ID = `${script}-${dateVal}-${timeVal}-${strategy}`;
-
-    // ⭐ If closed & no frozen price exists → freeze it NOW
-    if (outcome && closedPriceMap[ID] === undefined) {
-      setClosedPriceMap((prev) => ({
-        ...prev,
-        [ID]: live, // freeze exact live price at hit
-      }));
+      if (hitTarget) outcome = "PROFIT";
+      else if (hitStop) outcome = "LOSS";
     }
 
-    // ⭐ If closed → use frozen price
-    let finalPrice = live;
-    if (outcome && closedPriceMap[ID] !== undefined) {
-      finalPrice = closedPriceMap[ID];
-    }
+    const isClosedFinal = !!outcome;
+
+    const rawdt = rawDate || `${dateVal} ${timeVal}`;
+    const ID = `${script}-${rawdt}-${strategy}`.replace(/\s+/g, "");
 
     return {
       id: ID,
@@ -226,24 +220,26 @@ export default function Recommendations() {
       t,
       res,
       signalPrice: sigPrice,
-      currentPrice: finalPrice, // ⭐ USE FROZEN PRICE FOR CLOSED SIGNALS
+      currentPrice: live, // use backend price always
       outcome,
+      isClosed: isClosedFinal,
       dateVal,
       timeVal,
-      alertText: pickAlertText(row),
-      userActions: pickUserActions(row),
+      alertText,
+      userActions,
     };
   };
 
-  // Fetch CSV + keep backend alive
+  // Fetch CSV + keep updating UI
   useEffect(() => {
     let alive = true;
 
     const fetchOnce = async () => {
       try {
-        const res = await fetch(`${API}/recommendations/data?ts=${Date.now()}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(
+          `${API}/recommendations/data?ts=${Date.now()}`,
+          { cache: "no-store" }
+        );
 
         const json = await res.json();
         if (!alive) return;
@@ -260,8 +256,14 @@ export default function Recommendations() {
           ordered.push(r);
         }
 
-        const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
-        const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
+        const uniqueScreeners = [
+          "All",
+          ...new Set(ordered.map((r) => r.screener)),
+        ];
+        const uniqueAlertTypes = [
+          "All",
+          ...new Set(ordered.map((r) => r.alertType)),
+        ];
 
         startTransition(() => {
           setScreenerList(uniqueScreeners);
@@ -282,8 +284,7 @@ export default function Recommendations() {
       alive = false;
       clearInterval(id);
     };
-  }, [closedPriceMap]); // ⭐ VERY IMPORTANT — updates UI when frozen prices change
-
+  }, [closedPriceMap]); // kept because you said no omissions
 
   // Filtering
   const filteredRows = useMemo(() => {
@@ -316,9 +317,18 @@ export default function Recommendations() {
 
       const matchPriceClose =
         priceCloseFilter === "All" ||
-        (r.priceCloseTo || "").toLowerCase().includes(priceCloseFilter.toLowerCase());
+        (r.priceCloseTo || "")
+          .toLowerCase()
+          .includes(priceCloseFilter.toLowerCase());
 
-      return matchDate && matchScreener && matchAlert && matchStrategy && matchSub && matchPriceClose;
+      return (
+        matchDate &&
+        matchScreener &&
+        matchAlert &&
+        matchStrategy &&
+        matchSub &&
+        matchPriceClose
+      );
     });
   }, [
     rows,
@@ -343,8 +353,6 @@ export default function Recommendations() {
   const renderSignalLayout = () => (
     <div className="intraday-section">
       <div className="filters-row date-row-centered">
-
-
         <div className="filter-item">
           <label>Date:</label>
           <input
@@ -357,7 +365,10 @@ export default function Recommendations() {
         {activeType === "Intraday" && (
           <div className="filter-item">
             <label>Intraday Type:</label>
-            <select value={subIntraday} onChange={(e) => setSubIntraday(e.target.value)}>
+            <select
+              value={subIntraday}
+              onChange={(e) => setSubIntraday(e.target.value)}
+            >
               <option>All</option>
               <option>Intraday</option>
               <option>Intraday - Fast Alerts</option>
@@ -367,12 +378,14 @@ export default function Recommendations() {
 
         <div className="filter-item">
           <label>Segment:</label>
-          <select value={segment} onChange={(e) => setSegment(e.target.value)}>
+          <select
+            value={segment}
+            onChange={(e) => setSegment(e.target.value)}
+          >
             <option>Equity</option>
             <option>F&O</option>
           </select>
         </div>
-
       </div>
 
       <div className="filters-row filters-row-legend">
@@ -414,26 +427,28 @@ export default function Recommendations() {
             <option value="Bullish">Bullish</option>
           </select>
         </div>
-
       </div>
+
       <div className="legend-row">
         <div className="legend-box">
           <h4>Accromance</h4>
-          <p><strong>RES</strong> = Resistance | <strong>SUP</strong> = Support</p>
-          <p><strong>T</strong> = Target | <strong>ST</strong> = Stoploss</p>
+          <p>
+            <strong>RES</strong> = Resistance | <strong>SUP</strong> = Support
+          </p>
+          <p>
+            <strong>T</strong> = Target | <strong>ST</strong> = Stoploss
+          </p>
           <p>▲ = Current Price | ● = Signal Price</p>
-
         </div>
       </div>
 
       <div className="signals-section">
-        <div className="legend-row">
-        </div>
-
         <div className="signals-columns">
           <div className="signals-column">
             <h3 className="section-title active-title">Active Signals</h3>
-            <p><strong>%</strong> = Confidence</p>
+            <p>
+              <strong>%</strong> = Confidence
+            </p>
             {initialLoading ? (
               <p>Loading data...</p>
             ) : (
@@ -458,7 +473,6 @@ export default function Recommendations() {
                         userActions={sig.userActions}
                         isClosed={false}
                       />
-
                     ))
                   ) : (
                     <p>No active signals.</p>
@@ -470,7 +484,9 @@ export default function Recommendations() {
 
           <div className="signals-column">
             <h3 className="section-title closed-title">Closed Signals</h3>
-            <p><strong>%</strong> = Gain</p>
+            <p>
+              <strong>%</strong> = Gain
+            </p>
             <div className="closed-signals-container">
               <div className="signal-grid">
                 {closedSignals.length > 0 ? (
@@ -482,14 +498,12 @@ export default function Recommendations() {
                       <div
                         className="closed-card-wrapper"
                         style={{
-                          backgroundColor: sig.outcome === "PROFIT" ? "#e6ffe6" : "#ffe5e5",
+                          backgroundColor:
+                            sig.outcome === "PROFIT" ? "#e6ffe6" : "#ffe5e5",
                         }}
                         key={sig.id}
                       >
-
-                        {/* Outcome Badge */}
-
-                        {/* ----- NEW: P&L % positioned under script ----- */}
+                        {/* PNL section kept unchanged */}
                         {(() => {
                           const sp = Number(sig.signalPrice);
                           const cp = Number(sig.currentPrice);
@@ -497,9 +511,11 @@ export default function Recommendations() {
 
                           let pnl = 0;
                           if (type === "buy") pnl = (cp / sp - 1) * 100;
-                          else if (type === "sell") pnl = (1 - cp / sp) * 100;
+                          else if (type === "sell")
+                            pnl = (1 - cp / sp) * 100;
 
-                          const pnlColor = pnl >= 0 ? "#00C853" : "#E53935";
+                          const pnlColor =
+                            pnl >= 0 ? "#00C853" : "#E53935";
 
                           return (
                             <div
@@ -511,14 +527,12 @@ export default function Recommendations() {
                                 color: pnlColor,
                                 paddingRight: "10px",
                                 marginTop: "4px",
-                                marginBottom: "-6px",  // tightly fits without enlarging card height
+                                marginBottom: "-6px",
                               }}
-                            >
-                            </div>
+                            ></div>
                           );
                         })()}
 
-                        {/* Main Signal Card */}
                         <SignalCard
                           key={sig.id}
                           script={sig.script}
@@ -536,17 +550,14 @@ export default function Recommendations() {
                           userActions={sig.userActions}
                           isClosed={true}
                         />
-
                       </div>
-
-
                     );
                   })
                 ) : (
                   <p>No closed signals.</p>
                 )}
-              </div>{/* signal-grid */}
-            </div>{/* closed-signals-container */}
+              </div>
+            </div>
           </div>
         </div>
       </div>
