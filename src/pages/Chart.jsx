@@ -707,19 +707,6 @@ useEffect(() => {
 }, [tf, symbol]);
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
   /* ---------------- Fetch candles ---------------- */
   const [candles, setCandles] = useState([]);
 
@@ -1962,6 +1949,8 @@ useEffect(() => {
 // ---------------------------------------------------------
 const autoRunRef = useRef(null);
 const isRunningRef = useRef(false);
+// ⭐ NEW — 20s loop controller for Recommendations
+const recoRunRef = useRef(null);
 
 // ---------------------------------------------------------
 // MERGE SIGNAL DATA (2m + 15m)
@@ -2089,7 +2078,25 @@ const [recoData, setRecoData] = useState([]);
 async function openRecommendations() {
   console.log("📌 Recommendations button clicked");
 
-  setRecoMode(true);        // ✅ FIX
+  // Highlight Recommendation button (turn blue)
+const recoBtn = document.querySelector("#recoBtn");
+if (recoBtn) {
+  recoBtn.style.background = "#2563eb";   // blue
+  recoBtn.style.color = "white";
+  recoBtn.style.borderColor = "#2563eb";
+}
+
+
+  setRecoMode(true);   
+       
+  // ⭐ Start 20-second refresh loop for recommendations
+if (recoRunRef.current) clearInterval(recoRunRef.current);
+
+recoRunRef.current = setInterval(() => {
+  console.log("🔄 Auto-refreshing recommendations…");
+  openRecommendations();   // safe to call recursively (it only fetches)
+}, 20000);
+
 
   if (!["15m", "1d"].includes(tf)) {
     alert("Recommendations available only in 15m or 1d timeframe");
@@ -2166,18 +2173,21 @@ async function openRecommendations() {
 </button>
 
 
+          
+          
+          <button
+            id="recoBtn"
+            onClick={openRecommendations}
+            className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
+          >
+           Recommendation
+          </button>
+
           <button
             onClick={sendWhatsappAlert}
             className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
           >
            Add to alert WhatsApp
-          </button>
-          
-          <button
-            onClick={openRecommendations}
-            className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
-          >
-           Recommendation
           </button>
 
 
