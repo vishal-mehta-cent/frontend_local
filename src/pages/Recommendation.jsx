@@ -5,6 +5,105 @@ import "./Recommendations.css";
 import SignalCard from "../components/SignalCard";
 import BackButton from "../components/BackButton";
 
+
+// ---------------------------------------------------------
+// ⭐ SEMICIRCLE ACCURACY GAUGE (PURE SVG) — UPDATED
+//    NOW SHOWS: 
+//    1️⃣ Percent (0.00%)
+//    2️⃣ BUY/SELL CLOSED SIGNAL COUNT
+// ---------------------------------------------------------
+// ---------------------------------------------------------
+// ⭐ SEMICIRCLE ACCURACY GAUGE (0% → 100% SUPPORT)
+// ---------------------------------------------------------
+// ---------------------------------------------------------
+// ⭐ SEMICIRCLE ACCURACY GAUGE (0% → 100%)
+//    ZONES:
+//    <50%  = RED
+//    50–75 = YELLOW
+//    >75%  = GREEN
+// ---------------------------------------------------------
+const AccuracyGauge = ({ value, label }) => {
+
+  // Clamp correctly between 0% → 100%
+  const v = Math.max(0, Math.min(100, value));
+
+  // Convert accuracy to needle angle:
+  // 0% = 180° (far left)
+  // 50% = 90° (middle)
+  // 100% = 0° (right)
+  const angle = 180 - (v / 100) * 180;
+
+  const needleX = 90 + 60 * Math.cos((Math.PI / 180) * angle);
+  const needleY = 100 - 60 * Math.sin((Math.PI / 180) * angle);
+
+  return (
+    <svg width="180" height="150" viewBox="0 0 180 150">
+
+      {/* RED zone — 0% to 50% */}
+      <path
+        d="M10 100 A80 80 0 0 1 65 20"
+        fill="none"
+        stroke="#d9534f"
+        strokeWidth="16"
+      />
+
+      {/* YELLOW zone — 50% to 75% */}
+      <path
+        d="M65 20 A80 80 0 0 1 115 20"
+        fill="none"
+        stroke="#f0ad4e"
+        strokeWidth="16"
+      />
+
+      {/* GREEN zone — 75% to 100% */}
+      <path
+        d="M115 20 A80 80 0 0 1 170 100"
+        fill="none"
+        stroke="#5cb85c"
+        strokeWidth="16"
+      />
+
+      {/* Needle Line */}
+      <line
+        x1="90"
+        y1="100"
+        x2={needleX}
+        y2={needleY}
+        stroke="black"
+        strokeWidth="3"
+      />
+
+      {/* Needle Center Dot */}
+      <circle cx="90" cy="100" r="5" fill="black" />
+
+      {/* Accuracy % */}
+      <text
+        x="90"
+        y="122"
+        textAnchor="middle"
+        fontSize="16"
+        fontWeight="700"
+        fill="#000"
+      >
+        {value.toFixed(2)}%
+      </text>
+
+      {/* Label: BUY Signals: X / SELL Signals: X */}
+      <text
+        x="90"
+        y="142"
+        textAnchor="middle"
+        fontSize="14"
+        fontWeight="700"
+        fill="#0d47a1"
+      >
+        {label}
+      </text>
+    </svg>
+  );
+};
+
+
 export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -24,7 +123,6 @@ export default function Recommendations() {
   const [subIntraday, setSubIntraday] = useState("All");
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
 
-  // not used anymore but kept because you requested NO omissions
   const [closedPriceMap, setClosedPriceMap] = useState({});
 
   const API =
@@ -73,7 +171,6 @@ export default function Recommendations() {
     return undefined;
   };
 
-  // Pickers
   const pickConfidence = (r) => {
     let raw = getField(r, [
       "backtest_accuracy",
@@ -168,13 +265,14 @@ export default function Recommendations() {
       return null;
     }
   }
-
-  // ⭐ FINAL normalize(): fully backend-trusted except fallback target/stoploss logic
+  // ----------------------------------------------------
+  // NORMALIZE FUNCTION
+  // ----------------------------------------------------
   const normalize = (row) => {
     const script = pickScript(row);
 
     const sigPrice = pickSignalPrice(row);
-    const live = pickCurrentPrice(row); // backend final price
+    const live = pickCurrentPrice(row);
 
     const sup = pickSupport(row);
     const st = pickStoploss(row);
@@ -193,7 +291,6 @@ export default function Recommendations() {
 
     let outcome = backendOutcome;
 
-    // "NO" → we keep this
     if (!outcome) {
       const hitTarget = t > 0 && live >= t;
       const hitStop = st > 0 && live <= st;
@@ -220,7 +317,7 @@ export default function Recommendations() {
       t,
       res,
       signalPrice: sigPrice,
-      currentPrice: live, // use backend price always
+      currentPrice: live,
       outcome,
       isClosed: isClosedFinal,
       dateVal,
@@ -230,7 +327,9 @@ export default function Recommendations() {
     };
   };
 
-  // Fetch CSV + keep updating UI
+  // ----------------------------------------------------
+  // FETCH CSV DATA EVERY 5 SECONDS
+  // ----------------------------------------------------
   useEffect(() => {
     let alive = true;
 
@@ -268,7 +367,6 @@ export default function Recommendations() {
         startTransition(() => {
           setScreenerList(uniqueScreeners);
           setAlertTypeList(uniqueAlertTypes);
-
           setRows(ordered);
           setInitialLoading(false);
         });
@@ -284,9 +382,11 @@ export default function Recommendations() {
       alive = false;
       clearInterval(id);
     };
-  }, [closedPriceMap]); // kept because you said no omissions
+  }, [closedPriceMap]);
 
-  // Filtering
+  // -------------------------------------------------------
+  // FILTERING
+  // -------------------------------------------------------
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
       const matchDate = r.dateVal === selectedDate;
@@ -317,9 +417,7 @@ export default function Recommendations() {
 
       const matchPriceClose =
         priceCloseFilter === "All" ||
-        (r.priceCloseTo || "")
-          .toLowerCase()
-          .includes(priceCloseFilter.toLowerCase());
+        (r.priceCloseTo || "").toLowerCase().includes(priceCloseFilter.toLowerCase());
 
       return (
         matchDate &&
@@ -340,9 +438,12 @@ export default function Recommendations() {
     priceCloseFilter,
   ]);
 
+  // -------------------------------------------------------
+  // ACTIVE & CLOSED SIGNALS
+  // -------------------------------------------------------
   const activeSignals = useMemo(() => {
     const allActive = filteredRows.filter((r) => !r.outcome);
-    return allActive.slice(0, 10);
+    return allActive.slice(0, 30); // SHOW 30 ACTIVE SIGNALS
   }, [filteredRows]);
 
   const closedSignals = useMemo(
@@ -350,8 +451,62 @@ export default function Recommendations() {
     [filteredRows]
   );
 
+  // -------------------------------------------------------
+  // BUY/SELL COUNTS
+  // -------------------------------------------------------
+  const totalBuySignals = activeSignals.filter(
+    (r) => String(r.alertType).toLowerCase() === "buy"
+  ).length;
+
+  const totalSellSignals = activeSignals.filter(
+    (r) => String(r.alertType).toLowerCase() === "sell"
+  ).length;
+
+  // -------------------------------------------------------
+  // BUY / SELL Closed Signals
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // BUY / SELL Closed Signals
+  // -------------------------------------------------------
+  const buyClosedSignals = closedSignals.filter(
+    (s) => String(s.alertType).toLowerCase() === "buy"
+  );
+
+  const sellClosedSignals = closedSignals.filter(
+    (s) => String(s.alertType).toLowerCase() === "sell"
+  );
+
+  // ⭐ NEW ACCURACY CALCULATION ⭐
+  // Accuracy = (Number of PROFIT signals / Total signals) × 100
+  const computeAccuracy = (list) => {
+    if (!list.length) return 0;
+
+    const profitCount = list.filter(
+      (s) => String(s.outcome).toUpperCase() === "PROFIT"
+    ).length;
+
+    const accuracy = (profitCount / list.length) * 100;
+
+    return Number.isFinite(accuracy) ? accuracy : 0;
+  };
+
+  // BUY accuracy
+  const buyClosedAccuracy = computeAccuracy(buyClosedSignals);
+
+  // SELL accuracy
+  const sellClosedAccuracy = computeAccuracy(sellClosedSignals);
+
+  // COUNTS for showing below the speedometer
+  const buyClosedCount = buyClosedSignals.length;
+  const sellClosedCount = sellClosedSignals.length;
+
+  // -------------------------------------------------------
+  // SIGNALS LAYOUT
+  // -------------------------------------------------------
   const renderSignalLayout = () => (
     <div className="intraday-section">
+
+      {/* ---------------- DATE ROW ---------------- */}
       <div className="filters-row date-row-centered">
         <div className="filter-item">
           <label>Date:</label>
@@ -388,6 +543,7 @@ export default function Recommendations() {
         </div>
       </div>
 
+      {/* ---------------- DROPDOWN FILTERS ---------------- */}
       <div className="filters-row filters-row-legend">
         <div className="filter-item">
           <label>Alert Type:</label>
@@ -429,6 +585,7 @@ export default function Recommendations() {
         </div>
       </div>
 
+      {/* ---------------- LEGEND ---------------- */}
       <div className="legend-row">
         <div className="legend-box">
           <h4>Accromance</h4>
@@ -442,13 +599,30 @@ export default function Recommendations() {
         </div>
       </div>
 
+      {/* ---------------- SIGNALS SECTION ---------------- */}
       <div className="signals-section">
         <div className="signals-columns">
+
+          {/* ====================================================
+                  ACTIVE SIGNALS
+              ==================================================== */}
           <div className="signals-column">
             <h3 className="section-title active-title">Active Signals</h3>
-            <p>
-              <strong>%</strong> = Confidence
-            </p>
+            <p><strong>%</strong> = Confidence</p>
+
+            {/* BUY / SELL COUNTS */}
+            <div className="signal-count-box">
+              <div className="signal-count-item buy">
+                BUY Signals: <span>{totalBuySignals}</span>
+              </div>
+              <div className="signal-count-item sell">
+                SELL Signals: <span>{totalSellSignals}</span>
+              </div>
+              <div className="signal-count-item total">
+                Total: <span>{totalBuySignals + totalSellSignals}</span>
+              </div>
+            </div>
+
             {initialLoading ? (
               <p>Loading data...</p>
             ) : (
@@ -482,40 +656,65 @@ export default function Recommendations() {
             )}
           </div>
 
+          {/* ====================================================
+                  CLOSED SIGNALS
+              ==================================================== */}
           <div className="signals-column">
             <h3 className="section-title closed-title">Closed Signals</h3>
-            <p>
-              <strong>%</strong> = Gain
-            </p>
+            <p><strong>%</strong> = Gain</p>
+
+            {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐ */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "70px",
+                margin: "10px 0 30px 0",
+                alignItems: "center",
+              }}
+            >
+              {/* BUY Speedometer */}
+              <div style={{ textAlign: "center" }}>
+                <AccuracyGauge
+                  value={buyClosedAccuracy}
+                  label={`BUY Signals: ${buyClosedCount}`}
+                />
+              </div>
+
+              {/* SELL Speedometer */}
+              <div style={{ textAlign: "center" }}>
+                <AccuracyGauge
+                  value={sellClosedAccuracy}
+                  label={`SELL Signals: ${sellClosedCount}`}
+                />
+              </div>
+            </div>
+            {/* CLOSED SIGNALS GRID */}
             <div className="closed-signals-container">
               <div className="signal-grid">
                 {closedSignals.length > 0 ? (
                   closedSignals.map((sig) => {
                     const isProfit = sig.outcome === "PROFIT";
-                    const color = isProfit ? "#00C853" : "#E53935";
 
                     return (
                       <div
                         className="closed-card-wrapper"
-                        style={{
-                          backgroundColor:
-                            sig.outcome === "PROFIT" ? "#e6ffe6" : "#ffe5e5",
-                        }}
                         key={sig.id}
+                        style={{
+                          backgroundColor: isProfit ? "#e6ffe6" : "#ffe5e5",
+                        }}
                       >
-                        {/* PNL section kept unchanged */}
+                        {/* PNL Section */}
                         {(() => {
                           const sp = Number(sig.signalPrice);
                           const cp = Number(sig.currentPrice);
-                          const type = String(sig.alertType).toLowerCase();
+                          const side = String(sig.alertType).toLowerCase();
 
                           let pnl = 0;
-                          if (type === "buy") pnl = (cp / sp - 1) * 100;
-                          else if (type === "sell")
-                            pnl = (1 - cp / sp) * 100;
+                          if (side === "buy") pnl = (cp / sp - 1) * 100;
+                          else pnl = (1 - cp / sp) * 100;
 
-                          const pnlColor =
-                            pnl >= 0 ? "#00C853" : "#E53935";
+                          const pnlColor = pnl >= 0 ? "#00C853" : "#E53935";
 
                           return (
                             <div
@@ -533,6 +732,7 @@ export default function Recommendations() {
                           );
                         })()}
 
+                        {/* SIGNAL CARD INSIDE CLOSED */}
                         <SignalCard
                           key={sig.id}
                           script={sig.script}
@@ -559,18 +759,27 @@ export default function Recommendations() {
               </div>
             </div>
           </div>
+          {/* END CLOSED SIGNALS COLUMN */}
         </div>
+        {/* end signals-columns */}
       </div>
+      {/* end signals-section */}
     </div>
+    /* end intraday-section */
   );
 
+  // -------------------------------------------------------
+  // MAIN PAGE RETURN
+  // -------------------------------------------------------
   return (
     <div className="recommendations-container">
       <BackButton to="/menu" />
+
       <h2 className="text-center text-xl font-bold text-blue-600">
         RECOMMENDATIONS
       </h2>
 
+      {/* MAIN CATEGORY BUTTONS */}
       <div className="recommendation-buttons">
         {["Intraday", "BTST", "Short-term"].map((type) => (
           <button
@@ -586,6 +795,7 @@ export default function Recommendations() {
         ))}
       </div>
 
+      {/* MAIN CONTENT */}
       <div className="recommendation-content">{renderSignalLayout()}</div>
     </div>
   );
