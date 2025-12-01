@@ -771,7 +771,87 @@
   margin: 4px 0;
 }
 
+.signal-count-box {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  margin-bottom: 15px;
+  margin-top: -5px;
+}
+
+.signal-count-item {
+  padding: 6px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  border: 1px solid #ddd;
+  background: #f8f9fc;
+}
+
+.signal-count-item.buy {
+  border-color: #22c55e;
+  color: #16a34a;
+}
+
+.signal-count-item.sell {
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+.signal-count-item.total {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.active-title+p {
+  margin-top: -20px !important;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+
+.closed-title+p {
+  margin-top: -20px !important;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.chart-icon {
+  cursor: pointer;
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  transition: transform 0.2s ease;
+}
+
+.chart-icon:hover {
+  transform: scale(1.22);
+}
+
+
 
 /* ===============================
    DESKTOP — Legend floats right
    =============================== */
+/* ===============================
+   CLOSED SIGNAL SPEEDOMETER ROW
+   =============================== */
+
+.closed-speedometer-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 60px;
+  /* spacing between BUY & SELL gauges */
+  margin: 20px 0 25px;
+}
+
+@media (max-width: 768px) {
+  .closed-speedometer-row {
+    flex-direction: column;
+    gap: 40px;
+  }
+}
