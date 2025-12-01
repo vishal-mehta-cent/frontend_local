@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { LineChart } from "lucide-react";
 
 export default function SignalCard({
   script,
@@ -21,7 +22,7 @@ export default function SignalCard({
   const navigate = useNavigate();
 
   // ============================================
-  // 100% SAFE CLICK HANDLER (NO REDIRECT TO MENU)
+  // NAVIGATE TO ORDER PAGE
   // ============================================
   const handleOrderClick = (e) => {
     e.preventDefault();
@@ -32,18 +33,20 @@ export default function SignalCard({
 
     const type = alertType?.toLowerCase();
 
-    if (type === "buy") {
-      console.log("Navigating → /buy/" + script);
-      navigate(`/buy/${script}`);
-    }
-
-    if (type === "sell") {
-      console.log("Navigating → /sell/" + script);
-      navigate(`/sell/${script}`);
-    }
+    if (type === "buy") navigate(`/buy/${script}`);
+    if (type === "sell") navigate(`/sell/${script}`);
   };
 
-  // ----------------- TIME FORMAT -----------------
+  // ============================================
+  // NAVIGATE TO CHART PAGE
+  // ============================================
+  const openChart = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate(`/chart/${script}`);
+  };
+
+  // ---------------- TIME FORMAT ----------------
   const formatTime = (t) => {
     if (!t) return "--:--";
     if (/^\d{1,2}:\d{2}/.test(t)) return t.replace(/AM|PM/i, "").trim();
@@ -55,10 +58,10 @@ export default function SignalCard({
 
   const formattedTime = formatTime(timeVal);
 
-  // ----------------- FROZEN CLOSED PRICE -----------------
+  // ---------------- FROZEN PRICE ----------------
   const displayPrice = currentPrice;
 
-  // ----------------- SCALE CALC -----------------
+  // ---------------- SCALE CALC ----------------
   const rawVals = [sup, st, signalPrice, t, res, displayPrice]
     .map(Number)
     .filter((v) => !isNaN(v) && v !== 0);
@@ -78,7 +81,6 @@ export default function SignalCard({
     scaleMax = maxRaw + pad;
   }
 
-  // fix overlap
   if (signalPrice <= st) {
     const adjust = Math.max(Math.abs(st * 0.01), 0.5);
     signalPrice = st + adjust;
@@ -86,7 +88,7 @@ export default function SignalCard({
 
   const getPos = (v) => ((v - scaleMin) / (scaleMax - scaleMin)) * 100;
 
-  // ----------------- PROFIT / LOSS -----------------
+  // ---------------- PNL SECTION ----------------
   let pnlText = "";
   let pnlSmall = "";
   let pnlColor = "";
@@ -108,7 +110,7 @@ export default function SignalCard({
   const lineColor =
     displayPrice > signalPrice ? "#00C853" : "#E53935";
 
-  // ----------------- MARKER POSITIONS -----------------
+  // ---------------- MARKER POSITIONS ----------------
   const markers = [
     { key: "SUP", value: sup },
     { key: "ST", value: st },
@@ -127,21 +129,46 @@ export default function SignalCard({
 
   positions.sort((a, b) => a.pos - b.pos);
 
-  const MIN_GAP = 12;
-  const SAFE = 4;
+  const MIN_GAP = 18;   // Increased gap so markers never collide
+  const SAFE = 6;       // More padding on both sides
 
+  // Step 1: spread markers left → right
   for (let i = 1; i < positions.length; i++) {
-    if (positions[i].pos - positions[i - 1].pos < MIN_GAP)
+    const gap = positions[i].pos - positions[i - 1].pos;
+    if (gap < MIN_GAP) {
       positions[i].pos = positions[i - 1].pos + MIN_GAP;
+    }
   }
 
-  const rightOverflow = positions[positions.length - 1].pos - (100 - SAFE);
-  if (rightOverflow > 0)
-    positions = positions.map((p) => ({ ...p, pos: p.pos - rightOverflow }));
+  // Step 2: right overflow fix
+  let overflowRight = positions[positions.length - 1].pos - (100 - SAFE);
+  if (overflowRight > 0) {
+    positions = positions.map(p => ({
+      ...p,
+      pos: p.pos - overflowRight
+    }));
+  }
 
-  const leftOverflow = SAFE - positions[0].pos;
-  if (leftOverflow > 0)
-    positions = positions.map((p) => ({ ...p, pos: p.pos + leftOverflow }));
+  // Step 3: left overflow fix
+  let overflowLeft = SAFE - positions[0].pos;
+  if (overflowLeft > 0) {
+    positions = positions.map(p => ({
+      ...p,
+      pos: p.pos + overflowLeft
+    }));
+  }
+
+  // Step 4: distribute evenly if still too tight
+  const maxPos = positions[positions.length - 1].pos;
+  const minPos = positions[0].pos;
+
+  if (maxPos - minPos < positions.length * MIN_GAP) {
+    const spacing = (100 - 2 * SAFE) / (positions.length - 1);
+    positions = positions.map((p, idx) => ({
+      ...p,
+      pos: SAFE + idx * spacing,
+    }));
+  }
 
   let finalPos = {};
   positions.forEach((p) => {
@@ -163,19 +190,22 @@ export default function SignalCard({
         position: "relative",
       }}
     >
-      {/* ================= HEADER ================= */}
+      {/* ===================== HEADER ===================== */}
+      {/* ===================== HEADER ===================== */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "auto auto 1fr auto",
+          gridTemplateColumns: "auto auto auto auto",
           alignItems: "center",
           width: "100%",
           marginBottom: "0px",
+          gap: "8px",
         }}
       >
+        {/* TIME */}
         <span>{formattedTime}</span>
 
-        {/* BUY / SELL BUTTON CLICK PROTECTED */}
+        {/* BUY / SELL BUTTON */}
         <button
           onClick={handleOrderClick}
           style={{
@@ -191,26 +221,44 @@ export default function SignalCard({
             border: "none",
             fontSize: "11px",
             fontWeight: "600",
-            marginLeft: "8px",
             cursor: "pointer",
-            userSelect: "none",
-            pointerEvents: "auto",
+            whiteSpace: "nowrap",
           }}
         >
           {isClosed ? "CLOSED" : alertType?.toUpperCase()}
         </button>
 
-        <span
+        {/* SCRIPT + CHART ICON TOGETHER */}
+        <div
           style={{
-            textAlign: "center",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "6px",
+            whiteSpace: "nowrap",
             fontWeight: "700",
             fontSize: "15px",
             color: "#2962ff",
           }}
         >
           {script}
-        </span>
 
+          {/* 📈 CHART ICON */}
+          <span
+            onClick={openChart}
+            title="Open Chart"
+            style={{
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              padding: "2px",
+            }}
+          >
+            <LineChart size={17} color="#2962ff" />
+          </span>
+        </div>
+
+        {/* CONFIDENCE OR CLOSED STATUS */}
         {isClosed ? (
           <span
             style={{
@@ -230,6 +278,8 @@ export default function SignalCard({
         )}
       </div>
 
+
+      {/* CLOSED small % */}
       {isClosed && (
         <div
           style={{
@@ -246,6 +296,7 @@ export default function SignalCard({
         </div>
       )}
 
+      {/* ===================== PRICE INDICATOR ===================== */}
       <div className="indicator-container">
         <div className="indicator-line"></div>
 
@@ -266,6 +317,7 @@ export default function SignalCard({
         <Marker pos={finalPos["RES"]} label="RES" value={res} />
       </div>
 
+      {/* ===================== ALERT BOX ===================== */}
       <div className="alert-description-box">
         <div>
           <strong>Alert:</strong> {alertText || "--"}
