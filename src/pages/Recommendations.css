@@ -206,13 +206,19 @@
 }
 
 /* ---------- Legend Box ---------- */
+/* ---------- Legend Box ---------- */
 .legend-box {
   background-color: #f8faff;
   border: 1.5px solid #e0e6f0;
   border-radius: 10px;
-  padding: 100px 18px;
+
+  /* FIXED — reduce padding so it NEVER overlaps */
+  padding: 18px 18px;
+  /* was 100px 18px */
+
   min-width: 220px;
-  height: fit-content;
+  height: auto;
+  /* was fixed — now auto to avoid overflow */
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
@@ -228,6 +234,18 @@
   font-weight: 700;
   text-align: center;
 }
+
+/* -----------------------------
+   EXTRA FIX FOR SMALL SCREENS
+------------------------------ */
+@media (max-width: 1024px) {
+  .legend-row {
+    justify-content: center !important;
+    margin-top: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
 
 .legend-line {
   display: flex;
@@ -300,7 +318,7 @@
 /* Gray horizontal line */
 .indicator-line {
   position: absolute;
-  top: 54%;
+  top: 52%;
   left: 5%;
   width: 90%;
   height: 3px;
@@ -376,8 +394,8 @@
 
 /* Circle = Signal Price */
 .shape.circle {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background-color: #000;
   border-radius: 50%;
 }
@@ -420,15 +438,7 @@
 }
 
 /* small fixed size legend card */
-.legend-box {
-  background: white;
-  border: 1.5px solid #e0e6f0;
-  border-radius: 12px;
-  padding: 15px 20px;
-  width: 300px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
-  text-align: left;
-}
+
 
 /* ---------------------------
    DESKTOP ONLY (≥ 1024px)
@@ -773,20 +783,37 @@
 
 .signal-count-box {
   display: flex;
-  justify-content: center;
-  gap: 25px;
+  flex-direction: column;
+  /* STACK VERTICALLY */
+  align-items: flex-start;
+  /* LEFT ALIGN */
+  gap: 12px;
+  /* nice vertical spacing */
   margin-bottom: 15px;
   margin-top: -5px;
 }
 
 .signal-count-item {
-  padding: 6px 18px;
-  border-radius: 6px;
+  padding: 14px 20px;
+  /* Increase height */
+  border-radius: 8px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 15px;
   border: 1px solid #ddd;
   background: #f8f9fc;
+
+  min-height: 45px;
+  /* Taller box */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 150px;
+  /* 👈 Decrease width here */
+  margin: 0 auto;
+  /* Center the small box inside column */
 }
+
 
 .signal-count-item.buy {
   border-color: #22c55e;
@@ -853,5 +880,58 @@
   .closed-speedometer-row {
     flex-direction: column;
     gap: 40px;
+  }
+}
+
+/* ============================================================
+   FIX FOR 1030px → 1650px SCREENS (prevent overlapping)
+   Legend stays centered below filters
+   ============================================================ */
+@media (min-width: 1030px) and (max-width: 1650px) {
+  .legend-row {
+    justify-content: center !important;
+    padding-right: 0 !important;
+    margin-top: 20px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .legend-box {
+    margin: 0 auto !important;
+  }
+}
+
+/* ============================================
+   MOBILE FIX — Force each filter into its own row
+   (< 768px)
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* Make filter rows vertical */
+  .filters-row,
+  .filters-row-legend,
+  .alert-row,
+  .date-row-centered {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  /* Ensure each filter takes full width */
+  .filter-item {
+    width: 90% !important;
+  }
+
+  .filter-item select,
+  .filter-item input {
+    width: 100% !important;
+  }
+
+  /* Fix legend on mobile – centered */
+  .legend-row {
+    justify-content: center !important;
+    margin: 20px 0 !important;
+    padding: 0 !important;
   }
 }
