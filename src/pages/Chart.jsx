@@ -652,15 +652,15 @@ async function loadAllSignals(symbol) {
     console.log("loadAllSignals called for TF:", tf);
 
     // --------------------------------------------------
-    // 1) BLOCK OTHER TIMEFRAMES
+    // 1) BLOCK OTHER TIMEFRAMES (NO SIGNALS)
     // --------------------------------------------------
     if (tf !== "2m" && tf !== "15m") {
       console.log("TF BLOCKED → clearing generate markers only");
 
       if (priceSeries.current) {
-        priceSeries.current._genMarkers = []; // clear only generated signals
+        priceSeries.current._genMarkers = [];    // clear generate signals
 
-        // keep recommendations
+        // keep recommendations only
         const reco = priceSeries.current._recoMarkers || [];
         priceSeries.current.setMarkers(reco);
       }
@@ -670,9 +670,9 @@ async function loadAllSignals(symbol) {
     }
 
     // --------------------------------------------------
-    // 2) FETCH SIGNALS FOR CURRENT TF
+    // 2) ALWAYS FETCH BOTH 2m + 15m FROM BACKEND
     // --------------------------------------------------
-    const url = `${API}/market/all-signals?symbol=${symbol}&tf=${tf}`;
+    const url = `${API}/market/all-signals?symbol=${symbol}`;
     console.log("Fetching URL:", url);
 
     const r = await fetch(url);
@@ -687,53 +687,52 @@ async function loadAllSignals(symbol) {
     if (!js.signals || !Array.isArray(js.signals)) return;
 
     // --------------------------------------------------
-    // 3) SORT SIGNALS BY TIME
+    // 3) FILTER BASED ON CURRENT TF
     // --------------------------------------------------
-    const sorted = js.signals.sort((a, b) => a.timestamp - b.timestamp);
+    let final = [];
+
+    if (tf === "2m") {
+      // show both
+      final = js.signals.filter(s => s.tf === "2m" || s.tf === "15m");
+    }
+
+    if (tf === "15m") {
+      // show both
+      final = js.signals.filter(s => s.tf === "15m" || s.tf === "2m");
+    }
+
+    final.sort((a, b) => a.timestamp - b.timestamp);
 
     // --------------------------------------------------
     // 4) CONVERT TO MARKERS
     // --------------------------------------------------
-    const markers = sorted.map(sig => ({
+    const markers = final.map(sig => ({
       time: Number(sig.timestamp),
       price: sig.close_price,
       position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
       shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
       color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-      // ⭐ FINAL FORMAT FOR GENERATE-SIGNALS
-     text: `${sig.signal} - ${tf} | ${sig.close_price}`
-
+      text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
     }));
 
     // --------------------------------------------------
-    // 5) APPLY ONLY THIS TF’S MARKERS
+    // 5) APPLY ONLY TO 2m & 15m CHARTS
     // --------------------------------------------------
     if (priceSeries.current) {
       priceSeries.current._genMarkers = markers;
 
-      // merge with reco
       const reco = priceSeries.current._recoMarkers || [];
-
-      const finalMarkers = [...markers, ...reco]
+      const merged = [...markers, ...reco]
         .filter(m => m && m.time)
         .sort((a, b) => a.time - b.time);
 
-    // ⭐ BLOCK showing 2m signals in other timeframe
-if (tf !== "2m" && tf !== "15m") {
-    priceSeries.current.setMarkers(priceSeries.current._recoMarkers || []);
-    return;
-}
-    
-
-      priceSeries.current.setMarkers(finalMarkers);
+      priceSeries.current.setMarkers(merged);
     }
 
     // --------------------------------------------------
     // 6) LAST 4 SIGNALS
     // --------------------------------------------------
-    // ⭐ PASS ORIGINAL BACKEND DATA (NOT marker-transformed)
-setLatestSignals(js.signals.slice(-4));
-
+    setLatestSignals(final.slice(-4));
 
     console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
 
@@ -741,6 +740,7 @@ setLatestSignals(js.signals.slice(-4));
     console.error("Signal Load Error:", err);
   }
 }
+
 
 
 
