@@ -608,9 +608,9 @@ export default function Recommendations() {
               ==================================================== */}
           <div className="signals-column">
             <h3 className="section-title active-title">Active Signals</h3>
-            <p><strong>%</strong> = Confidence</p>
 
             {/* BUY / SELL COUNTS */}
+
             <div className="signal-count-box">
               <div className="signal-count-item buy">
                 BUY Signals: <span>{totalBuySignals}</span>
@@ -627,7 +627,19 @@ export default function Recommendations() {
               <p>Loading data...</p>
             ) : (
               <div className="active-signals-container">
+                <div style={{
+                  width: "100%",
+                  textAlign: "left",
+                  marginBottom: "4px",
+                  paddingLeft: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#333"
+                }}>
+                  % = Confidence
+                </div>
                 <div className="signal-grid">
+
                   {activeSignals.length > 0 ? (
                     activeSignals.map((sig) => (
                       <SignalCard
@@ -661,7 +673,6 @@ export default function Recommendations() {
               ==================================================== */}
           <div className="signals-column">
             <h3 className="section-title closed-title">Closed Signals</h3>
-            <p><strong>%</strong> = Gain</p>
 
             {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐ */}
             <div
@@ -691,6 +702,17 @@ export default function Recommendations() {
             </div>
             {/* CLOSED SIGNALS GRID */}
             <div className="closed-signals-container">
+              <div style={{
+                width: "100%",
+                textAlign: "left",
+                marginBottom: "4px",
+                paddingLeft: "8px",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#333"
+              }}>
+                % = Gain
+              </div>
               <div className="signal-grid">
                 {closedSignals.length > 0 ? (
                   closedSignals.map((sig) => {
