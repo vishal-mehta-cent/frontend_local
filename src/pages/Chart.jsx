@@ -700,7 +700,9 @@ async function loadAllSignals(symbol) {
       position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
       shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
       color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-      text: `${sig.signal} || ${sig.close_price}`
+      // ⭐ FINAL FORMAT FOR GENERATE-SIGNALS
+     text: `${sig.signal} - ${tf} | ${sig.close_price}`
+
     }));
 
     // --------------------------------------------------
@@ -729,7 +731,9 @@ if (tf !== "2m" && tf !== "15m") {
     // --------------------------------------------------
     // 6) LAST 4 SIGNALS
     // --------------------------------------------------
-    setLatestSignals(sorted.slice(-4));
+    // ⭐ PASS ORIGINAL BACKEND DATA (NOT marker-transformed)
+setLatestSignals(js.signals.slice(-4));
+
 
     console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
 
