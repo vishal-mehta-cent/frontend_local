@@ -129,8 +129,8 @@ export default function SignalCard({
 
   positions.sort((a, b) => a.pos - b.pos);
 
-  const MIN_GAP = 18;   // Increased gap so markers never collide
-  const SAFE = 6;       // More padding on both sides
+  const MIN_GAP = 18;   // increased spacing
+  const SAFE = 6;       // padding on both sides
 
   // Step 1: spread markers left → right
   for (let i = 1; i < positions.length; i++) {
@@ -143,18 +143,18 @@ export default function SignalCard({
   // Step 2: right overflow fix
   let overflowRight = positions[positions.length - 1].pos - (100 - SAFE);
   if (overflowRight > 0) {
-    positions = positions.map(p => ({
+    positions = positions.map((p) => ({
       ...p,
-      pos: p.pos - overflowRight
+      pos: p.pos - overflowRight,
     }));
   }
 
   // Step 3: left overflow fix
   let overflowLeft = SAFE - positions[0].pos;
   if (overflowLeft > 0) {
-    positions = positions.map(p => ({
+    positions = positions.map((p) => ({
       ...p,
-      pos: p.pos + overflowLeft
+      pos: p.pos + overflowLeft,
     }));
   }
 
@@ -175,6 +175,25 @@ export default function SignalCard({
     finalPos[p.key] = Math.max(SAFE, Math.min(100 - SAFE, p.pos));
   });
 
+  // =======================================================
+  // ⭐ NEW: WHEN SUP OR RES IS NULL → USE VIRTUAL POSITIONS
+  // =======================================================
+  const supMissing =
+    sup == null || sup === "" || isNaN(Number(sup));
+  const resMissing =
+    res == null || res === "" || isNaN(Number(res));
+
+  if (supMissing || resMissing) {
+    const SAFE_V = 6;
+    const keys = ["SUP", "ST", "SIGNAL", "LIVE", "T", "RES"];
+    const spacing = (100 - 2 * SAFE_V) / (keys.length - 1);
+
+    finalPos = {};
+    keys.forEach((key, idx) => {
+      finalPos[key] = SAFE_V + idx * spacing;
+    });
+  }
+
   const fillLeft = Math.min(finalPos["SIGNAL"], finalPos["LIVE"]);
   const fillWidth = Math.abs(finalPos["SIGNAL"] - finalPos["LIVE"]);
 
@@ -185,12 +204,11 @@ export default function SignalCard({
     <div
       className="signal-card-advanced clean-line-layout"
       style={{
-        opacity: isClosed ? 0.60 : 1,
+        opacity: isClosed ? 0.6 : 1,
         filter: isClosed ? "grayscale(0%)" : "none",
         position: "relative",
       }}
     >
-      {/* ===================== HEADER ===================== */}
       {/* ===================== HEADER ===================== */}
       <div
         style={{
@@ -225,10 +243,10 @@ export default function SignalCard({
             whiteSpace: "nowrap",
           }}
         >
-          {isClosed ? "CLOSED" : alertType?.toUpperCase()}
+          {alertType?.toUpperCase()}
         </button>
 
-        {/* SCRIPT + CHART ICON TOGETHER */}
+        {/* SCRIPT + CHART ICON */}
         <div
           style={{
             display: "flex",
@@ -242,8 +260,6 @@ export default function SignalCard({
           }}
         >
           {script}
-
-          {/* 📈 CHART ICON */}
           <span
             onClick={openChart}
             title="Open Chart"
@@ -277,7 +293,6 @@ export default function SignalCard({
           )
         )}
       </div>
-
 
       {/* CLOSED small % */}
       {isClosed && (
@@ -342,9 +357,19 @@ function Marker({ pos, label, value, triangle, circle, line, bubble }) {
       {label && <div className="label-top">{label}</div>}
 
       {bubble ? (
-        <div className="price-bubble">{value?.toFixed(2) || "--"}</div>
+        <div
+          className="price-bubble"
+          style={{ marginTop: "6px" }}   // moves SIGNAL & LIVE bubble down
+        >
+          {value?.toFixed(2) || "--"}
+        </div>
       ) : (
-        <div className="label-bottom">{value?.toFixed(2) || "--"}</div>
+        <div
+          className="label-bottom"
+          style={{ marginTop: "6px" }}   // moves SUP / ST / T / RES values down
+        >
+          {value?.toFixed(2) || "--"}
+        </div>
       )}
     </div>
   );
