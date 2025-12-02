@@ -651,47 +651,84 @@ async function loadAllSignals(symbol) {
   try {
     console.log("loadAllSignals called for TF:", tf);
 
-    // Only allow 2m + 15m
+    // --------------------------------------------------
+    // 1) BLOCK OTHER TIMEFRAMES
+    // --------------------------------------------------
     if (tf !== "2m" && tf !== "15m") {
-      console.log("TF BLOCKED → Clearing markers");
+      console.log("TF BLOCKED → clearing generate markers only");
+
       if (priceSeries.current) {
-        priceSeries.current.setMarkers([]);
-        priceSeries.current._markers = [];
+        priceSeries.current._genMarkers = []; // clear only generated signals
+
+        // keep recommendations
+        const reco = priceSeries.current._recoMarkers || [];
+        priceSeries.current.setMarkers(reco);
       }
+
+      setLatestSignals([]);
       return;
     }
 
-    // -------------------------------
-    // FIX: Pass TF to backend
-    // -------------------------------
+    // --------------------------------------------------
+    // 2) FETCH SIGNALS FOR CURRENT TF
+    // --------------------------------------------------
     const url = `${API}/market/all-signals?symbol=${symbol}&tf=${tf}`;
     console.log("Fetching URL:", url);
 
     const r = await fetch(url);
-    if (!r.ok) return;
+    if (!r.ok) {
+      console.warn("Signal fetch failed");
+      return;
+    }
 
     const js = await r.json();
     console.log("Backend signals:", js);
 
     if (!js.signals || !Array.isArray(js.signals)) return;
 
+    // --------------------------------------------------
+    // 3) SORT SIGNALS BY TIME
+    // --------------------------------------------------
     const sorted = js.signals.sort((a, b) => a.timestamp - b.timestamp);
 
+    // --------------------------------------------------
+    // 4) CONVERT TO MARKERS
+    // --------------------------------------------------
     const markers = sorted.map(sig => ({
       time: Number(sig.timestamp),
+      price: sig.close_price,
       position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
       shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
       color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
       text: `${sig.signal} || ${sig.close_price}`
     }));
 
+    // --------------------------------------------------
+    // 5) APPLY ONLY THIS TF’S MARKERS
+    // --------------------------------------------------
     if (priceSeries.current) {
       priceSeries.current._genMarkers = markers;
-      applyUnifiedMarkers();
-                         
 
+      // merge with reco
+      const reco = priceSeries.current._recoMarkers || [];
+
+      const finalMarkers = [...markers, ...reco]
+        .filter(m => m && m.time)
+        .sort((a, b) => a.time - b.time);
+
+    // ⭐ BLOCK showing 2m signals in other timeframe
+if (tf !== "2m" && tf !== "15m") {
+    priceSeries.current.setMarkers(priceSeries.current._recoMarkers || []);
+    return;
+}
+    
+
+      priceSeries.current.setMarkers(finalMarkers);
     }
-    // Store last 4 signals for description box
+
+    // --------------------------------------------------
+    // 6) LAST 4 SIGNALS
+    // --------------------------------------------------
     setLatestSignals(sorted.slice(-4));
 
     console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
@@ -700,6 +737,8 @@ async function loadAllSignals(symbol) {
     console.error("Signal Load Error:", err);
   }
 }
+
+
 
 // 🔥 FIX — update signals whenever TF changes
 useEffect(() => {
@@ -1976,11 +2015,17 @@ function mergeSignals(sig2, sig15) {
 async function generateSignal() {
   console.log("=== GENERATE SIGNAL CLICKED ===");
 
-  // TURN OFF MODE
+  // -------------------------------------
+  // ⭐ 1. OFF MODE (SECOND CLICK)
+  // -------------------------------------
   if (isRunningRef.current) {
+    // stop auto loop
     clearInterval(autoRunRef.current);
     isRunningRef.current = false;
+    setGenerateMode(false);
+    localStorage.setItem("NC_generateMode_" + symbol, "false");
 
+    // reset button style
     const btn = document.querySelector("#genBtn");
     if (btn) {
       btn.style.background = "";
@@ -1988,20 +2033,28 @@ async function generateSignal() {
       btn.style.borderColor = "";
     }
 
-    alert("🛑 Auto signal generation stopped");
+    alert("Auto generated signals stopped");
     return;
   }
 
-  // TURN ON MODE
+  // -------------------------------------
+  // ⭐ 2. VALIDATE TIMEFRAME (FIRST CLICK)
+  // -------------------------------------
   if (!["2m", "15m"].includes(tf)) {
-    alert("❌ Signals only available in 2m or 15m");
+    alert("Generate signals only for 2m and 15m");
     return;
   }
+
+  // -------------------------------------
+  // ⭐ 3. ON MODE (FIRST CLICK)
+  // -------------------------------------
+  alert("Signals applied");
 
   isRunningRef.current = true;
   setGenerateMode(true);
+  localStorage.setItem("NC_generateMode_" + symbol, "true");
 
-
+  // turn button green
   const btn = document.querySelector("#genBtn");
   if (btn) {
     btn.style.background = "#16a34a";
@@ -2009,15 +2062,13 @@ async function generateSignal() {
     btn.style.borderColor = "#16a34a";
   }
 
+  // run once immediately
   await runSignalOnce();
-autoRunRef.current = setInterval(runSignalOnce, 20000);
 
-if (recoMode) {
-  setInterval(() => {
-    openRecommendations();
-  }, 20000);
-}}
-
+  // start 20-sec auto loop
+  if (autoRunRef.current) clearInterval(autoRunRef.current);
+  autoRunRef.current = setInterval(runSignalOnce, 20000);
+}
 
 
 
@@ -2078,60 +2129,90 @@ const [recoData, setRecoData] = useState([]);
 async function openRecommendations() {
   console.log("📌 Recommendations button clicked");
 
-  // Highlight Recommendation button (turn blue)
-const recoBtn = document.querySelector("#recoBtn");
-if (recoBtn) {
-  recoBtn.style.background = "#2563eb";   // blue
-  recoBtn.style.color = "white";
-  recoBtn.style.borderColor = "#2563eb";
-}
+  // -------------------------------
+  // ⭐ 1. TOGGLE OFF MODE
+  // -------------------------------
+  if (recoMode) {
+    alert("Auto signal generation stopped");
 
+    setRecoMode(false);
+    localStorage.setItem("NC_recoMode_" + symbol, "false");
 
-  setRecoMode(true);   
-       
-  // ⭐ Start 20-second refresh loop for recommendations
-if (recoRunRef.current) clearInterval(recoRunRef.current);
+    if (recoRunRef.current) clearInterval(recoRunRef.current);
 
-recoRunRef.current = setInterval(() => {
-  console.log("🔄 Auto-refreshing recommendations…");
-  openRecommendations();   // safe to call recursively (it only fetches)
-}, 20000);
+    const recoBtn = document.querySelector("#recoBtn");
+    if (recoBtn) {
+      recoBtn.style.background = "";
+      recoBtn.style.color = "";
+      recoBtn.style.borderColor = "";
+    }
 
-
-  if (!["15m", "1d"].includes(tf)) {
-    alert("Recommendations available only in 15m or 1d timeframe");
     return;
   }
 
+  // -------------------------------
+  // ⭐ 2. VALIDATE TF FIRST
+  // -------------------------------
+  if (!["15m", "1d"].includes(tf)) {
+    alert("Recommendation signals only for 15m and 1d");
+    return;
+  }
 
+  // -------------------------------
+  // ⭐ 3. START MODE
+  // -------------------------------
+  alert("Signals applied");
+
+  setRecoMode(true);
+  localStorage.setItem("NC_recoMode_" + symbol, "true");
+
+  const recoBtn = document.querySelector("#recoBtn");
+  if (recoBtn) {
+    recoBtn.style.background = "#2563eb";
+    recoBtn.style.color = "white";
+    recoBtn.style.borderColor = "#2563eb";
+  }
+
+  // ⭐ SAFE 20-SEC LOOP
+  if (recoRunRef.current) clearInterval(recoRunRef.current);
+
+  recoRunRef.current = setInterval(() => {
+    console.log("🔄 Auto-refreshing recommendations…");
+    refreshRecommendations();  // ✔ Correct — not toggle
+  }, 20000);
+
+  // run immediately
+  await refreshRecommendations();
+}
+
+
+
+async function refreshRecommendations() {
   try {
     const url = `${API}/market/reco-load?symbol=${symbol}&tf=${tf}`;
     console.log("Fetching RECO:", url);
 
     const res = await fetch(url);
     if (!res.ok) {
-  console.warn("⚠ Non-200 RECO:", res.status);
-  // continue anyway — backend still sends usable JSON
-}
+      console.warn("⚠ Non-200 RECO:", res.status);
+    }
 
     const js = await res.json();
     if (!js.markers || !Array.isArray(js.markers)) {
-      alert("No recommendations found");
+      console.warn("No recommendations found on refresh");
       return;
     }
 
-    // Existing generate-signals markers
-    priceSeries.current._recoMarkers = js.markers;  // store recommendations only
-    applyUnifiedMarkers();                          // merge both
-
+    priceSeries.current._recoMarkers = js.markers;
+    applyUnifiedMarkers();
 
     console.log("📌 RECO Applied. Count:", js.markers.length);
 
   } catch (err) {
     console.error("Recommendation load error:", err);
-    alert("Failed to load recommendations");
   }
 }
+
 
 
 
