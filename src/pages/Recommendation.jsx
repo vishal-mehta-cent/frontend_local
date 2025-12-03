@@ -344,10 +344,11 @@ export default function Recommendations() {
 
 const fetchOnce = async () => {
   try {
-    const res = await fetch(
-      `${API}/recommendations/data?ts=${Date.now()}`,
-      { cache: "no-store" }
-    );
+const res = await fetch(
+  `${API}/recommendations/get_recommendations_recommendations_data?ts=${Date.now()}`,
+  { cache: "no-store" }
+);
+
 
     if (!res.ok) {
       console.error("Backend returned status:", res.status);
