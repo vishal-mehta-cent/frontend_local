@@ -7,6 +7,7 @@ import React, {
   useCallback
 } from "react";
 
+
 import { useParams, useNavigate } from "react-router-dom";
 import { createChart, CrosshairMode } from "lightweight-charts";
 import {
@@ -523,10 +524,49 @@ const [recoMode, setRecoMode] = useState(false);
 
 
   const { symbol: rawSym } = useParams();
+
+  const params = new URLSearchParams(window.location.search);
+const fromReco = params.get("fromReco") === "1";
+
+
+  // ------------------------------------------------------
+// ⭐ READ PARAMS PASSED FROM SignalCard.jsx
+// ------------------------------------------------------
+const urlParams = new URLSearchParams(window.location.search);
+
+const jumpStrategy = urlParams.get("strategy") || null;   // intraday, btst, short-term
+const jumpDT = urlParams.get("dt") || null;               // datetime string
+
+let jumpUnix = null;
+if (jumpDT) {
+  try {
+    jumpUnix = Math.floor(new Date(jumpDT).getTime() / 1000);
+  } catch {
+    jumpUnix = null;
+  }
+}
+
   const symbol = useMemo(() => (rawSym || "").toUpperCase(), [rawSym]);
   const navigate = useNavigate();
 
   const [tf, setTf] = useState("1m");
+
+  // ------------------------------------------------------
+// ⭐ FORCE TIMEFRAME BASED ON jumpStrategy
+// ------------------------------------------------------
+useEffect(() => {
+  if (!jumpStrategy) return;
+
+  if (jumpStrategy === "intraday" || jumpStrategy === "btst") {
+    setTf("15m");
+  }
+
+  if (jumpStrategy === "short-term") {
+    setTf("1d");
+  }
+
+}, [jumpStrategy]);
+
   const [lastPrice, setLastPrice] = useState(null);
   const liveTimerRef = useRef(null);
   const [status, setStatus] = useState("loading");
@@ -744,10 +784,36 @@ async function loadAllSignals(symbol) {
 
 
 
-// 🔥 FIX — update signals whenever TF changes
+// ------------------------------------------------------
+// AUTO-ACTIVATE RECOMMENDATION WHEN COMING FROM RECO PAGE
+// ------------------------------------------------------
 useEffect(() => {
-  loadAllSignals(symbol);
-}, [tf, symbol]);
+  if (fromReco === true || fromReco === "1") {
+
+    console.log("🔥 Auto Recommendation Mode");
+
+    setRecoMode(true);
+    localStorage.setItem("NC_recoMode_" + symbol, "true");
+
+    // highlight button
+    const btn = document.querySelector("#recoBtn");
+    if (btn) {
+      btn.style.background = "#2563eb";
+      btn.style.color = "white";
+      btn.style.borderColor = "#2563eb";
+    }
+
+    // run ASAP
+    setTimeout(() => refreshRecommendations(), 800);
+
+    // start auto loop
+    if (recoRunRef.current) clearInterval(recoRunRef.current);
+    recoRunRef.current = setInterval(refreshRecommendations, 20000);
+  }
+}, [symbol, tf]);
+
+
+
 
 
   /* ---------------- Fetch candles ---------------- */
@@ -783,6 +849,38 @@ if (["hist", "line", "linemk", "step", "area", "baseline"].includes(t)) {
         close: d.close,
       }))
    );
+}
+
+
+//---------------------------------------------------------
+// ⭐ AUTO-SCROLL TO ACTIVE SIGNAL TIME (if query params exist)
+//---------------------------------------------------------
+try {
+  const url = new URL(window.location.href);
+  const dt = url.searchParams.get("dt");      // raw IST datetime
+  const strat = url.searchParams.get("strategy");
+
+  if (dt) {
+    // Convert "2025-11-17 20:00" → UNIX seconds
+    const ts = parseISTDateToUnix(dt.replace("%20", " ").replace("T", " "));
+    if (ts) {
+      const nearest = findNearestCandleTime(dataToUse, ts);
+
+      const tsObj = mainChart.current?.timeScale();
+      if (tsObj && typeof nearest === "number") {
+        setTimeout(() => {
+          try {
+            tsObj.scrollToPosition(0, false);
+            tsObj.setVisibleRange({ from: nearest - 2000, to: nearest + 2000 });
+          } catch (e) {
+            console.warn("Scroll failed:", e);
+          }
+        }, 120);
+      }
+    }
+  }
+} catch (err) {
+  console.warn("Auto-scroll error:", err);
 }
 
 // ALWAYS call after updating
