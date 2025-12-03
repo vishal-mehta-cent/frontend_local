@@ -18,6 +18,9 @@ export default function SignalCard({
   dateVal,
   userActions,
   isClosed = false,
+  strategy,
+  rawDate,
+  rawTime,
 }) {
   const navigate = useNavigate();
 
@@ -38,12 +41,38 @@ export default function SignalCard({
   };
 
   // ============================================
-  // NAVIGATE TO CHART PAGE
+  // NAVIGATE TO CHART PAGE (UPDATED)
   // ============================================
   const openChart = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    navigate(`/chart/${script}`);
+
+    // Convert "12:00 AM" → "00:00", "1:30 PM" → "13:30"
+    const convertTo24 = (t) => {
+      if (!t) return "00:00";
+
+      let [time, modifier] = t.split(" ");
+      let [hours, minutes] = time.split(":");
+
+      hours = parseInt(hours, 10);
+
+      if (modifier?.toLowerCase() === "pm" && hours < 12) {
+        hours += 12;
+      }
+      if (modifier?.toLowerCase() === "am" && hours === 12) {
+        hours = 0;
+      }
+
+      return `${hours.toString().padStart(2, "0")}:${minutes}`;
+    };
+
+    const time24 = convertTo24(rawTime);
+    const fullDT = `${rawDate} ${time24}`;
+
+    // ⭐ ADDED fromReco=1
+    navigate(
+      `/chart/${script}?strategy=${strategy}&dt=${encodeURIComponent(fullDT)}&fromReco=1`
+    );
   };
 
   // ---------------- TIME FORMAT ----------------
@@ -129,10 +158,9 @@ export default function SignalCard({
 
   positions.sort((a, b) => a.pos - b.pos);
 
-  const MIN_GAP = 18;   // increased spacing
-  const SAFE = 6;       // padding on both sides
+  const MIN_GAP = 18;
+  const SAFE = 6;
 
-  // Step 1: spread markers left → right
   for (let i = 1; i < positions.length; i++) {
     const gap = positions[i].pos - positions[i - 1].pos;
     if (gap < MIN_GAP) {
@@ -140,7 +168,6 @@ export default function SignalCard({
     }
   }
 
-  // Step 2: right overflow fix
   let overflowRight = positions[positions.length - 1].pos - (100 - SAFE);
   if (overflowRight > 0) {
     positions = positions.map((p) => ({
@@ -149,7 +176,6 @@ export default function SignalCard({
     }));
   }
 
-  // Step 3: left overflow fix
   let overflowLeft = SAFE - positions[0].pos;
   if (overflowLeft > 0) {
     positions = positions.map((p) => ({
@@ -158,7 +184,6 @@ export default function SignalCard({
     }));
   }
 
-  // Step 4: distribute evenly if still too tight
   const maxPos = positions[positions.length - 1].pos;
   const minPos = positions[0].pos;
 
@@ -175,13 +200,9 @@ export default function SignalCard({
     finalPos[p.key] = Math.max(SAFE, Math.min(100 - SAFE, p.pos));
   });
 
-  // =======================================================
-  // ⭐ NEW: WHEN SUP OR RES IS NULL → USE VIRTUAL POSITIONS
-  // =======================================================
-  const supMissing =
-    sup == null || sup === "" || isNaN(Number(sup));
-  const resMissing =
-    res == null || res === "" || isNaN(Number(res));
+  // Missing SUP/RES fallback
+  const supMissing = sup == null || sup === "" || isNaN(Number(sup));
+  const resMissing = res == null || res === "" || isNaN(Number(res));
 
   if (supMissing || resMissing) {
     const SAFE_V = 6;
@@ -197,9 +218,6 @@ export default function SignalCard({
   const fillLeft = Math.min(finalPos["SIGNAL"], finalPos["LIVE"]);
   const fillWidth = Math.abs(finalPos["SIGNAL"] - finalPos["LIVE"]);
 
-  // ===================================================================
-  //                           RENDER
-  // ===================================================================
   return (
     <div
       className="signal-card-advanced clean-line-layout"
@@ -220,10 +238,8 @@ export default function SignalCard({
           gap: "8px",
         }}
       >
-        {/* TIME */}
         <span>{formattedTime}</span>
 
-        {/* BUY / SELL BUTTON */}
         <button
           onClick={handleOrderClick}
           style={{
@@ -231,8 +247,8 @@ export default function SignalCard({
               alertType?.toLowerCase() === "buy"
                 ? "#00C853"
                 : alertType?.toLowerCase() === "sell"
-                  ? "#E53935"
-                  : "#9E9E9E",
+                ? "#E53935"
+                : "#9E9E9E",
             color: "white",
             padding: "2px 6px",
             borderRadius: "4px",
@@ -246,7 +262,6 @@ export default function SignalCard({
           {alertType?.toUpperCase()}
         </button>
 
-        {/* SCRIPT + CHART ICON */}
         <div
           style={{
             display: "flex",
@@ -274,7 +289,6 @@ export default function SignalCard({
           </span>
         </div>
 
-        {/* CONFIDENCE OR CLOSED STATUS */}
         {isClosed ? (
           <span
             style={{
@@ -294,7 +308,6 @@ export default function SignalCard({
         )}
       </div>
 
-      {/* CLOSED small % */}
       {isClosed && (
         <div
           style={{
@@ -332,7 +345,6 @@ export default function SignalCard({
         <Marker pos={finalPos["RES"]} label="RES" value={res} />
       </div>
 
-      {/* ===================== ALERT BOX ===================== */}
       <div className="alert-description-box">
         <div>
           <strong>Alert:</strong> {alertText || "--"}
@@ -345,7 +357,6 @@ export default function SignalCard({
   );
 }
 
-// ---------------- MARKER COMPONENT ----------------
 function Marker({ pos, label, value, triangle, circle, line, bubble }) {
   return (
     <div className="marker" style={{ left: `${pos}%` }}>
@@ -359,14 +370,14 @@ function Marker({ pos, label, value, triangle, circle, line, bubble }) {
       {bubble ? (
         <div
           className="price-bubble"
-          style={{ marginTop: "6px" }}   // moves SIGNAL & LIVE bubble down
+          style={{ marginTop: "6px" }}
         >
           {value?.toFixed(2) || "--"}
         </div>
       ) : (
         <div
           className="label-bottom"
-          style={{ marginTop: "6px" }}   // moves SUP / ST / T / RES values down
+          style={{ marginTop: "6px" }}
         >
           {value?.toFixed(2) || "--"}
         </div>
