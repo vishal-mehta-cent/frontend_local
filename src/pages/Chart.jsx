@@ -17,6 +17,8 @@ import {
   AlignVerticalJustifyStart
 } from "lucide-react";
 
+
+
 // Convert CSV date ("2025-11-21 12:29:00+05:30") → UNIX seconds
 function parseISTDateToUnix(dstr) {
     try {
@@ -512,11 +514,16 @@ const [desc3, setDesc3] = useState("");
 const [desc4, setDesc4] = useState("");
 
 const [latestSignals, setLatestSignals] = useState([]);
+const [latestReco, setLatestReco] = useState([]);
+
 
 
 const [signalData, setSignalData] = useState(null);
 // NEW STATES
 const [generateMode, setGenerateMode] = useState(false);
+// ⭐ Freeze chart camera when navigating from Recommendation page
+const [freezeChartAtSignal, setFreezeChartAtSignal] = useState(false);
+
 const [recoMode, setRecoMode] = useState(false);
 
 
@@ -537,6 +544,13 @@ const urlParams = new URLSearchParams(window.location.search);
 const jumpStrategy = urlParams.get("strategy") || null;   // intraday, btst, short-term
 const jumpDT = urlParams.get("dt") || null;               // datetime string
 
+// ⭐ If navigation came from recommendation, enable chart freeze
+useEffect(() => {
+  if (jumpDT) {
+    setFreezeChartAtSignal(true);
+  }
+}, [jumpDT]);
+
 let jumpUnix = null;
 if (jumpDT) {
   try {
@@ -545,6 +559,8 @@ if (jumpDT) {
     jumpUnix = null;
   }
 }
+
+
 
   const symbol = useMemo(() => (rawSym || "").toUpperCase(), [rawSym]);
   const navigate = useNavigate();
@@ -560,7 +576,7 @@ useEffect(() => {
   if (jumpStrategy === "intraday" || jumpStrategy === "btst") {
     setTf("15m");
   }
-
+ 
   if (jumpStrategy === "short-term") {
     setTf("1d");
   }
@@ -772,7 +788,12 @@ async function loadAllSignals(symbol) {
     // --------------------------------------------------
     // 6) LAST 4 SIGNALS
     // --------------------------------------------------
-    setLatestSignals(final.slice(-4));
+    setLatestSignals(
+  final
+    .slice(-4)
+    .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+);
+
 
     console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
 
@@ -782,6 +803,41 @@ async function loadAllSignals(symbol) {
 }
 
 
+async function loadRecommendationDescriptions(symbol, tf) {
+  try {
+    let url = "";
+
+    if (tf === "15m") {
+      // ⭐ 15m gets both CSV files
+      url = `${API}/market/reco-15m?symbol=${symbol}&ts=${Date.now()}`;
+    } else if (tf === "1d") {
+      // ⭐ 1d gets short-term CSV
+      url = `${API}/market/reco-1d?symbol=${symbol}&ts=${Date.now()}`;
+    } else {
+      setLatestReco([]);
+      return;
+    }
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      setLatestReco([]);
+      return;
+    }
+
+    // Sort by descending time, take 4
+    const rows = data
+      .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+      .slice(0, 4);
+
+    setLatestReco(rows);
+
+  } catch (err) {
+    console.warn("Reco description failed:", err);
+    setLatestReco([]);
+  }
+}
 
 
 // ------------------------------------------------------
@@ -813,6 +869,35 @@ useEffect(() => {
 }, [symbol, tf]);
 
 
+async function loadRecommendationsDescription(tf) {
+  try {
+    
+    let url = "";
+    if (tf === "15m") {
+      url = `${API}/market/reco-load?symbol=ALL&tf=15m`;
+    } 
+    else if (tf === "1d") {
+      url = `${API}/market/reco-load?symbol=ALL&tf=1d`;
+    } else {
+      return;
+    }
+
+    const r = await fetch(url);
+    const js = await r.json();
+    if (!js.rows || !Array.isArray(js.rows)) return;
+
+    // Sort by timestamp DESC
+    const sorted = [...js.rows].sort(
+      (a, b) => Number(b.timestamp) - Number(a.timestamp)
+    );
+
+    // Pick latest 4
+    setLatestRecommendations(sorted.slice(0, 4));
+
+  } catch (e) {
+    console.log("Recommendation description load failed:", e);
+  }
+}
 
 
 
@@ -872,6 +957,7 @@ try {
           try {
             tsObj.scrollToPosition(0, false);
             tsObj.setVisibleRange({ from: nearest - 2000, to: nearest + 2000 });
+            
           } catch (e) {
             console.warn("Scroll failed:", e);
           }
@@ -1323,9 +1409,11 @@ useEffect(() => {
     try {
   const ts = mainChart.current?.timeScale();
   const range = ts?.getVisibleLogicalRange();
+  if (!freezeChartAtSignal) {
   if (range && range.to >= candles.length - 2) {
     ts.scrollToRealTime();
   }
+}
 } catch (e) {
   console.warn("scrollToRealTime failed:", e);
 }
@@ -1737,10 +1825,10 @@ useEffect(() => {
     indDataOsc.current = {};
   }, []);
 
-  const updateIndicators = useCallback(() => {
+    const updateIndicators = useCallback(() => {
     if (!mainChart.current || !oscChart.current || !candles.length) return;
 
-    // clear existing
+    // 1) clear all existing indicator series
     Object.values(indSeriesMain.current).flat().forEach(s => { try { s.remove(); } catch {} });
     Object.values(indSeriesOsc.current).flat().forEach(s => { try { s.remove(); } catch {} });
     indSeriesMain.current = {};
@@ -1754,151 +1842,238 @@ useEffect(() => {
     const closes = candles.map(c => c.close);
     const times  = candles.map(c => c.time);
 
-    const addMainLine = (color="#0ea5e9", width=1) =>
-      main.addLineSeries({ color, lineWidth: width, priceLineVisible:false, crosshairMarkerVisible:false });
+    const addMainLine = (color = "#0ea5e9", width = 1) =>
+      main.addLineSeries({
+        color,
+        lineWidth: width,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+      });
 
-    const addOscLine = (color="#0ea5e9", width=1) =>
-      osc.addLineSeries({ color, lineWidth: width, priceLineVisible:false, crosshairMarkerVisible:false });
+    const addOscLine = (color = "#0ea5e9", width = 1) =>
+      osc.addLineSeries({
+        color,
+        lineWidth: width,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+      });
 
-    const addOscHist = (color="#64748b") =>
-      osc.addHistogramSeries({ color, priceLineVisible:false, base:0 });
+    const addOscHist = (color = "#64748b") =>
+      osc.addHistogramSeries({
+        color,
+        priceLineVisible: false,
+        base: 0,
+      });
 
-    const pushMain = (key, s, data) => {
-      indSeriesMain.current[key] = (indSeriesMain.current[key] || []).concat(s);
-      indDataMain.current[key]   = (indDataMain.current[key]   || []).concat({ series: s, data });
+    const pushMain = (key, series, data) => {
+      indSeriesMain.current[key] = (indSeriesMain.current[key] || []).concat(series);
+      indDataMain.current[key]   = (indDataMain.current[key]   || []).concat({ series, data });
     };
-    const pushOsc = (key, s, data) => {
-      indSeriesOsc.current[key] = (indSeriesOsc.current[key] || []).concat(s);
-      indDataOsc.current[key]   = (indDataOsc.current[key]   || []).concat({ series: s, data });
+
+    const pushOsc = (key, series, data) => {
+      indSeriesOsc.current[key] = (indSeriesOsc.current[key] || []).concat(series);
+      indDataOsc.current[key]   = (indDataOsc.current[key]   || []).concat({ series, data });
     };
 
+    const toSeriesData = (values) =>
+      times
+        .map((t, i) =>
+          values[i] == null || !isFinite(values[i])
+            ? null
+            : { time: t, value: values[i] }
+        )
+        .filter(Boolean);
+
+    // ---------- 52 Week High / Low (MAIN) ----------
     if (active.hi52) {
       const { hi, lo } = highLow52w(candles, 252);
       const sHi = addMainLine("#f59e0b", 1);
       const sLo = addMainLine("#10b981", 1);
-      const dHi = times.map((t,i)=> hi[i]==null? null : { time:t, value:hi[i] }).filter(Boolean);
-      const dLo = times.map((t,i)=> lo[i]==null? null : { time:t, value:lo[i] }).filter(Boolean);
-      sHi.setData(dHi); sLo.setData(dLo);
-      pushMain("hi52", sHi, dHi); pushMain("hi52", sLo, dLo);
+      const dHi = toSeriesData(hi);
+      const dLo = toSeriesData(lo);
+      sHi.setData(dHi);
+      sLo.setData(dLo);
+      pushMain("hi52", sHi, dHi);
+      pushMain("hi52", sLo, dLo);
     }
 
+    // ---------- Average Price (MAIN) ----------
     if (active.avgprice) {
       const avg = AvgPrice(candles, 14);
-      const s = addMainLine("#3b82f6", 2);
-      const d = times.map((t,i)=> avg[i]==null? null : { time:t, value:avg[i] }).filter(Boolean);
+      const s = addMainLine("#3b82f6", 1);
+      const d = toSeriesData(avg);
       s.setData(d);
       pushMain("avgprice", s, d);
     }
 
-    if (active.bbands || active.bb_pctb || active.bb_width) {
-      const { ma, upper, lower, pctB, width } = Bollinger(closes, 20, 2);
+    // Prepare Bollinger only once if any BB-related indicator is active
+    let bb = null;
+    const getBB = () => {
+      if (!bb) bb = Bollinger(closes, 20, 2);
+      return bb;
+    };
 
-      if (active.bbands) {
-        const sU = addMainLine("#0ea5e9", 1);
-        const sM = addMainLine("#6366f1", 1);
-        const sL = addMainLine("#0ea5e9", 1);
-        const dU = times.map((t,i)=> upper[i]==null? null : { time:t, value:upper[i] }).filter(Boolean);
-        const dM = times.map((t,i)=> ma[i]==null? null : { time:t, value:ma[i] }).filter(Boolean);
-        const dL = times.map((t,i)=> lower[i]==null? null : { time:t, value:lower[i] }).filter(Boolean);
-        sU.setData(dU); sM.setData(dM); sL.setData(dL);
-        pushMain("bbands", sU, dU); pushMain("bbands", sM, dM); pushMain("bbands", sL, dL);
-      }
-      if (active.bb_pctb) {
-        const s = addOscLine("#10b981", 2);
-        const d = times.map((t,i)=> pctB[i]==null? null : { time:t, value:pctB[i]*100 }).filter(Boolean);
-        s.setData(d);
-        pushOsc("bb_pctb", s, d);
-      }
-      if (active.bb_width) {
-        const s = addOscLine("#f59e0b", 2);
-        const d = times.map((t,i)=> width[i]==null? null : { time:t, value:width[i] }).filter(Boolean);
-        s.setData(d);
-        pushOsc("bb_width", s, d);
-      }
+    // ---------- Bollinger Bands (MAIN) ----------
+    if (active.bbands) {
+      const { ma, upper, lower } = getBB();
+      const midS = addMainLine("#0ea5e9", 1);
+      const upS  = addMainLine("rgba(148,163,184,0.9)", 1);
+      const loS  = addMainLine("rgba(148,163,184,0.9)", 1);
+
+      const dMid = toSeriesData(ma);
+      const dUp  = toSeriesData(upper);
+      const dLo  = toSeriesData(lower);
+
+      midS.setData(dMid);
+      upS.setData(dUp);
+      loS.setData(dLo);
+
+      pushMain("bbands", midS, dMid);
+      pushMain("bbands", upS,  dUp);
+      pushMain("bbands", loS,  dLo);
     }
 
-    if (active.supertrend) {
-      const { trend } = Supertrend(candles, 10, 3);
-      const s = addMainLine("#22c55e", 2);
-      const d = times.map((t,i)=> trend[i]==null? null : { time:t, value:trend[i] }).filter(Boolean);
+    // ---------- Bollinger %B (OSC) ----------
+    if (active.bb_pctb) {
+      const { pctB } = getBB();
+      const s = addOscLine("#6366f1", 1);
+      const d = toSeriesData(pctB);
       s.setData(d);
-      pushMain("supertrend", s, d);
+      pushOsc("bb_pctb", s, d);
     }
+
+    // ---------- Bollinger Width (OSC) ----------
+    if (active.bb_width) {
+      const { width } = getBB();
+      const s = addOscLine("#f97316", 1);
+      const d = toSeriesData(width);
+      s.setData(d);
+      pushOsc("bb_width", s, d);
+    }
+
+    // ---------- ADX (+DI / −DI / ADX) (OSC) ----------
+    let adxRes = null;
+    const getADXRes = () => {
+      if (!adxRes) adxRes = ADX(candles, 14);
+      return adxRes;
+    };
 
     if (active.adx) {
-      const { plusDI, minusDI, adx } = ADX(candles, 14);
-      const s1 = addOscLine("#22c55e", 1);
-      const s2 = addOscLine("#ef4444", 1);
-      const s3 = addOscLine("#3b82f6", 2);
-      const d1 = times.map((t,i)=> plusDI[i]==null? null : { time:t, value:plusDI[i] }).filter(Boolean);
-      const d2 = times.map((t,i)=> minusDI[i]==null? null : { time:t, value:minusDI[i] }).filter(Boolean);
-      const d3 = times.map((t,i)=> adx[i]==null? null : { time:t, value:adx[i] }).filter(Boolean);
-      s1.setData(d1); s2.setData(d2); s3.setData(d3);
-      pushOsc("adx", s1, d1); pushOsc("adx", s2, d2); pushOsc("adx", s3, d3);
+      const { plusDI, minusDI, adx } = getADXRes();
+      const sPlus  = addOscLine("#22c55e", 1);   // +DI
+      const sMinus = addOscLine("#ef4444", 1);   // -DI
+      const sAdx   = addOscLine("#0ea5e9", 1);   // ADX
+
+      const dPlus  = toSeriesData(plusDI);
+      const dMinus = toSeriesData(minusDI);
+      const dAdx   = toSeriesData(adx);
+
+      sPlus.setData(dPlus);
+      sMinus.setData(dMinus);
+      sAdx.setData(dAdx);
+
+      pushOsc("adx", sPlus,  dPlus);
+      pushOsc("adx", sMinus, dMinus);
+      pushOsc("adx", sAdx,   dAdx);
     }
 
+    // ---------- Aroon Up / Down / Osc (OSC) ----------
     if (active.aroon) {
-      const { up, down, osc:arOsc } = Aroon(candles, 25);
-      const s1 = addOscLine("#22c55e", 1);
-      const s2 = addOscLine("#ef4444", 1);
-      const s3 = addOscLine("#6366f1", 2);
-      const d1 = times.map((t,i)=> up[i]==null? null : { time:t, value:up[i] }).filter(Boolean);
-      const d2 = times.map((t,i)=> down[i]==null? null : { time:t, value:down[i] }).filter(Boolean);
-      const d3 = times.map((t,i)=> arOsc[i]==null? null : { time:t, value:arOsc[i] }).filter(Boolean);
-      s1.setData(d1); s2.setData(d2); s3.setData(d3);
-      pushOsc("aroon", s1, d1); pushOsc("aroon", s2, d2); pushOsc("aroon", s3, d3);
+      const { up, down, osc: arrOsc } = Aroon(candles, 25);
+      const sUp   = addOscLine("#22c55e", 1);
+      const sDown = addOscLine("#ef4444", 1);
+      const sOsc  = addOscLine("#0ea5e9", 1);
+
+      const dUp   = toSeriesData(up);
+      const dDown = toSeriesData(down);
+      const dOsc  = toSeriesData(arrOsc);
+
+      sUp.setData(dUp);
+      sDown.setData(dDown);
+      sOsc.setData(dOsc);
+
+      pushOsc("aroon", sUp,   dUp);
+      pushOsc("aroon", sDown, dDown);
+      pushOsc("aroon", sOsc,  dOsc);
     }
 
+    // ---------- Accumulation / Distribution Line (OSC) ----------
     if (active.adline) {
-      const ad = ADLine(candles);
-      const s = addOscLine("#0ea5e9", 2);
-      const d = times.map((t,i)=> ({ time:t, value:ad[i] }));
+      const vals = ADLine(candles);
+      const s = addOscLine("#0ea5e9", 1);
+      const d = toSeriesData(vals);
       s.setData(d);
       pushOsc("adline", s, d);
     }
 
+    // ---------- Balance of Power (OSC, histogram) ----------
     if (active.bop) {
-      const bop = BOP(candles);
+      const vals = BOP(candles);
       const s = addOscHist("#64748b");
-      const d = times.map((t,i)=> ({ time:t, value:bop[i] ?? 0 }));
+      const d = toSeriesData(vals);
       s.setData(d);
       pushOsc("bop", s, d);
     }
 
+    // ---------- CCI (OSC) ----------
     if (active.cci) {
-      const cci = CCI(candles, 20);
-      const s = addOscLine("#f59e0b", 2);
-      const d = times.map((t,i)=> cci[i]==null? null : { time:t, value:cci[i] }).filter(Boolean);
+      const vals = CCI(candles, 20);
+      const s = addOscLine("#22c55e", 1);
+      const d = toSeriesData(vals);
       s.setData(d);
       pushOsc("cci", s, d);
     }
 
+    // ---------- Stoch RSI (K & D) (OSC) ----------
     if (active.rsi_stoch) {
-      const { k, d } = StochRSI(closes, 14, 14, 3);
-      const s1 = addOscLine("#22c55e", 2);
-      const s2 = addOscLine("#3b82f6", 1);
-      const d1 = times.map((t,i)=> k[i]==null? null : { time:t, value:k[i] }).filter(Boolean);
-      const d2 = times.map((t,i)=> d[i]==null? null : { time:t, value:d[i] }).filter(Boolean);
-      s1.setData(d1); s2.setData(d2);
-      pushOsc("rsi_stoch", s1, d1); pushOsc("rsi_stoch", s2, d2);
+      const { k, d: dLine } = StochRSI(closes, 14, 14, 3);
+      const sK = addOscLine("#0ea5e9", 1);
+      const sD = addOscLine("#f97316", 1);
+
+      const dk = toSeriesData(k);
+      const dd = toSeriesData(dLine);
+
+      sK.setData(dk);
+      sD.setData(dd);
+
+      pushOsc("rsi_stoch", sK, dk);
+      pushOsc("rsi_stoch", sD, dd);
     }
 
-    if (active.ao || active.ac) {
-      const { ao, ac } = AO_AC(candles);
-      if (active.ao) {
-        const s = addOscHist("#06b6d4");
-        const d = times.map((t,i)=> ao[i]==null? null : { time:t, value:ao[i] }).filter(Boolean);
-        s.setData(d);
-        pushOsc("ao", s, d);
-      }
-      if (active.ac) {
-        const s = addOscHist("#a78bfa");
-        const d = times.map((t,i)=> ac[i]==null? null : { time:t, value:ac[i] }).filter(Boolean);
-        s.setData(d);
-        pushOsc("ac", s, d);
-      }
+    // ---------- Awesome Oscillator (OSC, histogram) ----------
+    if (active.ao) {
+      const { ao } = AO_AC(candles);
+      const s = addOscHist("#0ea5e9");
+      const d = toSeriesData(ao);
+      s.setData(d);
+      pushOsc("ao", s, d);
     }
-  }, [candles, active]);
+
+    // ---------- Accelerator Oscillator (OSC, histogram) ----------
+    if (active.ac) {
+      const { ac } = AO_AC(candles);
+      const s = addOscHist("#22c55e");
+      const d = toSeriesData(ac);
+      s.setData(d);
+      pushOsc("ac", s, d);
+    }
+
+    // ---------- Supertrend (MAIN) ----------
+    if (active.supertrend) {
+      const { trend } = Supertrend(candles, 10, 3);
+      const s = addMainLine("#16a34a", 2);
+      const d = toSeriesData(trend);
+      s.setData(d);
+      pushMain("supertrend", s, d);
+    }
+  }, [candles, active, mainChart, oscChart]);
+
+    // Rebuild indicators when data or active flags change
+  useEffect(() => {
+    updateIndicators();
+  }, [updateIndicators]);
+
+
 
   useEffect(() => { updateIndicators(); }, [updateIndicators, chartType, redrawTick]);
   useEffect(() => () => removeAllIndicatorSeries(), [removeAllIndicatorSeries]);
@@ -2093,6 +2268,9 @@ const isRunningRef = useRef(false);
 // ⭐ NEW — 20s loop controller for Recommendations
 const recoRunRef = useRef(null);
 
+// ⭐ track recommendation mode in ref (used when button clicked)
+const recoModeRef = useRef(false);
+
 // ---------------------------------------------------------
 // MERGE SIGNAL DATA (2m + 15m)
 // ---------------------------------------------------------
@@ -2150,7 +2328,12 @@ async function generateSignal() {
   // -------------------------------------
   // ⭐ 3. ON MODE (FIRST CLICK)
   // -------------------------------------
-  alert("Signals applied");
+  alert(
+  "• Signal generation started.\n" +
+  "• Displaying signals shortly.\n" +
+  "• Click again for continuous updates stopp."
+);
+
 
   isRunningRef.current = true;
   setGenerateMode(true);
@@ -2228,6 +2411,8 @@ function applyUnifiedMarkers() {
 const [showRecoModal, setShowRecoModal] = useState(false);
 const [recoData, setRecoData] = useState([]);
 
+
+
 async function openRecommendations() {
   console.log("📌 Recommendations button clicked");
 
@@ -2263,28 +2448,39 @@ async function openRecommendations() {
   // -------------------------------
   // ⭐ 3. START MODE
   // -------------------------------
-  alert("Signals applied");
+  // -------------------------------
+// 3. START MODE
+// -------------------------------
+ alert(
+  "• Recommnedation Signal generation started.\n" +
+  "• Displaying signals shortly.\n" +
+  "• If Signals are not in this script then not display.\n" +
+  "• Click again for continuous updates stopp."
+);
 
-  setRecoMode(true);
-  localStorage.setItem("NC_recoMode_" + symbol, "true");
+setRecoMode(true);
+recoModeRef.current = true;   // ⭐ FORCE LOOP ACTIVATION FROM BUTTON CLICK ONLY
+localStorage.setItem("NC_recoMode_" + symbol, "true");
 
-  const recoBtn = document.querySelector("#recoBtn");
-  if (recoBtn) {
-    recoBtn.style.background = "#2563eb";
-    recoBtn.style.color = "white";
-    recoBtn.style.borderColor = "#2563eb";
-  }
+const recoBtn = document.querySelector("#recoBtn");
+if (recoBtn) {
+  recoBtn.style.background = "#2563eb";
+  recoBtn.style.color = "white";
+  recoBtn.style.borderColor = "#2563eb";
+}
 
-  // ⭐ SAFE 20-SEC LOOP
-  if (recoRunRef.current) clearInterval(recoRunRef.current);
+// ⭐ always restart loop on button click
+if (recoRunRef.current) clearInterval(recoRunRef.current);
 
-  recoRunRef.current = setInterval(() => {
-    console.log("🔄 Auto-refreshing recommendations…");
-    refreshRecommendations();  // ✔ Correct — not toggle
-  }, 20000);
+recoRunRef.current = setInterval(() => {
+  console.log("🔁 Auto-refreshing recommendations…");
+  refreshRecommendations();
+}, 20000);
 
-  // run immediately
-  await refreshRecommendations();
+// Run immediately
+await refreshRecommendations();
+loadRecommendationDescriptions(symbol, tf);
+
 }
 
 
@@ -2444,9 +2640,12 @@ async function refreshRecommendations() {
           
           <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
             <span>{new Date(sig.timestamp * 1000).toLocaleString()}</span>
-            <span style={{ color: sig.signal === "BUY" ? "green" : "red" }}>
-              {sig.signal} || {sig.close_price}
-            </span>
+            <span
+  className={sig.signal === "BUY" ? "text-green-600" : "text-red-600"}
+>
+  {sig.signal} | {sig.tf} | {Number(sig.close_price).toFixed(2)}
+</span>
+
           </div>
 
           <div style={{ marginTop: "5px" }}>
