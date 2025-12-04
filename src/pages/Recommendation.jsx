@@ -342,54 +342,48 @@ export default function Recommendations() {
   useEffect(() => {
     let alive = true;
 
-const fetchOnce = async () => {
-  try {
-const res = await fetch(
-  `${API}/recommendations/get_recommendations_recommendations_data?ts=${Date.now()}`,
-  { cache: "no-store" }
-);
+    const fetchOnce = async () => {
+      try {
+        const res = await fetch(
+          `${API}/recommendations/data?ts=${Date.now()}`,
+          { cache: "no-store" }
+        );
 
+        const json = await res.json();
+        if (!alive) return;
 
-    if (!res.ok) {
-      console.error("Backend returned status:", res.status);
-      return;
-    }
+        const normalized = (Array.isArray(json) ? json : []).map(normalize);
 
-    const json = await res.json();
-    if (!alive) return;
+        const seen = new Set();
+        const ordered = [];
 
-    const normalized = (Array.isArray(json) ? json : []).map(normalize);
+        for (const r of normalized) {
+          if (!r.script || r.script === "N/A") continue;
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          ordered.push(r);
+        }
 
-    const seen = new Set();
-    const ordered = [];
+        const uniqueScreeners = [
+          "All",
+          ...new Set(ordered.map((r) => r.screener)),
+        ];
+        const uniqueAlertTypes = [
+          "All",
+          ...new Set(ordered.map((r) => r.alertType)),
+        ];
 
-    for (const r of normalized) {
-      if (!r.script || r.script === "N/A") continue;
-      if (seen.has(r.id)) continue;
-      seen.add(r.id);
-      ordered.push(r);
-    }
-
-    const uniqueScreeners = [
-      "All",
-      ...new Set(ordered.map((r) => r.screener)),
-    ];
-    const uniqueAlertTypes = [
-      "All",
-      ...new Set(ordered.map((r) => r.alertType)),
-    ];
-
-    startTransition(() => {
-      setScreenerList(uniqueScreeners);
-      setAlertTypeList(uniqueAlertTypes);
-      setRows(ordered);
-      setInitialLoading(false);
-    });
-  } catch (e) {
-    console.error("Fetch failed:", e);
-    setInitialLoading(false);
-  }
-};
+        startTransition(() => {
+          setScreenerList(uniqueScreeners);
+          setAlertTypeList(uniqueAlertTypes);
+          setRows(ordered);
+          setInitialLoading(false);
+        });
+      } catch (e) {
+        console.error("Fetch failed:", e);
+        setInitialLoading(false);
+      }
+    };
 
     fetchOnce();
     const id = setInterval(fetchOnce, 5000);
