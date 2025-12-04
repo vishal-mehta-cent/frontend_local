@@ -339,69 +339,69 @@ export default function Recommendations() {
   // ----------------------------------------------------
   // FETCH CSV DATA EVERY 5 SECONDS
   // ----------------------------------------------------
-// ----------------------------------------------------
-// FETCH CSV DATA EVERY 5 SECONDS (FIXED, NEW ENDPOINT)
-// ----------------------------------------------------
-useEffect(() => {
-  let alive = true;
+  // ----------------------------------------------------
+  // FETCH CSV DATA EVERY 5 SECONDS (FIXED, NEW ENDPOINT)
+  // ----------------------------------------------------
+  useEffect(() => {
+    let alive = true;
 
-  const fetchOnce = async () => {
-    try {
-      // Map frontend tab → backend TF
-      const tf = activeType === "Short-term" ? "1d" : "15m";
+    const fetchOnce = async () => {
+      try {
+        const tf = activeType === "Short-term" ? "1d" : "15m";
 
-      // Fetch from REAL backend route
-      const url = `${API}/market/reco-load?symbol=ALL&tf=${tf}&ts=${Date.now()}`;
-      console.log("Fetching:", url);
+        const url = `${API}/market/reco-load?symbol=ALL&tf=${tf}&ts=${Date.now()}`;
+        console.log("Fetching:", url);
 
-      const res = await fetch(url, { cache: "no-store" });
+        const res = await fetch(url, { cache: "no-store" });
 
-      if (!res.ok) {
-        console.error("Backend returned status:", res.status);
-        return;
-      }
+        if (!res.ok) {
+          console.error("Backend returned status:", res.status);
+          return;
+        }
 
-      const json = await res.json();
-      if (!alive) return;
+        const json = await res.json();
+        if (!alive) return;
 
-      const markers = json?.markers || [];
+        // ⭐ FIX: Read markers from backend
+        const markers = json?.markers || [];
 
-      const normalized = markers.map(normalize);
+        // Normalize markers into signals
+        const normalized = markers.map(normalize);
 
-      const seen = new Set();
-      const ordered = [];
+        const seen = new Set();
+        const ordered = [];
 
-      for (const r of normalized) {
-        if (!r.script || r.script === "N/A") continue;
-        if (seen.has(r.id)) continue;
-        seen.add(r.id);
-        ordered.push(r);
-      }
+        for (const r of normalized) {
+          if (!r.script || r.script === "N/A") continue;
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          ordered.push(r);
+        }
 
-      const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
-      const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
+        const uniqueScreeners = ["All", ...new Set(ordered.map(r => r.screener))];
+        const uniqueAlertTypes = ["All", ...new Set(ordered.map(r => r.alertType))];
 
-      startTransition(() => {
-        setScreenerList(uniqueScreeners);
-        setAlertTypeList(uniqueAlertTypes);
-        setRows(ordered);
+        startTransition(() => {
+          setScreenerList(uniqueScreeners);
+          setAlertTypeList(uniqueAlertTypes);
+          setRows(ordered);
+          setInitialLoading(false);
+        });
+
+      } catch (e) {
+        console.error("Fetch failed:", e);
         setInitialLoading(false);
-      });
+      }
+    };
 
-    } catch (e) {
-      console.error("Fetch failed:", e);
-      setInitialLoading(false);
-    }
-  };
+    fetchOnce();
+    const id = setInterval(fetchOnce, 5000);
 
-  fetchOnce();
-  const id = setInterval(fetchOnce, 5000);
-
-  return () => {
-    alive = false;
-    clearInterval(id);
-  };
-}, [activeType, closedPriceMap]);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [activeType, closedPriceMap]);
 
 
   // -------------------------------------------------------
