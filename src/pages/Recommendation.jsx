@@ -339,59 +339,70 @@ export default function Recommendations() {
   // ----------------------------------------------------
   // FETCH CSV DATA EVERY 5 SECONDS
   // ----------------------------------------------------
-  useEffect(() => {
-    let alive = true;
+// ----------------------------------------------------
+// FETCH CSV DATA EVERY 5 SECONDS (FIXED, NEW ENDPOINT)
+// ----------------------------------------------------
+useEffect(() => {
+  let alive = true;
 
-    const fetchOnce = async () => {
-      try {
-        const res = await fetch(
-          `${API}/recommendations/data?ts=${Date.now()}`,
-          { cache: "no-store" }
-        );
+  const fetchOnce = async () => {
+    try {
+      // Map frontend tab → backend TF
+      const tf = activeType === "Short-term" ? "1d" : "15m";
 
-        const json = await res.json();
-        if (!alive) return;
+      // Fetch from REAL backend route
+      const url = `${API}/market/reco-load?symbol=ALL&tf=${tf}&ts=${Date.now()}`;
+      console.log("Fetching:", url);
 
-        const normalized = (Array.isArray(json) ? json : []).map(normalize);
+      const res = await fetch(url, { cache: "no-store" });
 
-        const seen = new Set();
-        const ordered = [];
-
-        for (const r of normalized) {
-          if (!r.script || r.script === "N/A") continue;
-          if (seen.has(r.id)) continue;
-          seen.add(r.id);
-          ordered.push(r);
-        }
-
-        const uniqueScreeners = [
-          "All",
-          ...new Set(ordered.map((r) => r.screener)),
-        ];
-        const uniqueAlertTypes = [
-          "All",
-          ...new Set(ordered.map((r) => r.alertType)),
-        ];
-
-        startTransition(() => {
-          setScreenerList(uniqueScreeners);
-          setAlertTypeList(uniqueAlertTypes);
-          setRows(ordered);
-          setInitialLoading(false);
-        });
-      } catch (e) {
-        console.error("Fetch failed:", e);
-        setInitialLoading(false);
+      if (!res.ok) {
+        console.error("Backend returned status:", res.status);
+        return;
       }
-    };
 
-    fetchOnce();
-    const id = setInterval(fetchOnce, 5000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [closedPriceMap]);
+      const json = await res.json();
+      if (!alive) return;
+
+      const markers = json?.markers || [];
+
+      const normalized = markers.map(normalize);
+
+      const seen = new Set();
+      const ordered = [];
+
+      for (const r of normalized) {
+        if (!r.script || r.script === "N/A") continue;
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        ordered.push(r);
+      }
+
+      const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
+      const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
+
+      startTransition(() => {
+        setScreenerList(uniqueScreeners);
+        setAlertTypeList(uniqueAlertTypes);
+        setRows(ordered);
+        setInitialLoading(false);
+      });
+
+    } catch (e) {
+      console.error("Fetch failed:", e);
+      setInitialLoading(false);
+    }
+  };
+
+  fetchOnce();
+  const id = setInterval(fetchOnce, 5000);
+
+  return () => {
+    alive = false;
+    clearInterval(id);
+  };
+}, [activeType, closedPriceMap]);
+
 
   // -------------------------------------------------------
   // FILTERING
