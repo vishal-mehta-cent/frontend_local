@@ -222,19 +222,11 @@ export default function Recommendations() {
   const pickTime = (row) => {
     const raw = getField(row, ["raw_datetime", "Date", "date", "signal_date"]);
     if (!raw) return "--:--";
-
-    const match = String(raw).match(/(\d{1,2}):(\d{2})/);
+    const match = raw.match(/(\d{1,2}):(\d{2})/);
     if (!match) return "--:--";
 
     let hour = parseInt(match[1], 10);
-    const minute = match[2];
-
-    // 🟢 KEY FIX:
-    // Many Short-term rows have time stored as 00:00.
-    // Instead of showing 12:00, treat that as "no specific time".
-    if (hour === 0 && minute === "00") {
-      return "--:--";
-    }
+    let minute = match[2];
 
     const ampm = hour >= 12 ? "PM" : "AM";
     if (hour > 12) hour -= 12;
@@ -242,7 +234,6 @@ export default function Recommendations() {
 
     return `${hour.toString().padStart(2, "0")}:${minute} ${ampm}`;
   };
-
 
   const pickStrategy = (r) => {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
@@ -667,6 +658,12 @@ export default function Recommendations() {
                         alertText={sig.alertText}
                         userActions={sig.userActions}
                         isClosed={false}
+                         // ⭐ ADD THESE 3 LINES ⭐
+                        strategy={sig.strategy}
+                        rawDate={sig.dateVal}
+                        rawTime={sig.timeVal}
+                        fromReco={true}
+
                       />
                     ))
                   ) : (
@@ -780,6 +777,10 @@ export default function Recommendations() {
                           alertText={sig.alertText}
                           userActions={sig.userActions}
                           isClosed={true}
+                          /* ⭐ ADD THESE ⭐ */
+                          strategy={sig.strategy}
+                          rawDate={sig.dateVal}
+                          rawTime={sig.timeVal}
                         />
                       </div>
                     );
