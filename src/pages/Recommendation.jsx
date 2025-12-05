@@ -22,79 +22,76 @@ import BackButton from "../components/BackButton";
 //    50–75 = YELLOW
 //    >75%  = GREEN
 // ---------------------------------------------------------
+// ---------------------------------------------------------
+// SMALL Accuracy Gauge (Reduced Size)
+// ---------------------------------------------------------
 const AccuracyGauge = ({ value, label }) => {
 
-  // Clamp correctly between 0% → 100%
   const v = Math.max(0, Math.min(100, value));
-
-  // Convert accuracy to needle angle:
-  // 0% = 180° (far left)
-  // 50% = 90° (middle)
-  // 100% = 0° (right)
   const angle = 180 - (v / 100) * 180;
 
-  const needleX = 90 + 60 * Math.cos((Math.PI / 180) * angle);
-  const needleY = 100 - 60 * Math.sin((Math.PI / 180) * angle);
+  const needleX = 70 + 45 * Math.cos((Math.PI / 180) * angle);
+  const needleY = 80 - 45 * Math.sin((Math.PI / 180) * angle);
 
   return (
-    <svg width="180" height="150" viewBox="0 0 180 150">
+    <svg width="140" height="120" viewBox="0 0 140 120">
 
-      {/* RED zone — 0% to 50% */}
+      {/* RED zone */}
       <path
-        d="M10 100 A80 80 0 0 1 65 20"
+        d="M10 80 A60 60 0 0 1 50 20"
         fill="none"
         stroke="#d9534f"
-        strokeWidth="16"
+        strokeWidth="12"
       />
 
-      {/* YELLOW zone — 50% to 75% */}
+      {/* YELLOW */}
       <path
-        d="M65 20 A80 80 0 0 1 115 20"
+        d="M50 20 A60 60 0 0 1 90 20"
         fill="none"
         stroke="#f0ad4e"
-        strokeWidth="16"
+        strokeWidth="12"
       />
 
-      {/* GREEN zone — 75% to 100% */}
+      {/* GREEN */}
       <path
-        d="M115 20 A80 80 0 0 1 170 100"
+        d="M90 20 A60 60 0 0 1 130 80"
         fill="none"
         stroke="#5cb85c"
-        strokeWidth="16"
+        strokeWidth="12"
       />
 
-      {/* Needle Line */}
+      {/* Needle */}
       <line
-        x1="90"
-        y1="100"
+        x1="70"
+        y1="80"
         x2={needleX}
         y2={needleY}
         stroke="black"
         strokeWidth="3"
       />
 
-      {/* Needle Center Dot */}
-      <circle cx="90" cy="100" r="5" fill="black" />
+      {/* Dot */}
+      <circle cx="70" cy="80" r="4" fill="black" />
 
-      {/* Accuracy % */}
+      {/* % Value */}
       <text
-        x="90"
-        y="122"
+        x="70"
+        y="100"
         textAnchor="middle"
-        fontSize="16"
+        fontSize="13"
         fontWeight="700"
         fill="#000"
       >
         {value.toFixed(2)}%
       </text>
 
-      {/* Label: BUY Signals: X / SELL Signals: X */}
+      {/* Label */}
       <text
-        x="90"
-        y="142"
+        x="70"
+        y="115"
         textAnchor="middle"
-        fontSize="14"
-        fontWeight="700"
+        fontSize="12"
+        fontWeight="600"
         fill="#0d47a1"
       >
         {label}
@@ -102,6 +99,7 @@ const AccuracyGauge = ({ value, label }) => {
     </svg>
   );
 };
+
 
 
 export default function Recommendations() {
@@ -522,20 +520,10 @@ export default function Recommendations() {
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <input
               type="date"
-              value={selectedDate === "All" ? "" : selectedDate}
-              onChange={(e) => {
-                const v = e.target.value;
-                setSelectedDate(v || "All");
-              }}
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
             />
 
-            <button
-              className="rec-btn"
-              style={{ padding: "6px 10px", fontSize: "12px" }}
-              onClick={() => setSelectedDate("All")}
-            >
-              Show All
-            </button>
           </div>
 
         </div>
@@ -702,8 +690,8 @@ export default function Recommendations() {
               style={{
                 display: "flex",
                 justifyContent: "center",
-                gap: "70px",
-                margin: "10px 0 30px 0",
+                gap: "20px",
+                margin: "5px 0 5px 0",
                 alignItems: "center",
               }}
             >
@@ -756,8 +744,15 @@ export default function Recommendations() {
                           const side = String(sig.alertType).toLowerCase();
 
                           let pnl = 0;
-                          if (side === "buy") pnl = (cp / sp - 1) * 100;
-                          else pnl = (1 - cp / sp) * 100;
+
+                          if (side === "buy") {
+                            pnl = (cp / sp) - 1;        // BUY FORMULA
+                          } else {
+                            pnl = 1 - (cp / sp);        // SELL FORMULA
+                          }
+
+                          pnl = pnl * 100;                // Convert to %
+
 
                           const pnlColor = pnl >= 0 ? "#00C853" : "#E53935";
 
