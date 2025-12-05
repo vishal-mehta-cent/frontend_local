@@ -318,9 +318,9 @@
 /* Gray horizontal line */
 .indicator-line {
   position: absolute;
-  top: 52%;
+  top: 57%;
   left: 5%;
-  width: 90%;
+  width: 93%;
   height: 3px;
   background-color: #bdbdbd;
   border-radius: 3px;
@@ -330,7 +330,7 @@
 /* Dynamic fill (green/red segment) */
 .indicator-fill {
   position: absolute;
-  top: 54%;
+  top: 57%;
   height: 5px;
   /* slightly thicker for visibility */
   border-radius: 3px;
@@ -347,7 +347,7 @@
   /* moves shapes slightly UP */
   transform: translateX(-50%);
   text-align: center;
-  z-index: 15;
+  z-index: 1;
 }
 
 
@@ -382,6 +382,7 @@
 .shape.square {
   width: 14px;
   height: 14px;
+  top: 1px;
   background-color: #000;
   border-radius: 2px;
 }
@@ -411,6 +412,36 @@
   transition: left 0.4s ease;
   z-index: 6;
 }
+
+/* ==========================================================
+   LAYER CONTROL — FIX OVERLAPPING OF MARKERS
+========================================================== */
+
+/* Default markers (SUP / RES / ST / T) stay at the back */
+.marker .shape {
+  position: relative;
+  z-index: 1;
+  /* BACK LAYER */
+}
+
+/* SIGNAL marker bubble & shape always in front */
+.marker.signal-marker .shape {
+  z-index: 20 !important;
+  /* FRONT */
+}
+
+/* LIVE marker should be above SIGNAL */
+.marker.live-marker .shape {
+  z-index: 25 !important;
+  /* TOP-MOST */
+}
+
+/* Price bubbles must always stay above shapes */
+.price-bubble {
+  position: relative;
+  z-index: 30 !important;
+}
+
 
 /* Price label */
 .label-bottom {
@@ -470,10 +501,11 @@
 /* -------- SMALL TRADINGVIEW STYLE BUBBLES -------- */
 .price-bubble {
   position: absolute;
-  top: 5px;
+  top: 10px;
   /* PERFECT distance above marker */
   left: 50%;
   transform: translateX(-50%);
+  z-index: 10 !important;
 
   padding: 1px 1px;
   /* small bubble */
@@ -493,6 +525,16 @@
 .price-bubble-live {
   background: #f6fbff;
   border-color: #9bbfff;
+}
+
+/* SIGNAL marker stays above all */
+.marker.signal-marker {
+  z-index: 5;
+}
+
+/* LIVE marker stays above SIGNAL */
+.marker.live-marker {
+  z-index: 6;
 }
 
 /* =========================================================
@@ -666,7 +708,7 @@
   border: 2px solid #2962ff;
   border-radius: 12px;
   padding: 20px 25px;
-  margin-top: 10px;
+  margin-top: 55px;
   box-shadow: 0 2px 6px rgba(41, 98, 255, 0.15);
 }
 
@@ -783,15 +825,17 @@
 
 .signal-count-box {
   display: flex;
-  flex-direction: column;
-  /* STACK VERTICALLY */
-  align-items: flex-start;
-  /* LEFT ALIGN */
-  gap: 12px;
-  /* nice vertical spacing */
+  flex-direction: row;
+  /* ← MAKE THEM HORIZONTAL */
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  /* spacing between boxes */
   margin-bottom: 15px;
-  margin-top: -5px;
+  margin-top: 30px;
+  width: 100%;
 }
+
 
 .signal-count-item {
   padding: 14px 20px;
@@ -807,7 +851,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   width: 150px;
   /* 👈 Decrease width here */
   margin: 0 auto;
