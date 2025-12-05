@@ -515,6 +515,8 @@ const [desc4, setDesc4] = useState("");
 
 const [latestSignals, setLatestSignals] = useState([]);
 const [latestReco, setLatestReco] = useState([]);
+const [latestRecoDesc, setLatestRecoDesc] = useState([]);
+
 
 
 
@@ -526,6 +528,42 @@ const [freezeChartAtSignal, setFreezeChartAtSignal] = useState(false);
 
 const [recoMode, setRecoMode] = useState(false);
 
+ // 🔁 auto-follow latest candle
+  const [autoFollow, setAutoFollow] = useState(true);
+  const autoFollowRef = useRef(true);
+
+  const pauseAutoFollow = useCallback(() => {
+    if (!autoFollowRef.current) return;
+    autoFollowRef.current = false;
+    setAutoFollow(false);
+
+    // stop auto-shifting chart on new bars
+    try {
+      if (mainChart.current) {
+        mainChart.current.applyOptions({
+          timeScale: { shiftVisibleRangeOnNewBar: false },
+        });
+      }
+    } catch (e) {
+      console.warn("pauseAutoFollow failed", e);
+    }
+  }, []);
+
+  const resumeAutoFollow = useCallback(() => {
+    autoFollowRef.current = true;
+    setAutoFollow(true);
+
+    try {
+      if (mainChart.current) {
+        mainChart.current.applyOptions({
+          timeScale: { shiftVisibleRangeOnNewBar: true },
+        });
+        mainChart.current.timeScale().scrollToRealTime();
+      }
+    } catch (e) {
+      console.warn("resumeAutoFollow failed", e);
+    }
+  }, []);
 
 
 
@@ -845,6 +883,8 @@ async function loadRecommendationDescriptions(symbol, tf) {
 // ------------------------------------------------------
 useEffect(() => {
   if (fromReco === true || fromReco === "1") {
+    if (!priceSeries.current) return;   // prevent chart crash
+
 
     console.log("🔥 Auto Recommendation Mode");
 
@@ -899,7 +939,44 @@ async function loadRecommendationsDescription(tf) {
   }
 }
 
+function zoomIn() {
+  try {
+    const ts = mainChart.current.timeScale();
+    ts.setVisibleLogicalRange({
+      from: ts.getVisibleLogicalRange().from + 5,
+      to: ts.getVisibleLogicalRange().to - 5,
+    });
+  } catch (e) {
+    console.warn("Zoom In error", e);
+  }
+}
 
+function zoomOut() {
+  try {
+    const ts = mainChart.current.timeScale();
+    ts.setVisibleLogicalRange({
+      from: ts.getVisibleLogicalRange().from - 5,
+      to: ts.getVisibleLogicalRange().to + 5,
+    });
+  } catch (e) {
+    console.warn("Zoom Out error", e);
+  }
+}
+
+function formatRecoDate(d) {
+  if (!d) return "Invalid Date";
+
+  try {
+    // Convert DD-MM-YYYY HH:MM → YYYY-MM-DD HH:MM (JS readable)
+    const [day, month, rest] = d.split("-");
+    const [year, time] = rest.split(" ");
+    const iso = `${year}-${month}-${day} ${time}`;
+
+    return new Date(iso).toLocaleString();
+  } catch {
+    return "Invalid Date";
+  }
+}
 
   /* ---------------- Fetch candles ---------------- */
   const [candles, setCandles] = useState([]);
@@ -957,6 +1034,9 @@ try {
           try {
             tsObj.scrollToPosition(0, false);
             tsObj.setVisibleRange({ from: nearest - 2000, to: nearest + 2000 });
+            mainChart.current.timeScale().applyOptions({
+    barSpacing: 8    // ← same spacing as normal chart (adjust if needed)
+});
             
           } catch (e) {
             console.warn("Scroll failed:", e);
@@ -1212,10 +1292,21 @@ livePriceLine.current = priceSeries.current.createPriceLine({
     osc.timeScale().subscribeVisibleLogicalRangeChange(sync);
 
     // need-more detector (scroll-left)
-    const onNeedMore = () => {
+      const onNeedMore = () => {
       const ts = main.timeScale();
       const lr = ts.getVisibleLogicalRange();
       if (!lr || !priceSeries.current) return;
+
+      // 🔁 If user has scrolled away from the latest bars, stop auto-follow
+      try {
+        const lastIndex = candles.length - 1;
+        if (lastIndex > 0 && typeof lr.to === "number") {
+          // if right edge is more than 2 bars away from last bar -> user is exploring history
+          if (lr.to < lastIndex - 2) {
+            pauseAutoFollow();
+          }
+        }
+      } catch {}
 
       try {
         const info = priceSeries.current.barsInLogicalRange(lr);
@@ -1230,6 +1321,7 @@ livePriceLine.current = priceSeries.current.createPriceLine({
         }
       } catch {}
     };
+
 
     main.timeScale().subscribeVisibleLogicalRangeChange(onNeedMore);
     main.timeScale().subscribeVisibleTimeRangeChange(onNeedMore);
@@ -1406,17 +1498,18 @@ useEffect(() => {
             : "rgba(239,68,68,0.7)"
       });
 
-    try {
-  const ts = mainChart.current?.timeScale();
-  const range = ts?.getVisibleLogicalRange();
-  if (!freezeChartAtSignal) {
-  if (range && range.to >= candles.length - 2) {
-    ts.scrollToRealTime();
-  }
-}
-} catch (e) {
-  console.warn("scrollToRealTime failed:", e);
-}
+      try {
+        const ts = mainChart.current?.timeScale();
+        if (!ts) return;
+
+        // Only force scroll when auto-follow is ON
+        if (autoFollowRef.current) {
+          ts.scrollToRealTime();
+        }
+      } catch (e) {
+        console.warn("scrollToRealTime failed", e);
+      }
+
 
       
     } catch (e) {
@@ -2413,103 +2506,124 @@ const [recoData, setRecoData] = useState([]);
 
 
 
+// ======================================================================
+// 🔵 OPEN RECOMMENDATIONS — CLICK HANDLER
+// ======================================================================
 async function openRecommendations() {
-  console.log("📌 Recommendations button clicked");
+  console.log("📌 Recommendation button clicked");
 
-  // -------------------------------
-  // ⭐ 1. TOGGLE OFF MODE
-  // -------------------------------
-  if (recoMode) {
-    alert("Auto signal generation stopped");
+  // -----------------------
+  // 🌟 STOP MODE
+  // -----------------------
+  if (recoModeRef.current === true) {
+    alert("Recommendation auto-refresh stopped");
 
+    recoModeRef.current = false;
     setRecoMode(false);
     localStorage.setItem("NC_recoMode_" + symbol, "false");
 
     if (recoRunRef.current) clearInterval(recoRunRef.current);
+    recoRunRef.current = null;
 
-    const recoBtn = document.querySelector("#recoBtn");
-    if (recoBtn) {
-      recoBtn.style.background = "";
-      recoBtn.style.color = "";
-      recoBtn.style.borderColor = "";
+    const btn = document.querySelector("#recoBtn");
+    if (btn) {
+      btn.style.background = "";
+      btn.style.color = "";
+      btn.style.borderColor = "";
     }
-
     return;
   }
 
-  // -------------------------------
-  // ⭐ 2. VALIDATE TF FIRST
-  // -------------------------------
+  // -----------------------
+  // 🌟 VALIDATE TF
+  // -----------------------
   if (!["15m", "1d"].includes(tf)) {
-    alert("Recommendation signals only for 15m and 1d");
+    alert("Recommendation signals only available for 15m and 1d");
     return;
   }
 
-  // -------------------------------
-  // ⭐ 3. START MODE
-  // -------------------------------
-  // -------------------------------
-// 3. START MODE
-// -------------------------------
- alert(
-  "• Recommnedation Signal generation started.\n" +
-  "• Displaying signals shortly.\n" +
-  "• If Signals are not in this script then not display.\n" +
-  "• Click again for continuous updates stopp."
-);
+  // -----------------------
+  // 🌟 START MODE
+  // -----------------------
+  alert(
+    "• Recommendation Signals Started.\n" +
+    "• Updating every 20 seconds.\n" +
+    "• If no data exists for the script, nothing will show.\n" +
+    "• Click again to stop."
+  );
 
-setRecoMode(true);
-recoModeRef.current = true;   // ⭐ FORCE LOOP ACTIVATION FROM BUTTON CLICK ONLY
-localStorage.setItem("NC_recoMode_" + symbol, "true");
+  recoModeRef.current = true;
+  setRecoMode(true);
+  localStorage.setItem("NC_recoMode_" + symbol, "true");
 
-const recoBtn = document.querySelector("#recoBtn");
-if (recoBtn) {
-  recoBtn.style.background = "#2563eb";
-  recoBtn.style.color = "white";
-  recoBtn.style.borderColor = "#2563eb";
-}
+  const btn = document.querySelector("#recoBtn");
+  if (btn) {
+    btn.style.background = "#2563eb";
+    btn.style.color = "white";
+    btn.style.borderColor = "#2563eb";
+  }
 
-// ⭐ always restart loop on button click
-if (recoRunRef.current) clearInterval(recoRunRef.current);
+  // -----------------------
+  // 🌟 START LOOP (20 sec)
+  // -----------------------
+  if (recoRunRef.current) clearInterval(recoRunRef.current);
 
-recoRunRef.current = setInterval(() => {
-  console.log("🔁 Auto-refreshing recommendations…");
-  refreshRecommendations();
-}, 20000);
+  recoRunRef.current = setInterval(() => {
+    console.log("🔄 Refreshing Recommendations (20s loop)");
+    refreshRecommendations();
+  }, 20000);
 
-// Run immediately
-await refreshRecommendations();
-loadRecommendationDescriptions(symbol, tf);
-
+  // Run immediately ONCE
+  await refreshRecommendations();
 }
 
 
 
+// ======================================================================
+// 🔵 REFRESH RECOMMENDATIONS — FETCH + APPLY MARKERS + UPDATE DESCRIPTION
+// ======================================================================
 async function refreshRecommendations() {
   try {
     const url = `${API}/market/reco-load?symbol=${symbol}&tf=${tf}`;
-    console.log("Fetching RECO:", url);
-
     const res = await fetch(url);
-    if (!res.ok) {
-      console.warn("⚠ Non-200 RECO:", res.status);
-    }
-
     const js = await res.json();
-    if (!js.markers || !Array.isArray(js.markers)) {
-      console.warn("No recommendations found on refresh");
-      return;
+
+    // --------------------------
+    // APPLY MARKERS
+    // --------------------------
+    if (Array.isArray(js.markers)) {
+      priceSeries.current._recoMarkers = js.markers;
+      applyUnifiedMarkers();
     }
 
-    priceSeries.current._recoMarkers = js.markers;
-    applyUnifiedMarkers();
+    // --------------------------
+    // DESCRIPTION
+    // --------------------------
+    const rows = Array.isArray(js.rows) ? js.rows : [];
 
-    console.log("📌 RECO Applied. Count:", js.markers.length);
+    // ⭐ Ensure each row contains timestamp (needed for proper sorting)
+    const cleaned = rows.map(r => ({
+      Date: r.Date || "--",
+      Alert_details: r.Alert_details || "--",
+      screener: r.screener || "--",
+      user_actions: r.user_actions || "--",
+      timestamp: r.timestamp ? Number(r.timestamp) : 0   // 💥 FIX: important
+    }));
+
+    // sort latest 4
+    const latest = cleaned
+      .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+      .slice(0, 4);
+
+    console.log("📌 Recommendation Description Loaded:", latest);
+
+    setLatestRecoDesc(latest);
 
   } catch (err) {
-    console.error("Recommendation load error:", err);
+    console.error("❌ RECO refresh error:", err);
   }
 }
+
 
 
 
@@ -2568,6 +2682,9 @@ async function refreshRecommendations() {
           >
            Add to alert WhatsApp
           </button>
+         
+                   {/* Go Live button - jump to latest bar & re-enable auto-follow */}
+          
 
 
         </div>
@@ -2584,6 +2701,53 @@ async function refreshRecommendations() {
       {/* Main chart + overlay */}
       <div style={{ position: "relative" }}>
         <div ref={mainRef} style={{ width: "100%" }} />
+      {/* Floating Zoom Buttons */}
+
+{/* Floating Centered Zoom Buttons (horizontal, no dark background) */}
+<div
+  className="absolute z-[9999] flex flex-row gap-2"
+  style={{
+    top: "85%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+  }}
+>
+  {/* Zoom In */}
+  <button
+    onClick={zoomIn}
+    className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
+               bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+  >
+    +
+  </button>
+
+  {/* Zoom Out */}
+  <button
+    onClick={zoomOut}
+    className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
+               bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+  >
+    –
+  </button>
+  <button
+    onClick={resumeAutoFollow}
+    className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
+               bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+  >
+    &gt;&gt;
+  </button>
+</div>
+
+
+
+
+        {/* Floating Go Live Button */}
+
+{/* Floating Go Live Button — icon only */}
+
+
+
+
         <div
           ref={overlayRef}
           onPointerDown={onPointerDown}
@@ -2618,9 +2782,11 @@ async function refreshRecommendations() {
       {/* Alert Description Section */}
    {/* Alert Description Section */}
 <div className="mt-4 px-4 pb-4">
-  <h3 className="text-sm font-semibold text-gray-700 mb-2">Latest 4 Signals</h3>
+  <h3 className="text-sm font-semibold text-gray-700 mb-2">
+    {recoMode ? "Latest 4 Recommendation Signals" : "Latest 4 Signals"}
+  </h3>
 
-  <div 
+  <div
     style={{
       background: "#ffffff",
       borderRadius: "8px",
@@ -2629,34 +2795,78 @@ async function refreshRecommendations() {
       fontFamily: "Inter, sans-serif",
       fontSize: "14px",
       lineHeight: "20px",
-      minHeight: "80px"
+      minHeight: "80px",
     }}
   >
-    {latestSignals.length === 0 ? (
-      <div>No signals found</div>
+
+    {recoMode ? (
+      latestRecoDesc.length > 0 ? (
+        latestRecoDesc.slice(0, 4).map((row, idx) => (
+          <div
+            key={idx}
+            style={{
+              borderBottom: "1px solid #eee",
+              paddingBottom: "12px",
+              marginBottom: "12px",
+            }}
+          >
+
+            {/* ===== DATE ===== */}
+            <div className="text-gray-900 font-semibold">
+              {row.Date || "Invalid Date"}
+            </div>
+
+            {/* ===== ALERT DETAILS ===== */}
+            <div>
+              <strong>Alert Details:</strong> {row.Alert_details || "--"}
+            </div>
+
+            {/* ===== SCREENER ===== */}
+            <div>
+              <strong>Screener:</strong> {row.screener || "--"}
+            </div>
+
+            {/* ===== USER ACTION ===== */}
+            <div>
+              <strong>User Action:</strong> {row.user_actions || "--"}
+            </div>
+
+          </div>
+        ))
+      ) : (
+        <div className="text-gray-500">No recommendations found</div>
+      )
     ) : (
-      latestSignals.map((sig, idx) => (
-        <div key={idx} style={{ paddingBottom: "10px", borderBottom: "1px solid #eee", marginBottom: "10px" }}>
-          
-          <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
-            <span>{new Date(sig.timestamp * 1000).toLocaleString()}</span>
-            <span
-  className={sig.signal === "BUY" ? "text-green-600" : "text-red-600"}
->
-  {sig.signal} | {sig.tf} | {Number(sig.close_price).toFixed(2)}
-</span>
-
-          </div>
-
-          <div style={{ marginTop: "5px" }}>
-            <strong>Alert Details:</strong> {sig.alert_details || "--"}<br />
-            <strong>Screener:</strong> {sig.screener || "--"}<br />
-            <strong>User Action:</strong> {sig.user_action || "--"}
-          </div>
-
-        </div>
-      ))
+      <div className="text-gray-500">No signals found</div>
     )}
+  
+  
+    {/* SHOW GENERATE SIGNALS */}
+    {!recoMode && (
+      latestSignals.length === 0 ? (
+        <div>No signals found</div>
+      ) : (
+        latestSignals.map((sig, idx) => (
+          <div key={idx} style={{ paddingBottom: "10px", borderBottom: "1px solid #eee", marginBottom: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
+              <span>{new Date(sig.timestamp * 1000).toLocaleString()}</span>
+              <span className={sig.signal === "BUY" ? "text-green-600" : "text-red-600"}>
+                {sig.signal} | {sig.tf} | {Number(sig.close_price).toFixed(2)}
+              </span>
+            </div>
+
+            <div style={{ marginTop: "5px" }}>
+              <strong>Alert Details:</strong> {sig.alert_details || "--"}<br/>
+              <strong>Screener:</strong> {sig.screener || "--"}<br/>
+              <strong>User Action:</strong> {sig.user_action || "--"}
+            </div>
+          </div>
+        ))
+      )
+    )}
+
+    
+
   </div>
 </div>
 
