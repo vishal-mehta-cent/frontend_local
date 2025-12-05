@@ -139,24 +139,21 @@ export default function Recommendations() {
   const normalizeDate = (raw) => {
     if (!raw) return "";
 
-    let s = String(raw).trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const d = new Date(raw);
+    if (!isNaN(d)) return d.toISOString().split("T")[0];
 
-    s = s.split(" ")[0];
-
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
-      const [m, d, y] = s.split("/");
-      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-    }
-
-    if (/^\d{1,2}\/\d{1,2}\/\d{2}$/.test(s)) {
-      let [m, d, y] = s.split("/");
-      y = "20" + y;
-      return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    // try day-first formats
+    const parts = raw.split(/[-/ ]/);
+    if (parts.length >= 3) {
+      let [a, b, c] = parts;
+      if (a.length <= 2 && b.length <= 2 && c.length >= 2) {
+        return `${c.padStart(4, "20")}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`;
+      }
     }
 
     return "";
   };
+
 
   const getField = (row, candidates) => {
     if (!row) return undefined;
@@ -389,7 +386,11 @@ export default function Recommendations() {
   // -------------------------------------------------------
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
-      const matchDate = r.dateVal === selectedDate;
+      const matchDate =
+        selectedDate === "All" ||
+        !r.dateVal ||                // allow rows with missing/invalid date
+        r.dateVal === selectedDate;
+
 
       const matchScreener =
         selectedScreener === "All" ||
@@ -510,11 +511,25 @@ export default function Recommendations() {
       <div className="filters-row date-row-centered">
         <div className="filter-item">
           <label>Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <input
+              type="date"
+              value={selectedDate === "All" ? "" : selectedDate}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSelectedDate(v || "All");
+              }}
+            />
+
+            <button
+              className="rec-btn"
+              style={{ padding: "6px 10px", fontSize: "12px" }}
+              onClick={() => setSelectedDate("All")}
+            >
+              Show All
+            </button>
+          </div>
+
         </div>
 
         {activeType === "Intraday" && (
@@ -658,7 +673,7 @@ export default function Recommendations() {
                         alertText={sig.alertText}
                         userActions={sig.userActions}
                         isClosed={false}
-                         // ⭐ ADD THESE 3 LINES ⭐
+                        // ⭐ ADD THESE 3 LINES ⭐
                         strategy={sig.strategy}
                         rawDate={sig.dateVal}
                         rawTime={sig.timeVal}
