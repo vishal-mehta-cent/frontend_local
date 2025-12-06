@@ -669,6 +669,11 @@ export default function Recommendations() {
                         alertText={sig.alertText}
                         userActions={sig.userActions}
                         isClosed={false}
+                        // ⭐ ADD THESE 3 LINES ⭐
+                        strategy={sig.strategy}
+                        rawDate={sig.dateVal}
+                        rawTime={sig.timeVal}
+                        fromReco={true}
                       />
                     ))
                   ) : (
@@ -789,6 +794,10 @@ export default function Recommendations() {
                           alertText={sig.alertText}
                           userActions={sig.userActions}
                           isClosed={true}
+                          /* ⭐ ADD THESE ⭐ */
+                          strategy={sig.strategy}
+                          rawDate={sig.dateVal}
+                          rawTime={sig.timeVal}
                         />
                       </div>
                     );
