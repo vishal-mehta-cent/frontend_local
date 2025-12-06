@@ -22,7 +22,7 @@ export default function Whatsapp() {
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-between p-4">
 
-            {/* TOP SECTION */}
+        
             <div>
                 <BackButton to="/trade" />
 
@@ -58,17 +58,17 @@ export default function Whatsapp() {
                                         {sym}
                                     </td>
 
-                                    {/* Intraday Fast Alert */}
+                                    
                                     <td className="text-center">
                                         <input type="checkbox" className="w-4 h-4 accent-blue-600" />
                                     </td>
 
-                                    {/* Intraday */}
+                                  
                                     <td className="text-center">
                                         <input type="checkbox" className="w-4 h-4 accent-blue-600" />
                                     </td>
 
-                                    {/* BTST – ALWAYS BLUE */}
+                                    
                                     <td className="text-center">
                                         <input
                                             type="checkbox"
@@ -77,7 +77,7 @@ export default function Whatsapp() {
                                         />
                                     </td>
 
-                                    {/* Short-Term – ALWAYS BLUE */}
+                                    
                                     <td className="text-center">
                                         <input
                                             type="checkbox"
