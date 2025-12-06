@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, ClipboardList, User, Briefcase, Clock } from "lucide-react";
+import { Search, ClipboardList, User, Briefcase, Clock, Lightbulb } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
 import { moneyINR } from "../utils/format";
 import ChartLauncher from "../components/ChartLauncher";
-
+import { FaWhatsapp } from "react-icons/fa";
 
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
@@ -29,17 +29,31 @@ export default function Trade({ username }) {
   const [sellPreviewData, setSellPreviewData] = useState(null);
   const [sellSymbol, setSellSymbol] = useState(null);
 
-  const intervalRef = useRef(null);          // watchlist quotes polling
-  const modalPollRef = useRef(null);         // modal live-quote polling
+  // ⭐ NEW — WhatsApp alert list
+  const [whatsappList, setWhatsappList] = useState([]);
+
+  const intervalRef = useRef(null);
+  const modalPollRef = useRef(null);
   const nav = useNavigate();
   const sellPreviewGuardRef = useRef({});
   const who = username || localStorage.getItem("username") || "";
 
+  // ---------------------------
+  // INITIAL LOAD
+  // ---------------------------
   useEffect(() => {
     fetchWatchlist();
     fetchFunds();
     preloadScripts();
   }, [username]);
+
+  // ⭐ Load WhatsApp Alerts only once
+  useEffect(() => {
+    fetch(`${API}/whatsapp/list`)
+      .then((r) => r.json())
+      .then(setWhatsappList)
+      .catch(() => setWhatsappList([]));
+  }, []);
 
   function preloadScripts() {
     fetch(`${API}/search/scripts`)
@@ -82,7 +96,9 @@ export default function Trade({ username }) {
     }).then(() => fetchWatchlist());
   }
 
-  // ===== Watchlist quotes refresher =====
+  // ------------------------------
+  // WATCHLIST QUOTES REFRESH
+  // ------------------------------
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (!watchlist.length) return;
@@ -95,44 +111,48 @@ export default function Trade({ username }) {
           (arr || []).forEach((q) => (map[q.symbol] = q));
           setQuotes(map);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchQuotes();
     intervalRef.current = setInterval(fetchQuotes, 2000);
+
     return () => clearInterval(intervalRef.current);
   }, [watchlist]);
 
-  // ========== SEARCH HELPERS ==========
+  // --------------------------------------------------------------
+  // SEARCH / OPTIONS parsing (unchanged)
+  // --------------------------------------------------------------
   const MONTHS = [
-    "JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","SEPT","OCT","NOV","DEC"
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+    "JUL", "AUG", "SEP", "SEPT", "OCT", "NOV", "DEC"
   ];
   const normMonth = (m) => (m === "SEPT" ? "SEP" : m || "");
 
-  // ⬇️ UPDATED: understands trailing CE/PE/FUT even with no month/strike (e.g., "tcsce")
   function parseOptionish(q) {
     const Qraw = String(q || "").toUpperCase().replace(/\s+/g, "");
-    if (!Qraw) return { raw: "", underlying: "", year2: "", month: "", strike: "", deriv: "" };
+    if (!Qraw)
+      return { raw: "", underlying: "", year2: "", month: "", strike: "", deriv: "" };
 
-    // detect trailing derivative token and strip it for parsing
     const derivMatch = Qraw.match(/(CE|PE|FUT)$/);
     const deriv = derivMatch ? derivMatch[1] : "";
     const Q = deriv ? Qraw.slice(0, -deriv.length) : Qraw;
 
-    // find month token and its position
     let month = "", mIdx = -1;
     for (const m of MONTHS) {
       const idx = Q.indexOf(m);
-      if (idx >= 0 && (mIdx === -1 || idx < mIdx || (idx === mIdx && m.length > month.length))) {
-        month = normMonth(m); mIdx = idx;
+      if (
+        idx >= 0 &&
+        (mIdx === -1 || idx < mIdx || (idx === mIdx && m.length > month.length))
+      ) {
+        month = normMonth(m);
+        mIdx = idx;
       }
     }
 
-    // strike: trailing digits before optional CE/PE (still fine if none)
     const tailNum = Q.match(/(\d+)(?!.*\d)/);
     const strike = tailNum ? tailNum[1] : "";
 
-    // year2: 2 digits just before month (if present)
     let year2 = "";
     if (mIdx >= 0) {
       const beforeMonth = Q.slice(Math.max(0, mIdx - 4), mIdx);
@@ -140,7 +160,6 @@ export default function Trade({ username }) {
       year2 = y ? y[1] : "";
     }
 
-    // underlying from the letters left of month/strike (digits removed)
     let underlying = Q;
     if (mIdx >= 0) {
       if (year2) {
@@ -152,7 +171,7 @@ export default function Trade({ username }) {
     } else if (tailNum) {
       underlying = Q.slice(0, tailNum.index);
     }
-    // if nothing matched, just keep the letters of Q (e.g., "TCS")
+
     underlying = underlying.replace(/[^A-Z]/g, "");
 
     return { raw: Qraw, underlying, year2, month, strike, deriv };
@@ -168,7 +187,8 @@ export default function Trade({ username }) {
     } else if (underlying) {
       seeds.add(underlying);
     } else if (month) {
-      seeds.add(month); seeds.add(`${yy}${month}`);
+      seeds.add(month);
+      seeds.add(`${yy}${month}`);
     }
     return Array.from(seeds);
   }
@@ -183,16 +203,14 @@ export default function Trade({ username }) {
     const seeds = buildSeeds(parts);
     let bag = [];
 
-    // Fetch all seeds and merge
     for (const seed of seeds) {
       try {
         const res = await fetch(`${API}/search?q=${encodeURIComponent(seed)}`);
         const data = await res.json().catch(() => []);
         if (Array.isArray(data)) bag = bag.concat(data);
-      } catch {}
+      } catch { }
     }
 
-    // Dedupe by symbol field
     const seen = new Set();
     const merged = [];
     for (const s of bag) {
@@ -203,7 +221,6 @@ export default function Trade({ username }) {
       merged.push(s);
     }
 
-    // Filters
     let filtered = merged;
     if (month) filtered = filtered.filter((s) => symbolField(s).includes(month));
     if (underlying) filtered = filtered.filter((s) => symbolField(s).includes(underlying));
@@ -215,7 +232,6 @@ export default function Trade({ username }) {
       });
     }
 
-    // ⬇️ NEW: if user typed CE/PE/FUT, keep only those contracts
     if (deriv) {
       filtered = filtered.filter((s) => {
         const sym = symbolField(s);
@@ -223,7 +239,6 @@ export default function Trade({ username }) {
       });
     }
 
-    // As a final fallback for plain text (no month/strike), do a simple contains
     if (!month && !strike && underlying && !deriv) {
       filtered = merged.filter(
         (s) =>
@@ -235,8 +250,10 @@ export default function Trade({ username }) {
     filtered.sort((a, b) => symbolField(a).localeCompare(symbolField(b)));
     return filtered.slice(0, 50);
   }
-  // ====================================
 
+  // ---------------------------------------------
+  // SEARCH LISTENER
+  // ---------------------------------------------
   const debouncedQuery = useMemo(() => query.trim(), [query]);
 
   useEffect(() => {
@@ -249,9 +266,12 @@ export default function Trade({ username }) {
       try {
         const results = await backendSearchSmart(parts);
 
-        // Local fallback if backend gave nothing
         let finalList = results;
-        if ((!finalList || finalList.length === 0) && Array.isArray(allScripts) && allScripts.length) {
+        if (
+          (!finalList || finalList.length === 0) &&
+          Array.isArray(allScripts) &&
+          allScripts.length
+        ) {
           const { raw, underlying, month, strike, deriv } = parts;
           finalList = allScripts
             .filter(allowedExchange)
@@ -259,14 +279,16 @@ export default function Trade({ username }) {
               const sym = symbolField(s);
               const nm = String(s.name || "").toUpperCase();
 
-              // deriv-only searches like "TCSCE" or "TCSFUT"
               if (deriv) {
                 if (!sym.endsWith(deriv)) return false;
               }
 
-              if (!month && !strike && underlying) return sym.includes(underlying) || nm.includes(underlying);
-              if (!month && !strike && !underlying) return sym.includes(raw) || nm.includes(raw);
-              if (underlying && !(sym.includes(underlying) || nm.includes(underlying))) return false;
+              if (!month && !strike && underlying)
+                return sym.includes(underlying) || nm.includes(underlying);
+              if (!month && !strike && !underlying)
+                return sym.includes(raw) || nm.includes(raw);
+              if (underlying && !(sym.includes(underlying) || nm.includes(underlying)))
+                return false;
               if (month && !sym.includes(month)) return false;
               if (strike) {
                 const m = sym.match(/(\d+)(CE|PE)$/);
@@ -289,15 +311,15 @@ export default function Trade({ username }) {
     setQuery(e.target.value);
   }
 
-  // ===== Open modal & start per-symbol live polling =====
+  // ------------------------------
+  // OPEN MODAL + POLLING
+  // ------------------------------
   function goDetail(sym) {
     const s = String(sym || "").trim();
     if (!s) return;
 
-    // Clear any previous poll
     if (modalPollRef.current) clearInterval(modalPollRef.current);
 
-    // Show modal asap with a first fetch
     fetch(`${API}/quotes?symbols=${encodeURIComponent(s)}`)
       .then((r) => r.json())
       .then((arr) => {
@@ -314,7 +336,6 @@ export default function Trade({ username }) {
         setSuggestions([]);
       });
 
-    // Start polling while modal is open
     modalPollRef.current = setInterval(() => {
       fetch(`${API}/quotes?symbols=${encodeURIComponent(s)}`)
         .then((r) => r.json())
@@ -322,11 +343,10 @@ export default function Trade({ username }) {
           const latestQuote = Array.isArray(arr) && arr[0] ? arr[0] : null;
           if (latestQuote) setSelectedQuote(latestQuote);
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 2000);
   }
 
-  // Stop polling when modal closes
   useEffect(() => {
     if (!selectedSymbol && modalPollRef.current) {
       clearInterval(modalPollRef.current);
@@ -341,13 +361,13 @@ export default function Trade({ username }) {
       body: JSON.stringify({ symbol: selectedSymbol }),
     }).then(() => {
       fetchWatchlist();
-      setSelectedSymbol(null); // closes modal -> stops polling
+      setSelectedSymbol(null);
     });
   }
 
   function handleBuy() {
     nav(`/buy/${selectedSymbol}`);
-    setSelectedSymbol(null); // closes modal -> stops polling
+    setSelectedSymbol(null);
   }
 
   async function previewThenSell(sym, qty = 1, segment = "intraday") {
@@ -402,7 +422,7 @@ export default function Trade({ username }) {
       setSellPreviewData(data);
       setSellConfirmMsg(
         data?.message ||
-          `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
+        `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
       );
       setSellConfirmOpen(true);
     } catch (e) {
@@ -431,14 +451,17 @@ export default function Trade({ username }) {
     );
   }
 
+  // -------------------------------------
+  // UI RETURN
+  // -------------------------------------
   return (
     <div className="flex flex-col min-h-screen bg-gray-700">
-      {/* Chart launcher (captures global open-chart events) */}
       <ChartLauncher />
 
-      {/* Header */}
+      {/* HEADER */}
       <div className="sticky top-0 z-50 p-4 bg-white rounded-b-2xl shadow relative">
         <BackButton to="/menu" />
+
         <div className="mt-2 mb-1 w-full flex justify-center">
           <div className="w-fit max-w-[90%] inline-flex items-center gap-2 rounded bg-gray-700 text-gray-100 px-4 py-1.5 text-sm font-medium shadow whitespace-nowrap">
             <span>Total Funds: {moneyINR(totalFunds, { decimals: 0 })}</span>
@@ -454,11 +477,10 @@ export default function Trade({ username }) {
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`pb-1 ${
-                  tab === t
-                    ? "text-blue-500 border-b-2 border-blue-500"
-                    : "text-gray-500"
-                }`}
+                className={`pb-1 ${tab === t
+                  ? "text-blue-500 border-b-2 border-blue-500"
+                  : "text-gray-500"
+                  }`}
               >
                 {t === "mylist" ? "My List" : "Must Watch"}
               </button>
@@ -466,7 +488,7 @@ export default function Trade({ username }) {
           </div>
         </div>
 
-        {/* Right icons */}
+        {/* HEADER RIGHT ICONS */}
         <div className="absolute right-5 top-20 flex items-center space-x-4">
           <div
             className="flex flex-col items-center cursor-pointer"
@@ -474,6 +496,13 @@ export default function Trade({ username }) {
           >
             <Briefcase size={22} className="text-gray-600 hover:text-blue-600" />
             <span className="text-xs text-gray-500">Portfolio</span>
+          </div>
+          <div
+            className="flex flex-col items-center cursor-pointer"
+            onClick={() => nav("/Recommendations")}
+          >
+            <Lightbulb size={22} className="text-gray-600 hover:text-blue-600" />
+            <span className="text-xs text-gray-500">Reco.</span>
           </div>
           <div
             className="flex flex-col items-center cursor-pointer"
@@ -492,9 +521,12 @@ export default function Trade({ username }) {
         </div>
       </div>
 
+      {/* ---------------------------- */}
+      {/* MY LIST TAB */}
+      {/* ---------------------------- */}
       {tab === "mylist" && (
         <>
-          {/* Search */}
+          {/* Search Bar */}
           <div className="bg-gray-600 p-4">
             <div className="relative">
               <Search size={16} className="absolute top-3 left-3 text-gray-400" />
@@ -506,6 +538,7 @@ export default function Trade({ username }) {
                 className="w-full pl-10 pr-4 py-2 rounded-lg text-gray-800"
               />
             </div>
+
             {suggestions.length > 0 && (
               <ul className="bg-white rounded-lg shadow mt-2 max-h-60 overflow-auto">
                 {suggestions.map((s, i) => {
@@ -532,7 +565,7 @@ export default function Trade({ username }) {
             )}
           </div>
 
-          {/* Watchlist Items */}
+          {/* WATCHLIST LIST */}
           <div className="flex-1 overflow-auto p-4 space-y-3 bg-gray-100">
             {watchlist.length === 0 ? (
               <div className="text-center text-gray-500 mt-10">
@@ -542,50 +575,64 @@ export default function Trade({ username }) {
               watchlist.map((sym) => {
                 const q = quotes[sym] || {};
                 const isPos = Number(q.change || 0) >= 0;
+
                 return (
                   <div
                     key={sym}
-                    className="bg-white px-4 py-3 rounded-xl hover:shadow-md flex justify-between items-start cursor-pointer"
+                    className="bg-white px-4 py-2 rounded-xl hover:shadow-md cursor-pointer"
                     onClick={() => goDetail(sym)}
                   >
-                    <div>
-                      <div className="text-lg font-semibold text-gray-800">
-                        {sym}
+                    {/* FIRST ROW */}
+                    <div className="flex justify-between items-center">
+                      <div className="text-left">
+                        <div className="text-lg font-semibold text-gray-800">{sym}</div>
                       </div>
-                      <div className="text-xs text-gray-600">
-                        {q.exchange || "NSE"}
-                      </div>
-                    </div>
-                    <div className="flex items-start space-x-2">
-                      <div className="text-right">
+
+                      <div className="flex items-center space-x-2">
                         <div
-                          className={`text-xl font-medium ${
-                            isPos ? "text-green-600" : "text-red-600"
-                          }`}
+                          className={`text-xl font-medium ${isPos ? "text-green-600" : "text-red-600"
+                            }`}
                         >
                           {q.price != null
                             ? Number(q.price).toLocaleString("en-IN")
                             : "--"}
                         </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveFromWatchlist(sym);
+                          }}
+                          className="text-xs bg-red-100 text-red-600 rounded px-2 py-0.5 hover:bg-red-200"
+                        >
+                          &minus;
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECOND ROW  NSE | Change% | WhatsApp */}
+                    <div className="flex justify-between items-center mt-1">
+                      <div className="text-xs text-gray-600">
+                        {q.exchange || "NSE"}
+                      </div>
+
+                      <div className="flex items-center gap-2">
                         <div className="text-xs text-gray-600">
                           {q.change != null
-                            ? `${isPos ? "+" : ""}${Number(q.change).toFixed(
-                                2
-                              )} (${isPos ? "+" : ""}${Number(
-                                q.pct_change || 0
-                              ).toFixed(2)}%)`
+                            ? `${isPos ? "+" : ""}${Number(q.change).toFixed(2)} (${Number(
+                              q.pct_change || 0
+                            ).toFixed(2)}%)`
                             : "--"}
                         </div>
+
+                        {/* ⭐ Show WhatsApp Icon ONLY if script is in WhatsApp alerts */}
+                        {whatsappList.includes(sym) && (
+                          <FaWhatsapp
+                            className="text-green-500 text-lg cursor-default"
+                            title="Added to WhatsApp Alerts"
+                          />
+                        )}
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveFromWatchlist(sym);
-                        }}
-                        className="text-xs bg-red-100 text-red-600 rounded px-2 py-0.5 hover:bg-red-200"
-                      >
-                        &minus;
-                      </button>
                     </div>
                   </div>
                 );
@@ -595,7 +642,7 @@ export default function Trade({ username }) {
         </>
       )}
 
-      {/* Bottom Nav */}
+      {/* BOTTOM NAV */}
       <div className="flex bg-gray-800 p-2 justify-around">
         <button
           onClick={() => setTab("mylist")}
@@ -604,6 +651,7 @@ export default function Trade({ username }) {
           <Search size={24} />
           <span className="text-xs">Watchlist</span>
         </button>
+
         <button
           onClick={() => nav("/orders")}
           className="flex flex-col items-center text-gray-400"
@@ -611,14 +659,22 @@ export default function Trade({ username }) {
           <ClipboardList size={24} />
           <span className="text-xs">Orders</span>
         </button>
+
+        <button
+          onClick={() => nav("/whatsapp")}
+          className="flex flex-col items-center text-gray-400"
+        >
+          <FaWhatsapp size={24} />
+          <span className="text-xs">WhatsApp</span>
+        </button>
       </div>
 
-      {/* Script modal */}
+      {/* SCRIPT DETAILS MODAL */}
       <ScriptDetailsModal
         symbol={selectedSymbol}
         quote={selectedQuote}
         onClose={() => {
-          setSelectedSymbol(null); // closes modal & stops polling
+          setSelectedSymbol(null);
           if (modalPollRef.current) {
             clearInterval(modalPollRef.current);
             modalPollRef.current = null;
@@ -637,7 +693,7 @@ export default function Trade({ username }) {
         }}
       />
 
-      {/* SELL confirmation modal */}
+      {/* SELL CONFIRMATION MODAL */}
       {sellConfirmOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm w-full">
