@@ -5,6 +5,7 @@ import { ClipboardList, Search, Briefcase, User, X, Clock } from "lucide-react";
 import BackButton from "../components/BackButton";
 import { toast } from "react-toastify";
 import useOpenTrades from "../hooks/useOpenTrades";
+import { FaWhatsapp } from "react-icons/fa";
 
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
@@ -780,6 +781,13 @@ export default function Orders({ username }) {
         <button className="flex flex-col items-center text-blue-400">
           <ClipboardList size={22} />
           <span className="text-xs">Orders</span>
+        </button>
+        <button
+          onClick={() => navigate("/whatsapp")}
+          className="flex flex-col items-center text-gray-400"
+        >
+          <FaWhatsapp size={24} />
+          <span className="text-xs">WhatsApp</span>
         </button>
       </div>
     </div>
