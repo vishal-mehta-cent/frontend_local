@@ -51,8 +51,13 @@ export default function Trade({ username }) {
   useEffect(() => {
     fetch(`${API}/whatsapp/list`)
       .then((r) => r.json())
-      .then(setWhatsappList)
+      .then((data) => {
+        if (Array.isArray(data)) setWhatsappList(data);
+        else if (Array.isArray(data.list)) setWhatsappList(data.list);
+        else setWhatsappList([]);
+      })
       .catch(() => setWhatsappList([]));
+
   }, []);
 
   function preloadScripts() {
