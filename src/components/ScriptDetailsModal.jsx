@@ -2,6 +2,12 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
+import { FaWhatsapp } from "react-icons/fa";
+import { toast } from "react-toastify";
+
+const API =
+  import.meta.env.VITE_BACKEND_BASE_URL ||
+  "https://paper-trading-backend.onrender.com";
 
 export default function ScriptDetailsModal({
   symbol,
@@ -19,6 +25,28 @@ export default function ScriptDetailsModal({
   const loc = useLocation();
 
   const [showConfirmSellFirst, setShowConfirmSellFirst] = useState(false);
+
+  // =============================
+  // ADD TO WHATSAPP ALERT FUNCTION
+  // =============================
+  const addToWhatsappAlert = async () => {
+    try {
+      await fetch(`${API}/whatsapp/add-alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script: sym }),
+      });
+
+      toast.success(`${sym} added to WhatsApp Alerts!`);
+
+      setTimeout(() => {
+        navigate("/whatsapp");
+      }, 1200);
+
+    } catch (e) {
+      toast.error("Failed to add alert!");
+    }
+  };
 
   const handleAddNotes = () => {
     navigate(`/notes/${sym}`, { state: { symbol: sym } });
@@ -72,21 +100,58 @@ export default function ScriptDetailsModal({
         </div>
 
         <div className="flex space-x-3 mb-4">
-          <button onClick={onAdd} className="bg-blue-600 text-white px-4 py-2 rounded-lg">
+          <button
+            onClick={onAdd}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
             Add to Watchlist
           </button>
-          <button onClick={onBuy} className="bg-green-600 text-white px-4 py-2 rounded-lg">
+
+          <button
+            onClick={onBuy}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg"
+          >
             Buy
           </button>
-          <button onClick={handleSellClick} className="bg-red-600 text-white px-4 py-2 rounded-lg">
+
+          <button
+            onClick={handleSellClick}
+            className="bg-red-600 text-white px-4 py-2 rounded-lg"
+          >
             Sell
           </button>
         </div>
 
         <div className="flex flex-wrap gap-3 text-sm">
+          {/* ⭐ WhatsApp Alert button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              addToWhatsappAlert();
+            }}
+            style={{
+              backgroundColor: "white",
+              border: "2px solid #25D366",
+              padding: "6px 10px",
+              borderRadius: "6px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              color: "#25D366",
+              fontWeight: "600",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = "#e6f9ee";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = "white";
+            }}
+          >
+            <FaWhatsapp size={18} color="#25D366" /> Alert
+          </button>
+
           <button
             onClick={() => {
-              // fire global event → ChartLauncher will navigate
               window.dispatchEvent(
                 new CustomEvent("open-chart", { detail: { symbol: sym } })
               );
@@ -97,14 +162,12 @@ export default function ScriptDetailsModal({
             📈 View Chart
           </button>
 
+          {/* ❌ REMOVED "Set Alert" button */}
+
           <button
-            onClick={() => alert("Coming soon: alert")}
+            onClick={handleAddNotes}
             className="bg-gray-200 px-3 py-2 rounded-lg"
           >
-            🔔 Set Alert
-          </button>
-
-          <button onClick={handleAddNotes} className="bg-gray-200 px-3 py-2 rounded-lg">
             📝 Add Notes
           </button>
         </div>
