@@ -38,7 +38,6 @@ import Funds from "./pages/Funds";
 import History from "./pages/History";
 import ModifyOrderPage from "./pages/ModifyOrderPage";
 import ProfileDetail from "./pages/ProfileDetail";
-import Payments from "./pages/Payments.jsx";
 import LiveChart from "./pages/LiveChart"; // ✅ added
 import Whatsapp from "./pages/Whatsapp";
 
@@ -247,10 +246,6 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           }
         />
         <Route
-          path="/payments"
-          element={username ? <Payments /> : <Navigate to="/" replace />}
-        />
-        <Route
           path="/history/:username"
           element={
             username ? <History username={username} /> : <Navigate to="/" replace />
@@ -287,8 +282,6 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
         />
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
-
-
 
       </Routes>
     </AnimatePresence>
