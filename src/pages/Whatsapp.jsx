@@ -1,37 +1,123 @@
-import React from "react";
-import { FaWhatsapp } from "react-icons/fa";
+import React, { useEffect, useState } from "react";
 import BackButton from "../components/BackButton";
+import { Search, ClipboardList } from "lucide-react";
+import { FaWhatsapp } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+
+const API =
+    import.meta.env.VITE_BACKEND_BASE_URL ||
+    "https://paper-trading-backend.onrender.com";
 
 export default function Whatsapp() {
-    return (
-        <div className="flex flex-col min-h-screen bg-gray-100">
+    const [scripts, setScripts] = useState([]);
+    const navigate = useNavigate();
 
-            {/* Header */}
-            <div className="p-4 bg-white shadow sticky top-0 z-50">
+    useEffect(() => {
+        fetch(`${API}/whatsapp/list`)
+            .then((r) => r.json())
+            .then((data) => setScripts(Array.isArray(data) ? data : []))
+            .catch(() => setScripts([]));
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-gray-100 flex flex-col justify-between p-4">
+
+            {/* TOP SECTION */}
+            <div>
                 <BackButton to="/trade" />
-                <h1 className="text-center text-xl font-semibold text-gray-800">
+
+                <h1 className="text-xl font-semibold text-center mt-3 mb-6">
                     WhatsApp Alerts
                 </h1>
+
+                <div className="bg-white rounded-xl shadow p-4 overflow-auto">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-gray-100">
+                            <tr>
+                                <th className="px-4 py-2 text-left text-gray-700">Script</th>
+                                <th className="px-4 py-2 text-center text-gray-700">
+                                    Intraday Fast Alert
+                                </th>
+                                <th className="px-4 py-2 text-center text-gray-700">
+                                    Intraday
+                                </th>
+                                <th className="px-4 py-2 text-center text-gray-700">
+                                    BTST
+                                </th>
+                                <th className="px-4 py-2 text-center text-gray-700">
+                                    Short-Term
+                                </th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {scripts.map((sym, i) => (
+                                <tr key={i} className="border-b hover:bg-gray-50">
+
+                                    <td className="px-4 py-3 font-medium text-gray-800">
+                                        {sym}
+                                    </td>
+
+                                    {/* Intraday Fast Alert */}
+                                    <td className="text-center">
+                                        <input type="checkbox" className="w-4 h-4 accent-blue-600" />
+                                    </td>
+
+                                    {/* Intraday */}
+                                    <td className="text-center">
+                                        <input type="checkbox" className="w-4 h-4 accent-blue-600" />
+                                    </td>
+
+                                    {/* BTST – ALWAYS BLUE */}
+                                    <td className="text-center">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 accent-blue-600"
+                                            defaultChecked
+                                        />
+                                    </td>
+
+                                    {/* Short-Term – ALWAYS BLUE */}
+                                    <td className="text-center">
+                                        <input
+                                            type="checkbox"
+                                            className="w-4 h-4 accent-blue-600"
+                                            defaultChecked
+                                        />
+                                    </td>
+
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 p-4 space-y-4">
-                <div className="bg-white p-4 rounded-xl shadow">
-                    <h2 className="text-lg font-semibold text-gray-800">Send Broadcast Alert</h2>
-                    <p className="text-sm text-gray-600 mt-2">
-                        Use this page to send WhatsApp updates to your number or groups.
-                    </p>
+            {/* BOTTOM NAVIGATION BAR */}
+            <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-2 flex justify-around z-40 border-t border-gray-700">
+                <button
+                    onClick={() => navigate("/trade")}
+                    className="flex flex-col items-center text-gray-400"
+                >
+                    <Search size={24} />
+                    <span className="text-xs">Watchlist</span>
+                </button>
 
-                    <button
-                        className="mt-4 flex items-center bg-green-500 text-white py-2 px-4 rounded-lg shadow hover:bg-green-600"
-                        onClick={() => {
-                            window.open("https://wa.me/?text=Hello%20from%20NeuroCrest", "_blank");
-                        }}
-                    >
-                        <FaWhatsapp className="mr-2 text-xl" />
-                        Send Test Message
-                    </button>
-                </div>
+                <button
+                    onClick={() => navigate("/orders")}
+                    className="flex flex-col items-center text-gray-400"
+                >
+                    <ClipboardList size={24} />
+                    <span className="text-xs">Orders</span>
+                </button>
+
+                <button
+                    onClick={() => navigate("/whatsapp")}
+                    className="flex flex-col items-center text-blue-400"
+                >
+                    <FaWhatsapp size={24} />
+                    <span className="text-xs">WhatsApp</span>
+                </button>
             </div>
 
         </div>
