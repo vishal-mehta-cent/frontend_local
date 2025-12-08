@@ -241,19 +241,27 @@ export default function Recommendations() {
 
   const pickStrategy = (r) => {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
-    raw = String(raw).trim().toLowerCase();
 
-    if (raw.includes("intraday-fast")) return "intraday-fast";
-    if (raw.includes("intraday")) return "intraday";
-    if (raw.includes("btst")) return "btst";
+    if (!raw) return "";
 
-    // UNIFY SHORT-TERM DETECTION
-    if (raw.includes("shortterm") || raw.includes("short-term") || raw.includes("short")) {
-      return "short-term";
-    }
+    // Clean only whitespace
+    raw = String(raw).trim();
 
+    // Make filtering easier (lowercase copy)
+    const lower = raw.toLowerCase();
+
+    // Match exact CSV wording, but return original text
+    if (lower.includes("intraday - fast alerts")) return "Intraday - Fast Alerts";
+    if (lower.includes("intraday - fast")) return "Intraday - Fast Alerts";
+
+    if (lower.includes("intraday")) return "Intraday";
+    if (lower.includes("btst")) return "BTST";
+    if (lower.includes("short")) return "Short-term";
+
+    // fallback
     return raw;
   };
+
 
 
   const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
@@ -413,7 +421,7 @@ export default function Recommendations() {
 
       let matchStrategy = true;
       if (activeType === "Intraday") {
-        matchStrategy = ["intraday", "intraday-fast"].includes(r.strategy);
+        matchStrategy = ["Intraday", "Intraday - Fast Alerts"].includes(r.strategy);
       } else if (activeType === "BTST") {
         matchStrategy = r.strategy === "btst";
       } else if (activeType === "Short-term") {
@@ -422,9 +430,12 @@ export default function Recommendations() {
 
       let matchSub = true;
       if (activeType === "Intraday") {
-        if (subIntraday === "Intraday") matchSub = r.strategy === "intraday";
+        if (subIntraday === "Intraday")
+          matchSub = r.strategy === "Intraday";
         else if (subIntraday === "Intraday - Fast Alerts")
-          matchSub = r.strategy === "intraday-fast-alerts";
+          matchSub = r.strategy === "Intraday - Fast Alerts";
+
+
       }
 
       const matchPriceClose =
