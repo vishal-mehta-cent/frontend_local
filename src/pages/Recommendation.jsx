@@ -241,15 +241,20 @@ export default function Recommendations() {
 
   const pickStrategy = (r) => {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
-    raw = String(raw).trim();
+    raw = String(raw).trim().toLowerCase();
 
-    if (raw === "Intraday") return "intraday";
-    if (raw === "Intraday - Fast Alerts") return "intraday-fast";
-    if (raw === "Shortterm") return "short-term";
-    if (raw === "BTST") return "btst";
+    if (raw.includes("intraday-fast")) return "intraday-fast";
+    if (raw.includes("intraday")) return "intraday";
+    if (raw.includes("btst")) return "btst";
 
-    return raw.toLowerCase();
+    // UNIFY SHORT-TERM DETECTION
+    if (raw.includes("shortterm") || raw.includes("short-term") || raw.includes("short")) {
+      return "short-term";
+    }
+
+    return raw;
   };
+
 
   const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
 
