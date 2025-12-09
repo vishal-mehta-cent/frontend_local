@@ -7,6 +7,17 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineChart } from "lucide-react";
 
+// ADD THIS LINE 🔥 (MISSING IN YOUR FILE)
+const navigate = useNavigate();
+
+// GLOBAL STOP FUNCTION 🔥
+const stop = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.nativeEvent?.stopImmediatePropagation) {
+    e.nativeEvent.stopImmediatePropagation();
+  }
+};
 export default function SignalCard({
   script,
   confidence,
@@ -28,9 +39,10 @@ export default function SignalCard({
   rawTime,
 }) {
   // Force re-render whenever price updates
-useEffect(() => {
-  // console.log("Price updated:", currentPrice);
-}, [currentPrice]);
+  useEffect(() => {
+    // console.log("Price updated:", currentPrice);
+  }, [currentPrice]);
+
 
 
   // --------------------------------------------------------
@@ -167,7 +179,11 @@ useEffect(() => {
         <span>{formattedTime}</span>
 
         <button
-          onClick={handleOrderClick}
+          onClick={(e) => {
+            stop(e);
+            handleOrderClick(e);
+          }}
+
           style={{
             background: side === "buy" ? "#00C853" : "#E53935",
             color: "white",
@@ -192,7 +208,13 @@ useEffect(() => {
           }}
         >
           {script}
-          <span onClick={openChart}>
+          <span
+            onClick={(e) => {
+              stop(e);
+              openChart(e);
+            }}
+          >
+
             <LineChart size={17} color="#2962ff" />
           </span>
         </div>
