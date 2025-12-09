@@ -10,6 +10,7 @@ const API =
 
 export default function Whatsapp() {
     const [scripts, setScripts] = useState([]);
+    const [newScript, setNewScript] = useState(""); // ⭐ For adding script
     const navigate = useNavigate();
 
     // ---------------------------------------------------------
@@ -23,6 +24,45 @@ export default function Whatsapp() {
             })
             .catch(() => setScripts([]));
     }, []);
+
+    // ---------------------------------------------------------
+    // ADD SCRIPT (DUPLICATE CHECK)
+    // ---------------------------------------------------------
+   const addScript = async () => {
+    const script = newScript.trim().toUpperCase();
+    if (!script) return;
+
+    const res = await fetch(`${API}/whatsapp/add-alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ script })
+    });
+
+    const data = await res.json();
+    console.log("ADD-ALERT RESPONSE:", data); // DEBUG
+
+    // ⭐ IF SCRIPT ALREADY EXISTS
+    if (data.status === "exists") {
+        showToast(`${script} already exists in WhatsApp Alerts`);
+        setNewScript("");
+        return;
+    }
+
+    // ⭐ IF SCRIPT ADDED SUCCESSFULLY
+    if (data.status === "ok") {
+        setScripts(data.alerts);  // backend returns updated full list
+        showToast(`${script} added to WhatsApp Alerts!`);
+        setNewScript("");
+        return;
+    }
+
+    // ⭐ ANY OTHER ERROR
+    showToast("Unable to add script. Try again.");
+};
+
+
+
+
 
     // ---------------------------------------------------------
     // UPDATE CHECKBOX FIELD LOCALLY
@@ -62,14 +102,25 @@ export default function Whatsapp() {
     // SAVE SETTINGS TO BACKEND
     // ---------------------------------------------------------
     const handleSave = async () => {
-        await fetch(`${API}/whatsapp/save-settings`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ settings: scripts }),
-        });
+    
+    // 1) Save settings
+    await fetch(`${API}/whatsapp/save-settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: scripts }),
+    });
 
-        alert("Your WhatsApp alert settings have been saved!");
-    };
+    // 2) Send WhatsApp messages
+    const res = await fetch(`${API}/whatsapp/push-on-save`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: scripts }),
+    });
+
+    const data = await res.json();
+
+    alert(`WhatsApp messages sent: ${data.sent_count}`);
+};
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-between p-4">
@@ -80,6 +131,8 @@ export default function Whatsapp() {
                 <h1 className="text-xl font-semibold text-center mt-3 mb-6">
                     WhatsApp Alerts
                 </h1>
+
+               
 
                 {/* ⭐ SAVE BUTTON ABOVE TABLE */}
                 <div className="flex justify-end mb-2 pr-2">
@@ -136,7 +189,7 @@ export default function Whatsapp() {
                                         />
                                     </td>
 
-                                    {/* BTST (unchanged static defaultChecked) */}
+                                    {/* BTST STATIC */}
                                     <td className="text-center">
                                         <input
                                             type="checkbox"
@@ -145,7 +198,7 @@ export default function Whatsapp() {
                                         />
                                     </td>
 
-                                    {/* Short Term (unchanged static defaultChecked) */}
+                                    {/* Short Term STATIC */}
                                     <td className="text-center">
                                         <input
                                             type="checkbox"
@@ -174,7 +227,8 @@ export default function Whatsapp() {
             {/* ⭐ SUBSCRIPTION BOX (UNCHANGED) */}
             <div className="fixed bottom-16 right-4 bg-white shadow-lg p-3 rounded-lg border w-64 text-right">
                 <p className="text-sm font-semibold text-gray-800">
-                    Your Subscription → <span className="text-blue-600">Short-Term & BTST</span>
+                    Your Subscription →
+                    <span className="text-blue-600"> Short-Term & BTST</span>
                 </p>
 
                 <p className="text-xs text-gray-500 mt-1">
