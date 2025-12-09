@@ -3,21 +3,10 @@
 //     (Correct BUY/SELL PNL Logic + Live>Signal Color Rule)
 // ============================================================
 
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { LineChart } from "lucide-react";
 
-// ADD THIS LINE 🔥 (MISSING IN YOUR FILE)
-const navigate = useNavigate();
-
-// GLOBAL STOP FUNCTION 🔥
-const stop = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  if (e.nativeEvent?.stopImmediatePropagation) {
-    e.nativeEvent.stopImmediatePropagation();
-  }
-};
 export default function SignalCard({
   script,
   confidence,
@@ -38,12 +27,7 @@ export default function SignalCard({
   rawDate,
   rawTime,
 }) {
-  // Force re-render whenever price updates
-  useEffect(() => {
-    // console.log("Price updated:", currentPrice);
-  }, [currentPrice]);
-
-
+  const navigate = useNavigate();
 
   // --------------------------------------------------------
   // BUY / SELL NAVIGATION
@@ -179,11 +163,7 @@ export default function SignalCard({
         <span>{formattedTime}</span>
 
         <button
-          onClick={(e) => {
-            stop(e);
-            handleOrderClick(e);
-          }}
-
+          onClick={handleOrderClick}
           style={{
             background: side === "buy" ? "#00C853" : "#E53935",
             color: "white",
@@ -208,13 +188,7 @@ export default function SignalCard({
           }}
         >
           {script}
-          <span
-            onClick={(e) => {
-              stop(e);
-              openChart(e);
-            }}
-          >
-
+          <span onClick={openChart}>
             <LineChart size={17} color="#2962ff" />
           </span>
         </div>
