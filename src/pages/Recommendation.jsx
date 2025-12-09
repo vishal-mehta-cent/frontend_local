@@ -1,980 +1,847 @@
-.recommendations-container {
-  text-align: center;
-  padding: 20px;
-}
 
-.recommendation-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-top: 20px;
-}
-
-.rec-btn {
-  padding: 10px 25px;
-  border: 1.5px solid #ccc;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.rec-btn.active {
-  background-color: #2962ff;
-  color: white;
-  border-color: #2962ff;
-}
-
-.filters-row {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin: 20px 0;
-}
-
-.filter-item {
-  width: 200px;
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-
-.filter-item label {
-  font-weight: 500;
-  margin-bottom: 4px;
-  color: #222;
-}
-
-.filter-item input,
-.filter-item select {
-  padding: 6px 10px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
-
-/* -------- Signal Section Layout -------- */
-.signals-section {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 40px;
-  flex-wrap: wrap;
-  margin-top: 20px;
-}
-
-.left-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 15px;
-}
-
-.signals-column {
-  flex: 0 0 320px;
-  text-align: center;
-}
-
-.subtext {
-  font-size: 12px;
-  color: #666;
-}
-
-.signal-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  justify-items: center;
-  align-items: center;
-  margin-top: 10px;
-}
-
-/* ---------------- Signal Card ---------------- */
-.signal-card-advanced {
-  background-color: #f5f9ff;
-  border-radius: 12px;
-  width: 260px;
-  height: auto;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  min-height: 230px;
-}
-
-.signal-card-advanced:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-}
-
-/* ---------- Header ---------- */
-/* ---------- Header (Make Script Centered) ---------- */
-.signal-header {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: center;
-  width: 100%;
-  font-weight: 600;
-  font-size: 13px;
-  color: #222;
-}
-
-/* Left side (time) */
-.signal-time {
-  font-size: 12px;
-  text-align: left;
-  font-size: 12px;
-  color: #444;
-}
-
-/* BUY/SELL badge */
-.alert-badge {
-  margin-left: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Center (script name) */
-.signal-script {
-  text-align: center;
-  color: #2962ff;
-  font-size: 14px;
-  font-weight: 700;
-  display: block;
-  width: 100%;
-}
-
-/* Right side (confidence) */
-.signal-confidence {
-  text-align: right;
-  color: #00c853;
-  font-size: 13px;
-}
+import React, { useState, useEffect, useMemo, useRef, startTransition } from "react";
+import "./Recommendations.css";
+import SignalCard from "../components/SignalCard";
+import BackButton from "../components/BackButton";
 
 
-/* ---------- Footer ---------- */
-.signal-footer {
-  font-size: 12px;
-  color: #111;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: left;
-}
 
-.signal-footer strong {
-  color: #000;
-}
+const AccuracyGauge = ({ value, label }) => {
 
-.alert-description-box {
-  background: #fff8c4;
-  border-top: 1px solid #e0c75a;
-  border-bottom: 1px solid #e0c75a;
+  const v = Math.max(0, Math.min(100, value));
+  const angle = 180 - (v / 100) * 180;
 
-  width: 100%;
-  padding: 12px 14px;
+  const needleX = 70 + 45 * Math.cos((Math.PI / 180) * angle);
+  const needleY = 80 - 45 * Math.sin((Math.PI / 180) * angle);
 
-  border-radius: 0;
-  margin: 0;
-  margin-top: auto;
+  return (
+    <svg width="140" height="120" viewBox="0 0 140 120">
 
-  height: 68px;
-  max-height: 68px;
+      {/* RED zone */}
+      <path
+        d="M10 80 A60 60 0 0 1 50 20"
+        fill="none"
+        stroke="#d9534f"
+        strokeWidth="12"
+      />
 
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  word-wrap: break-word;
-}
+      {/* YELLOW */}
+      <path
+        d="M50 20 A60 60 0 0 1 90 20"
+        fill="none"
+        stroke="#f0ad4e"
+        strokeWidth="12"
+      />
+
+      {/* GREEN */}
+      <path
+        d="M90 20 A60 60 0 0 1 130 80"
+        fill="none"
+        stroke="#5cb85c"
+        strokeWidth="12"
+      />
+
+      {/* Needle */}
+      <line
+        x1="70"
+        y1="80"
+        x2={needleX}
+        y2={needleY}
+        stroke="black"
+        strokeWidth="3"
+      />
+
+      {/* Dot */}
+      <circle cx="70" cy="80" r="4" fill="black" />
+
+      {/* % Value */}
+      <text
+        x="70"
+        y="100"
+        textAnchor="middle"
+        fontSize="13"
+        fontWeight="700"
+        fill="#000"
+      >
+        {value.toFixed(2)}%
+      </text>
+
+      {/* Label */}
+      <text
+        x="70"
+        y="115"
+        textAnchor="middle"
+        fontSize="12"
+        fontWeight="600"
+        fill="#0d47a1"
+      >
+        {label}
+      </text>
+    </svg>
+  );
+};
 
 
-/* Scrollbar style */
-.alert-description-box::-webkit-scrollbar {
-  width: 6px;
-}
 
-.alert-description-box::-webkit-scrollbar-thumb {
-  background: #c8b04a;
-  border-radius: 10px;
-}
+export default function Recommendations() {
+  const [rows, setRows] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-/* ---------- Legend Box ---------- */
-/* ---------- Legend Box ---------- */
-.legend-box {
-  background-color: #f8faff;
-  border: 1.5px solid #e0e6f0;
-  border-radius: 10px;
+  const [segment, setSegment] = useState("Equity");
+  const [selectedScreener, setSelectedScreener] = useState("All");
+  const [screenerList, setScreenerList] = useState([]);
 
-  /* FIXED — reduce padding so it NEVER overlaps */
-  padding: 18px 18px;
-  /* was 100px 18px */
+  const [selectedAlertType, setSelectedAlertType] = useState("All");
+  const [alertTypeList, setAlertTypeList] = useState([]);
 
-  min-width: 220px;
-  height: auto;
-  /* was fixed — now auto to avoid overflow */
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 8px;
-  width: 240px;
-}
+  const [selectedDate, setSelectedDate] = useState(() =>
+    new Date().toISOString().split("T")[0]
+  );
 
-.legend-box h4 {
-  margin: 0 0 8px;
-  color: #2962ff;
-  font-size: 15px;
-  font-weight: 700;
-  text-align: center;
-}
+  const [activeType, setActiveType] = useState("Intraday");
+  const [subIntraday, setSubIntraday] = useState("All");
+  const [priceCloseFilter, setPriceCloseFilter] = useState("All");
 
-/* -----------------------------
-   EXTRA FIX FOR SMALL SCREENS
------------------------------- */
-@media (max-width: 1024px) {
-  .legend-row {
-    justify-content: center !important;
-    margin-top: 0 !important;
-    padding-right: 0 !important;
+  const [closedPriceMap, setClosedPriceMap] = useState({});
+
+  const API =
+    (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
+      .toString()
+      .replace(/\/+$/, "");
+
+  const toNum = (v) => {
+    if (v === null || v === undefined) return undefined;
+    const n = Number.parseFloat(typeof v === "string" ? v.replace(/[, ]/g, "") : v);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  const normalizeDate = (raw) => {
+    if (!raw) return "";
+
+    const d = new Date(raw);
+    if (!isNaN(d)) return d.toISOString().split("T")[0];
+
+    // try day-first formats
+    const parts = raw.split(/[-/ ]/);
+    if (parts.length >= 3) {
+      let [a, b, c] = parts;
+      if (a.length <= 2 && b.length <= 2 && c.length >= 2) {
+        return `${c.padStart(4, "20")}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`;
+      }
+    }
+
+    return "";
+  };
+
+
+  const getField = (row, candidates) => {
+    if (!row) return undefined;
+    const norm = (s) =>
+      String(s || "").replace(/\s+/g, "").replace(/[_-]/g, "").toLowerCase();
+    const map = {};
+    for (const k of Object.keys(row)) map[norm(k)] = k;
+    for (const c of candidates) {
+      const hit = map[norm(c)];
+      if (hit !== undefined) return row[hit];
+    }
+    return undefined;
+  };
+
+  const pickConfidence = (r) => {
+    let raw = getField(r, [
+      "backtest_accuracy",
+      "backtestaccuracy",
+      "accuracy",
+      "%accuracy",
+      "confidence",
+    ]);
+
+    if (!raw) return null;
+    if (typeof raw === "string") raw = raw.replace("%", "").trim();
+
+    const num = Number(raw);
+    return Number.isFinite(num) ? num : null;
+  };
+
+  const pickSignalPrice = (r) =>
+    toNum(getField(r, ["signal_price", "close_price", "Signal_price", "Signal Price"]));
+
+  const pickCurrentPrice = (r) => toNum(r.currentPrice);
+
+  const pickStoploss = (r) =>
+    toNum(getField(r, ["stoploss", "Stoploss", "fno_stoploss", "FNO_stoploss"]));
+
+  const pickTarget = (r) =>
+    toNum(getField(r, ["target", "Target", "fno_target", "FNO_target"]));
+
+  const pickSupport = (r) => toNum(getField(r, ["support", "Support", "sup", "SUP"]));
+
+  const pickResistance = (r) =>
+    toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
+
+  const pickAlertType = (r) =>
+    getField(r, ["signal_type", "Signal_type"]) || "N/A";
+
+  const pickDescription = (r) =>
+    getField(r, ["Alert_description", "description", "Description"]) || "";
+
+  const pickScript = (r) => {
+    let s = getField(r, ["script", "Script", "symbol", "Symbol"]);
+    return s ? String(s).trim() : "N/A";
+  };
+
+  const pickScreener = (r) => getField(r, ["screener", "Screener"]) || "Unknown";
+
+  const pickRawDate = (r) =>
+    getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
+
+  const pickTime = (row) => {
+    const raw = getField(row, ["raw_datetime", "Date", "date", "signal_date"]);
+    if (!raw) return "--:--";
+
+    const match = String(raw).match(/(\d{1,2}):(\d{2})/);
+    if (!match) return "--:--";
+
+    let hour = parseInt(match[1], 10);
+    const minute = match[2];
+
+    // 🟢 KEY FIX:
+    // Many Short-term rows have time stored as 00:00.
+    // Instead of showing 12:00, treat that as "no specific time".
+    if (hour === 0 && minute === "00") {
+      return "--:--";
+    }
+
+    const ampm = hour >= 12 ? "PM" : "AM";
+    if (hour > 12) hour -= 12;
+    if (hour === 0) hour = 12;
+
+    return `${hour.toString().padStart(2, "0")}:${minute} ${ampm}`;
+  };
+
+
+  const pickStrategy = (r) => {
+    let raw = getField(r, ["Strategy", "strategy"]) || "";
+    raw = String(raw).trim();
+
+    if (raw === "Intraday") return "intraday";
+    if (raw === "Intraday - Fast Alerts") return "intraday-fast";
+    if (raw === "Shortterm") return "short-term";
+    if (raw === "BTST") return "btst";
+
+    return raw.toLowerCase();
+  };
+
+  const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
+
+  const pickUserActions = (r) => getField(r, ["user_actions"]) || "";
+
+  async function fetchLivePrice(script) {
+    try {
+      const res = await fetch(
+        `${API}/quotes/price?symbol=${encodeURIComponent(script)}`
+      );
+      const json = await res.json();
+      return Number(
+        json?.price || json?.ltp || json?.last_price || json?.currentPrice
+      );
+    } catch (e) {
+      console.error("Live price error for:", script, e);
+      return null;
+    }
   }
-}
-
-
-.legend-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #222;
-  font-weight: 500;
-}
-
-.legend-line strong {
-  color: #000;
-}
-
-.legend-extra {
-  margin-top: 4px;
-  font-size: 13px;
-  text-align: left;
-  font-weight: 500;
-  color: #111;
-}
-
-/* =========================================================
-   ✅ Clean Line Layout (Only Live Prices Below)
-   ========================================================= */
-/* ======= HORIZONTAL PRICE DIAGRAM STYLING ======= */
-
-/* Clean diagram container */
-.clean-line-layout {
-  background-color: #f5f9ff;
-  border-radius: 12px;
-  width: 340px;
-  height: 200px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-  position: relative;
-}
-
-/* Header remains same */
-.clean-line-layout .signal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: #111;
-}
-
-.signal-script {
-  text-align: center !important;
-  font-size: 15px;
-  font-weight: 700;
-  color: #2962ff;
-}
-
-.signal-confidence {
-  text-align: right !important;
-}
-
-/* ======== Indicator Layout ======== */
-.indicator-container {
-  position: relative;
-  width: 100%;
-  margin: 15px 0;
-  height: 90px;
-}
-
-/* Gray horizontal line */
-.indicator-line {
-  position: absolute;
-  top: 57%;
-  left: 5%;
-  width: 93%;
-  height: 3px;
-  background-color: #bdbdbd;
-  border-radius: 3px;
-  z-index: 1;
-}
-
-/* Dynamic fill (green/red segment) */
-.indicator-fill {
-  position: absolute;
-  top: 57%;
-  height: 5px;
-  /* slightly thicker for visibility */
-  border-radius: 3px;
-  transform: translateY(-50%);
-  z-index: 5;
-  /* ensure it's above gray line */
-  transition: all 0.4s ease;
-  /* smooth animation */
-}
-
-.marker {
-  position: absolute;
-  top: 45%;
-  /* moves shapes slightly UP */
-  transform: translateX(-50%);
-  text-align: center;
-  z-index: 1;
-}
-
-
-/* === LABELS ABOVE THE LINE (SUP, ST, T, RES) === */
-.label-top {
-  position: absolute;
-  top: -22px;
-  /* ABOVE the line */
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #000;
-
-}
-
-/* === LIVE PRICES BELOW THE LINE === */
-.label-bottom {
-  position: absolute;
-  top: 22px;
-  /* BELOW the line */
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 600;
-  color: #000;
-  white-space: nowrap;
-  background: transparent;
-}
-
-/* === SHAPES (ALL BLACK) === */
-.shape.square {
-  width: 14px;
-  height: 14px;
-  top: 1px;
-  background-color: #000;
-  border-radius: 2px;
-}
-
-.shape.line {
-  width: 2px;
-  height: 22px;
-  background-color: #000;
-}
-
-/* Circle = Signal Price */
-.shape.circle {
-  width: 10px;
-  height: 10px;
-  background-color: #000;
-  border-radius: 50%;
-}
-
-/* === Current price triangle (always black) === */
-.shape.triangle {
-  width: 0;
-  height: 0;
-  border-left: 7px solid transparent;
-  border-right: 7px solid transparent;
-  border-top: 12px solid #000;
-  /* Always black */
-  transition: left 0.4s ease;
-  z-index: 6;
-}
-
-/* ==========================================================
-   LAYER CONTROL — FIX OVERLAPPING OF MARKERS
-========================================================== */
-
-/* Default markers (SUP / RES / ST / T) stay at the back */
-.marker .shape {
-  position: relative;
-  z-index: 1;
-  /* BACK LAYER */
-}
-
-/* SIGNAL marker bubble & shape always in front */
-.marker.signal-marker .shape {
-  z-index: 20 !important;
-  /* FRONT */
-}
-
-/* LIVE marker should be above SIGNAL */
-.marker.live-marker .shape {
-  z-index: 25 !important;
-  /* TOP-MOST */
-}
-
-/* Price bubbles must always stay above shapes */
-.price-bubble {
-  position: relative;
-  z-index: 30 !important;
-}
-
-
-/* Price label */
-.label-bottom {
-  margin-top: 5px;
-  font-size: 11px;
-  color: #000;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-
-/* === Hover effect (optional) === */
-.clean-line-layout:hover {
-  transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
-}
-
-/* FINAL: centered small legend */
-.legend-row {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  margin: 10px 0 20px 0;
-  padding: 0;
-}
-
-/* small fixed size legend card */
-
-
-/* ---------------------------
-   DESKTOP ONLY (≥ 1024px)
-   Move legend RIGHT and UP
----------------------------- */
-@media (min-width: 1024px) {
-  .legend-row {
-    justify-content: flex-end;
-    /* move to right */
-    padding-right: 250px;
-    /* adjust distance from right */
-    margin-top: -200px;
-    /* move UP */
-    margin-bottom: 10px;
-  }
-}
-
-.signals-columns {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 40px;
-  width: 100%;
-}
-
-/* =========================================================
-   PRICE BUBBLES (Signal Price & Live Price)
-   ========================================================= */
-/* -------- SMALL TRADINGVIEW STYLE BUBBLES -------- */
-.price-bubble {
-  position: absolute;
-  top: 10px;
-  /* PERFECT distance above marker */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10 !important;
-
-  padding: 1px 1px;
-  /* small bubble */
-  background: #ffffff;
-  border-radius: 3px;
-  border: 1px solid #cfcfcf;
-
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.0;
-  white-space: nowrap;
-
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  z-index: 20;
-}
-
-.price-bubble-live {
-  background: #f6fbff;
-  border-color: #9bbfff;
-}
-
-/* SIGNAL marker stays above all */
-.marker.signal-marker {
-  z-index: 5;
-}
-
-/* LIVE marker stays above SIGNAL */
-.marker.live-marker {
-  z-index: 6;
-}
-
-/* =========================================================
-   FINAL MOBILE FIX — FORCE EVERYTHING INTO ONE COLUMN
-   ========================================================= */
-@media (max-width: 768px) {
-
-  /* Force Active + Closed Signals to stack vertically */
-  .signals-columns {
-    display: flex !important;
-    flex-direction: column !important;
-    width: 100% !important;
-    gap: 25px !important;
-    align-items: center !important;
-  }
-
-  /* Inside each section, signals should be 1 column */
-  .signal-grid {
-    grid-template-columns: 1fr !important;
-    width: 100% !important;
-    justify-items: center !important;
-  }
-
-  .signals-column {
-    width: 100% !important;
-    max-width: 430px !important;
-    /* Card fits perfectly */
-    margin: 0 auto !important;
-  }
-
-  /* Adjust signal card size for mobile */
-  .clean-line-layout {
-    width: 92% !important;
-    max-width: 370px !important;
-    height: 155px !important;
-  }
-}
-
-/* Closed Signals Wrapper */
-/* Closed signal card — dynamic bg, no border */
-.closed-card-wrapper {
-  border: none !important;
-  border-radius: 14px;
-  padding: 10px;
-  width: 100%;
-  max-width: 360px;
-  margin: 0 auto 15px auto;
-  position: relative;
-  box-sizing: border-box;
-  transition: background-color 0.25s ease;
-}
-
-/* REMOVE inner gray background for CLOSED cards */
-.closed-card-wrapper .signal-card-advanced {
-  box-shadow: none !important;
-  border: none !important;
-}
-
-
-/* Closed card badge (PROFIT / LOSS) */
-.closed-badge {
-  position: absolute;
-  top: 6px;
-  right: 10px;
-  font-size: 11px;
-  font-weight: 700;
-  z-index: 100;
-}
-
-/* MOBILE FIXES for closed cards */
-@media (max-width: 768px) {
-  .closed-card-wrapper {
-    max-width: 92% !important;
-    padding: 5px !important;
-  }
-
-  .closed-badge {
-    font-size: 10px !important;
-    top: 4px !important;
-    right: 8px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .closed-card-wrapper {
-    max-width: 92% !important;
-    padding: 4px !important;
-    border-radius: 10px !important;
-  }
-
-  .closed-badge {
-    font-size: 9px !important;
-    top: 3px !important;
-    right: 6px !important;
-  }
-}
-
-.signal-header-time {
-  font-size: 12px;
-  color: #777;
-  margin-bottom: 3px;
-  text-align: right;
-}
-
-/* Legend inside filters row (aligned to right) */
-.filters-row-legend {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;
-  gap: 25px;
-  width: 100%;
-  position: relative;
-  margin-top: 10px;
-  margin-bottom: 20px;
-}
-
-
-
-/* Center the alert-type row */
-.alert-row-centered {
-  justify-content: center !important;
-  gap: 40px;
-  /* spacing between dropdowns */
-  width: 100%;
-}
-
-/* Force Alert row to be centered */
-.alert-row {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  gap: 40px;
-  /* Adjust spacing */
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
-
-/* Move legend slightly right and shift up */
-.legend-shift {
-  margin-left: 100px !important;
-  /* push right */
-  position: relative;
-  top: -10px;
-  /* move UP */
-}
-
-.date-row-centered {
-  display: flex;
-  justify-content: center !important;
-  gap: 25px;
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-/* Full container that highlights closed signals */
-.closed-signals-container {
-  background: #cecece;
-  /* soft light red */
-  border: 2px solid #777777;
-  /* stronger red border */
-  border-radius: 12px;
-  padding: 20px 25px;
-  margin-top: 10px;
-  box-shadow: 0 2px 6px rgba(255, 0, 0, 0.1);
-}
-
-.active-signals-container {
-  background: #e8f1ff;
-  border: 2px solid #2962ff;
-  border-radius: 12px;
-  padding: 20px 25px;
-  margin-top: 55px;
-  box-shadow: 0 2px 6px rgba(41, 98, 255, 0.15);
-}
-
-
-.section-title {
-  display: inline-block;
-  padding: 6px 18px;
-  border-radius: 20px;
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 15px;
-}
-
-/* Active */
-.active-title {
-
-  color: #0d47a1;
-
-}
-
-/* Closed */
-.closed-title {
-
-  color: #0d47a1;
-
-}
-
-/* ============================================================
-   NEW — 3-SECTION SIGNAL CARD LAYOUT (HEADER / CHART / FOOTER)
-   ============================================================ */
-
-.signal-card {
-  width: 280px;
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ---------- SECTION 1 (Header) ---------- */
-.signal-card-header {
-  padding: 10px 14px;
-  background: #f4f8ff;
-  border-bottom: 1px solid #e3e7f1;
-
-  display: grid;
-  grid-template-columns: 45px auto 45px;
-  align-items: center;
-  text-align: center;
-}
-
-.header-time {
-  font-size: 12px;
-  color: #555;
-  font-weight: 600;
-}
-
-.header-center {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.header-script {
-  font-size: 14px;
-  font-weight: 700;
-  color: #2962ff;
-}
-
-.header-badge {
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-  width: fit-content;
-  margin: 0 auto;
-}
-
-.header-confidence {
-  font-size: 12px;
-  font-weight: 700;
-  color: #00c853;
-}
-
-/* ---------- SECTION 2 (Chart / Indicators) ---------- */
-.signal-card-chart {
-  padding: 15px 10px;
-  border-bottom: 1px solid #eee;
-  background: #fff;
-}
-
-/* ---------- SECTION 3 (Alert box) ---------- */
-.signal-card-footer {
-  background: #fffbe8;
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 1.35;
-  min-height: 60px;
-  border-top: 1px solid #e6d98a;
-}
-
-.signal-card-footer strong {
-  color: #000;
-}
-
-.section-divider {
-  width: 100%;
-  height: 2px;
-  background: black;
-  margin: 4px 0;
-}
-
-.signal-count-box {
-  display: flex;
-  flex-direction: row;
-  /* ← MAKE THEM HORIZONTAL */
-  justify-content: center;
-  align-items: center;
-  gap: 20px;
-  /* spacing between boxes */
-  margin-bottom: 15px;
-  margin-top: 30px;
-  width: 100%;
-}
-
-
-.signal-count-item {
-  padding: 14px 20px;
-  /* Increase height */
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 15px;
-  border: 1px solid #ddd;
-  background: #f8f9fc;
-
-  min-height: 45px;
-  /* Taller box */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 150px;
-  /* 👈 Decrease width here */
-  margin: 0 auto;
-  /* Center the small box inside column */
-}
-
-
-.signal-count-item.buy {
-  border-color: #22c55e;
-  color: #16a34a;
-}
-
-.signal-count-item.sell {
-  border-color: #ef4444;
-  color: #dc2626;
-}
-
-.signal-count-item.total {
-  border-color: #3b82f6;
-  color: #1d4ed8;
-}
-
-.active-title+p {
-  margin-top: -20px !important;
-  margin-bottom: 10px;
-  font-size: 14px;
-}
-
-
-.closed-title+p {
-  margin-top: -20px !important;
-  margin-bottom: 10px;
-  font-size: 14px;
-}
-
-.chart-icon {
-  cursor: pointer;
-  margin-left: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  transition: transform 0.2s ease;
-}
-
-.chart-icon:hover {
-  transform: scale(1.22);
-}
-
-
-
-/* ===============================
-   DESKTOP — Legend floats right
-   =============================== */
-/* ===============================
-   CLOSED SIGNAL SPEEDOMETER ROW
-   =============================== */
-
-.closed-speedometer-row {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 60px;
-  /* spacing between BUY & SELL gauges */
-  margin: 20px 0 25px;
-}
-
-@media (max-width: 768px) {
-  .closed-speedometer-row {
-    flex-direction: column;
-    gap: 40px;
-  }
-}
-
-/* ============================================================
-   FIX FOR 1030px → 1650px SCREENS (prevent overlapping)
-   Legend stays centered below filters
-   ============================================================ */
-@media (min-width: 1030px) and (max-width: 1650px) {
-  .legend-row {
-    justify-content: center !important;
-    padding-right: 0 !important;
-    margin-top: 20px !important;
-    margin-bottom: 10px !important;
-  }
-
-  .legend-box {
-    margin: 0 auto !important;
-  }
-}
-
-/* ============================================
-   MOBILE FIX — Force each filter into its own row
-   (< 768px)
-   ============================================ */
-@media (max-width: 768px) {
-
-  /* Make filter rows vertical */
-  .filters-row,
-  .filters-row-legend,
-  .alert-row,
-  .date-row-centered {
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 12px !important;
-    width: 100% !important;
-  }
-
-  /* Ensure each filter takes full width */
-  .filter-item {
-    width: 90% !important;
-  }
-
-  .filter-item select,
-  .filter-item input {
-    width: 100% !important;
-  }
-
-  /* Fix legend on mobile – centered */
-  .legend-row {
-    justify-content: center !important;
-    margin: 20px 0 !important;
-    padding: 0 !important;
-  }
+  // ----------------------------------------------------
+  // NORMALIZE FUNCTION
+  // ----------------------------------------------------
+  const normalize = (row) => {
+    const script = pickScript(row);
+
+    const sigPrice = pickSignalPrice(row);
+    const live = pickCurrentPrice(row);
+
+    const sup = pickSupport(row);
+    const st = pickStoploss(row);
+    const t = pickTarget(row);
+    const res = pickResistance(row);
+
+    const strategy = pickStrategy(row);
+    const rawDate = pickRawDate(row);
+    const dateVal = normalizeDate(rawDate);
+    const timeVal = pickTime(row);
+    const alertText = pickAlertText(row);
+    const userActions = pickUserActions(row);
+
+    const backendOutcome =
+      row.outcome ? String(row.outcome).toUpperCase() : null;
+
+    let outcome = backendOutcome;
+
+    if (!outcome) {
+      const hitTarget = t > 0 && live >= t;
+      const hitStop = st > 0 && live <= st;
+
+      if (hitTarget) outcome = "PROFIT";
+      else if (hitStop) outcome = "LOSS";
+    }
+
+    const isClosedFinal = !!outcome;
+
+    const rawdt = rawDate || `${dateVal} ${timeVal}`;
+    const ID = `${script}-${rawdt}-${strategy}-${live}`.replace(/\s+/g, "");
+
+    return {
+      id: ID,
+      script,
+      screener: pickScreener(row),
+      alertType: pickAlertType(row),
+      confidence: pickConfidence(row),
+      description: pickDescription(row),
+      strategy,
+      sup,
+      st,
+      t,
+      res,
+      signalPrice: sigPrice,
+      currentPrice: live,
+      outcome,
+      isClosed: isClosedFinal,
+      dateVal,
+      timeVal,
+      alertText,
+      userActions,
+    };
+  };
+
+  // ----------------------------------------------------
+  // FETCH CSV DATA EVERY 5 SECONDS
+  // ----------------------------------------------------
+  useEffect(() => {
+    let alive = true;
+
+    const fetchOnce = async () => {
+      try {
+        const res = await fetch(
+          `${API}/recommendations/data?ts=${Date.now()}`,
+          { cache: "no-store" }
+        );
+
+        const json = await res.json();
+        if (!alive) return;
+
+        const normalized = (Array.isArray(json) ? json : []).map(normalize);
+
+        const seen = new Set();
+        const ordered = [];
+
+        for (const r of normalized) {
+          if (!r.script || r.script === "N/A") continue;
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          ordered.push(r);
+        }
+
+        const uniqueScreeners = [
+          "All",
+          ...new Set(ordered.map((r) => r.screener)),
+        ];
+        const uniqueAlertTypes = [
+          "All",
+          ...new Set(ordered.map((r) => r.alertType)),
+        ];
+
+        startTransition(() => {
+          setScreenerList(uniqueScreeners);
+          setAlertTypeList(uniqueAlertTypes);
+          setRows(ordered);
+          setInitialLoading(false);
+        });
+      } catch (e) {
+        console.error("Fetch failed:", e);
+        setInitialLoading(false);
+      }
+    };
+
+    fetchOnce();
+    const id = setInterval(fetchOnce, 5000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [closedPriceMap]);
+
+  // -------------------------------------------------------
+  // FILTERING
+  // -------------------------------------------------------
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      const matchDate =
+        selectedDate === "All" ||
+        !r.dateVal ||                // allow rows with missing/invalid date
+        r.dateVal === selectedDate;
+
+      const matchScreener =
+        selectedScreener === "All" ||
+        (r.screener || "").toLowerCase() === selectedScreener.toLowerCase();
+
+      const matchAlert =
+        selectedAlertType === "All" ||
+        (r.alertType || "").toLowerCase() === selectedAlertType.toLowerCase();
+
+      let matchStrategy = true;
+      if (activeType === "Intraday") {
+        matchStrategy = ["intraday", "intraday-fast"].includes(r.strategy);
+      } else if (activeType === "BTST") {
+        matchStrategy = r.strategy === "btst";
+      } else if (activeType === "Short-term") {
+        matchStrategy = r.strategy === "short-term";
+      }
+
+      let matchSub = true;
+      if (activeType === "Intraday") {
+        if (subIntraday === "Intraday") matchSub = r.strategy === "intraday";
+        else if (subIntraday === "Intraday - Fast Alerts")
+          matchSub = r.strategy === "intraday-fast-alerts";
+      }
+
+      const matchPriceClose =
+        priceCloseFilter === "All" ||
+        (r.priceCloseTo || "").toLowerCase().includes(priceCloseFilter.toLowerCase());
+
+      return (
+        matchDate &&
+        matchScreener &&
+        matchAlert &&
+        matchStrategy &&
+        matchSub &&
+        matchPriceClose
+      );
+    });
+  }, [
+    rows,
+    selectedDate,
+    selectedScreener,
+    selectedAlertType,
+    activeType,
+    subIntraday,
+    priceCloseFilter,
+  ]);
+
+  // -------------------------------------------------------
+  // ACTIVE & CLOSED SIGNALS
+  // -------------------------------------------------------
+  const activeSignals = useMemo(() => {
+    const allActive = filteredRows.filter((r) => !r.outcome);
+    return allActive.slice(0, 30); // SHOW 30 ACTIVE SIGNALS
+  }, [filteredRows]);
+
+  const closedSignals = useMemo(
+    () => filteredRows.filter((r) => r.outcome),
+    [filteredRows]
+  );
+
+  // -------------------------------------------------------
+  // BUY/SELL COUNTS
+  // -------------------------------------------------------
+  const totalBuySignals = activeSignals.filter(
+    (r) => String(r.alertType).toLowerCase() === "buy"
+  ).length;
+
+  const totalSellSignals = activeSignals.filter(
+    (r) => String(r.alertType).toLowerCase() === "sell"
+  ).length;
+
+  // -------------------------------------------------------
+  // BUY / SELL Closed Signals
+  // -------------------------------------------------------
+  // -------------------------------------------------------
+  // BUY / SELL Closed Signals
+  // -------------------------------------------------------
+  const buyClosedSignals = closedSignals.filter(
+    (s) => String(s.alertType).toLowerCase() === "buy"
+  );
+
+  const sellClosedSignals = closedSignals.filter(
+    (s) => String(s.alertType).toLowerCase() === "sell"
+  );
+
+  // ⭐ NEW ACCURACY CALCULATION ⭐
+  // Accuracy = (Number of PROFIT signals / Total signals) × 100
+  const computeAccuracy = (list) => {
+    if (!list.length) return 0;
+
+    const profitCount = list.filter(
+      (s) => String(s.outcome).toUpperCase() === "PROFIT"
+    ).length;
+
+    const accuracy = (profitCount / list.length) * 100;
+
+    return Number.isFinite(accuracy) ? accuracy : 0;
+  };
+
+  // BUY accuracy
+  const buyClosedAccuracy = computeAccuracy(buyClosedSignals);
+
+  // SELL accuracy
+  const sellClosedAccuracy = computeAccuracy(sellClosedSignals);
+
+  // COUNTS for showing below the speedometer
+  const buyClosedCount = buyClosedSignals.length;
+  const sellClosedCount = sellClosedSignals.length;
+
+  // -------------------------------------------------------
+  // SIGNALS LAYOUT
+  // -------------------------------------------------------
+  const renderSignalLayout = () => (
+    <div className="intraday-section">
+
+      {/* ---------------- DATE ROW ---------------- */}
+      <div className="filters-row date-row-centered">
+        <div className="filter-item">
+          <label>Date:</label>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+
+          </div>
+
+        </div>
+
+        {activeType === "Intraday" && (
+          <div className="filter-item">
+            <label>Intraday Type:</label>
+            <select
+              value={subIntraday}
+              onChange={(e) => setSubIntraday(e.target.value)}
+            >
+              <option>All</option>
+              <option>Intraday</option>
+              <option>Intraday - Fast Alerts</option>
+            </select>
+          </div>
+        )}
+
+        <div className="filter-item">
+          <label>Segment:</label>
+          <select
+            value={segment}
+            onChange={(e) => setSegment(e.target.value)}
+          >
+            <option>Equity</option>
+            <option>F&O</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ---------------- DROPDOWN FILTERS ---------------- */}
+      <div className="filters-row filters-row-legend">
+        <div className="filter-item">
+          <label>Alert Type:</label>
+          <select
+            value={selectedAlertType}
+            onChange={(e) => setSelectedAlertType(e.target.value)}
+          >
+            {alertTypeList.map((a) => (
+              <option key={a}>{a}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="filter-item">
+          <label>Screener:</label>
+          <select
+            value={selectedScreener}
+            onChange={(e) => setSelectedScreener(e.target.value)}
+          >
+            {screenerList.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="filter-item">
+          <label>Price Close To:</label>
+          <select
+            value={priceCloseFilter}
+            onChange={(e) => setPriceCloseFilter(e.target.value)}
+          >
+            <option value="All">All</option>
+            <option value="Resistance">Resistance</option>
+            <option value="Support">Support</option>
+            <option value="Breakout">Breakout</option>
+            <option value="Bearish">Bearish</option>
+            <option value="Bullish">Bullish</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ---------------- LEGEND ---------------- */}
+      <div className="legend-row">
+        <div className="legend-box">
+          <h4>Accromance</h4>
+          <p>
+            <strong>RES</strong> = Resistance | <strong>SUP</strong> = Support
+          </p>
+          <p>
+            <strong>T</strong> = Target | <strong>ST</strong> = Stoploss
+          </p>
+          <p>▲ = Current Price | ● = Signal Price</p>
+        </div>
+      </div>
+
+      {/* ---------------- SIGNALS SECTION ---------------- */}
+      <div className="signals-section">
+        <div className="signals-columns">
+
+          {/* ====================================================
+                  ACTIVE SIGNALS
+              ==================================================== */}
+          <div className="signals-column">
+            <h3 className="section-title active-title">Active Signals</h3>
+
+            {/* BUY / SELL COUNTS */}
+
+            <div className="signal-count-box">
+              <div className="signal-count-item buy">
+                BUY Signals: <span>{totalBuySignals}</span>
+              </div>
+              <div className="signal-count-item sell">
+                SELL Signals: <span>{totalSellSignals}</span>
+              </div>
+              <div className="signal-count-item total">
+                Total: <span>{totalBuySignals + totalSellSignals}</span>
+              </div>
+            </div>
+
+            {initialLoading ? (
+              <p>Loading data...</p>
+            ) : (
+              <div className="active-signals-container">
+                <div style={{
+                  width: "100%",
+                  textAlign: "left",
+                  marginBottom: "4px",
+                  paddingLeft: "8px",
+                  fontSize: "14px",
+                  fontWeight: "600",
+                  color: "#333"
+                }}>
+                  % = Confidence
+                </div>
+                <div className="signal-grid">
+
+                  {activeSignals.length > 0 ? (
+                    activeSignals.map((sig) => (
+                      <SignalCard
+                        key={sig.id}
+                        script={sig.script}
+                        confidence={sig.confidence}
+                        alertType={sig.alertType}
+                        description={sig.description}
+                        sup={sig.sup}
+                        st={sig.st}
+                        signalPrice={sig.signalPrice}
+                        currentPrice={sig.currentPrice}
+                        t={sig.t}
+                        res={sig.res}
+                        timeVal={sig.timeVal}
+                        alertText={sig.alertText}
+                        userActions={sig.userActions}
+                        isClosed={false}
+                        // ⭐ ADD THESE 3 LINES ⭐
+                        strategy={sig.strategy}
+                        rawDate={sig.dateVal}
+                        rawTime={sig.timeVal}
+                        fromReco={true}
+                      />
+                    ))
+                  ) : (
+                    <p>No active signals.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ====================================================
+                  CLOSED SIGNALS
+              ==================================================== */}
+          <div className="signals-column">
+            <h3 className="section-title closed-title">Closed Signals</h3>
+
+            {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐ */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "20px",
+                margin: "5px 0 5px 0",
+                alignItems: "center",
+              }}
+            >
+              {/* BUY Speedometer */}
+              <div style={{ textAlign: "center" }}>
+                <AccuracyGauge
+                  value={buyClosedAccuracy}
+                  label={`BUY Signals: ${buyClosedCount}`}
+                />
+              </div>
+
+              {/* SELL Speedometer */}
+              <div style={{ textAlign: "center" }}>
+                <AccuracyGauge
+                  value={sellClosedAccuracy}
+                  label={`SELL Signals: ${sellClosedCount}`}
+                />
+              </div>
+            </div>
+            {/* CLOSED SIGNALS GRID */}
+            <div className="closed-signals-container">
+              <div style={{
+                width: "100%",
+                textAlign: "left",
+                marginBottom: "4px",
+                paddingLeft: "8px",
+                fontSize: "14px",
+                fontWeight: "600",
+                color: "#333"
+              }}>
+                % = Gain
+              </div>
+              <div className="signal-grid">
+                {closedSignals.length > 0 ? (
+                  closedSignals.map((sig) => {
+                    const isProfit = sig.outcome === "PROFIT";
+
+                    return (
+                      <div
+                        className="closed-card-wrapper"
+                        key={sig.id}
+                        style={{
+                          backgroundColor:
+                            (() => {
+                              const sp = Number(sig.signalPrice);
+                              const cp = Number(sig.currentPrice);
+                              const side = String(sig.alertType).toLowerCase();
+
+                              let pnl = 0;
+                              if (side === "buy") pnl = (cp / sp - 1) * 100;
+                              else pnl = (1 - cp / sp) * 100;
+
+                              return pnl >= 0 ? "#E6FFE6" : "#FFE5E5"; // Green or Red outer box
+                            })(),
+                          borderRadius: "12px",
+                          padding: "8px",
+                          transition: "0.25s ease",
+                        }}
+                      >
+
+                        {/* PNL Section */}
+                        {(() => {
+                          const sp = Number(sig.signalPrice);
+                          const cp = Number(sig.currentPrice);
+                          const side = String(sig.alertType).toLowerCase();
+
+                          let pnl = 0;
+
+                          if (side === "buy") {
+                            pnl = (cp / sp) - 1;        // BUY FORMULA
+                          } else {
+                            pnl = 1 - (cp / sp);        // SELL FORMULA
+                          }
+
+                          pnl = pnl * 100;                // Convert to %
+
+
+                          const pnlColor = pnl >= 0 ? "#00C853" : "#E53935";
+
+                          return (
+                            <div
+                              style={{
+                                width: "100%",
+                                textAlign: "right",
+                                fontSize: "13px",
+                                fontWeight: "700",
+                                color: pnlColor,
+                                paddingRight: "10px",
+                                marginTop: "4px",
+                                marginBottom: "-6px",
+                              }}
+                            ></div>
+                          );
+                        })()}
+
+                        {/* SIGNAL CARD INSIDE CLOSED */}
+                        <SignalCard
+                          key={sig.id}
+                          script={sig.script}
+                          confidence={sig.confidence}
+                          alertType={sig.alertType}
+                          description={sig.description}
+                          sup={sig.sup}
+                          st={sig.st}
+                          signalPrice={sig.signalPrice}
+                          currentPrice={sig.currentPrice}
+                          t={sig.t}
+                          res={sig.res}
+                          timeVal={sig.timeVal}
+                          alertText={sig.alertText}
+                          userActions={sig.userActions}
+                          isClosed={true}
+                          /* ⭐ ADD THESE ⭐ */
+                          strategy={sig.strategy}
+                          rawDate={sig.dateVal}
+                          rawTime={sig.timeVal}
+                        />
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p>No closed signals.</p>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* END CLOSED SIGNALS COLUMN */}
+        </div>
+        {/* end signals-columns */}
+      </div>
+      {/* end signals-section */}
+    </div>
+    /* end intraday-section */
+  );
+
+  // -------------------------------------------------------
+  // MAIN PAGE RETURN
+  // -------------------------------------------------------
+  return (
+    <div className="recommendations-container">
+      <BackButton to="/menu" />
+
+      <h2 className="text-center text-xl font-bold text-blue-600">
+        RECOMMENDATIONS
+      </h2>
+
+      {/* MAIN CATEGORY BUTTONS */}
+      <div className="recommendation-buttons">
+        {["Intraday", "BTST", "Short-term"].map((type) => (
+          <button
+            key={type}
+            className={`rec-btn ${activeType === type ? "active" : ""}`}
+            onClick={() => {
+              setActiveType(type);
+              setSubIntraday("All");
+            }}
+          >
+            {type}
+          </button>
+        ))}
+      </div>
+
+      {/* MAIN CONTENT */}
+      <div className="recommendation-content">{renderSignalLayout()}</div>
+    </div>
+  );
 }
