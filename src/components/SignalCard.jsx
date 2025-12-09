@@ -1,9 +1,9 @@
 // ============================================================
-//                 FINAL MERGED SIGNALCARD.JSX
-//          (All logic merged from BOTH versions)
+//                 FINAL UPDATED SIGNALCARD.JSX
+//     (Correct BUY/SELL PNL Logic + Live>Signal Color Rule)
 // ============================================================
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LineChart } from "lucide-react";
 
@@ -27,7 +27,11 @@ export default function SignalCard({
   rawDate,
   rawTime,
 }) {
-  const navigate = useNavigate();
+  // Force re-render whenever price updates
+useEffect(() => {
+  // console.log("Price updated:", currentPrice);
+}, [currentPrice]);
+
 
   // --------------------------------------------------------
   // BUY / SELL NAVIGATION
@@ -53,7 +57,6 @@ export default function SignalCard({
 
     const convertTo24 = (t) => {
       if (!t) return "00:00";
-
       let [time, modifier] = t.split(" ");
       let [hours, minutes] = time.split(":");
       hours = parseInt(hours, 10);
@@ -64,13 +67,9 @@ export default function SignalCard({
       return `${hours.toString().padStart(2, "0")}:${minutes}`;
     };
 
-    const time24 = convertTo24(rawTime);
-    const fullDT = `${rawDate} ${time24}`;
-
+    const fullDT = `${rawDate} ${convertTo24(rawTime)}`;
     navigate(
-      `/chart/${script}?strategy=${strategy}&dt=${encodeURIComponent(
-        fullDT
-      )}&fromReco=1`
+      `/chart/${script}?strategy=${strategy}&dt=${encodeURIComponent(fullDT)}&fromReco=1`
     );
   };
 
@@ -79,59 +78,53 @@ export default function SignalCard({
   // --------------------------------------------------------
   const formatTime = (t) => {
     if (!t) return "--:--";
-    if (/^\d{1,2}:\d{2}/.test(t)) return t.replace(/AM|PM/i, "").trim();
-
     const match = t.match(/(\d{1,2}):(\d{2})/);
-    if (match) return `${match[1].padStart(2, "0")}:${match[2]}`;
-    return "--:--";
+    if (!match) return "--:--";
+    return `${match[1].padStart(2, "0")}:${match[2]}`;
   };
 
   const formattedTime = formatTime(timeVal);
 
   // ---------------- CURRENT PRICE ----------------
-  const displayPrice = currentPrice;
+  const sp = Number(signalPrice);
+  const cp = Number(currentPrice);
 
   // ============================================================
-  //                PRICE RANGE CALCULATIONS
+  // ⭐ UNIVERSAL CORRECT PNL CALCULATION
   // ============================================================
-  const rawVals = [sup, st, signalPrice, t, res, displayPrice]
+  const side = alertType?.toLowerCase();
+
+  let pnl = 0;
+  if (side === "buy") pnl = ((cp / sp) - 1) * 100;
+  else if (side === "sell") pnl = (1 - (cp / sp)) * 100;
+
+  const isProfit = pnl > 0;
+  const pnlColor = isProfit ? "#00C853" : "#E53935";
+
+  // ============================================================
+  // PRICE RANGE FOR MARKERS
+  // ============================================================
+  const rawVals = [sup, st, sp, t, res, cp]
     .map(Number)
-    .filter((v) => !isNaN(v) && v !== 0);
+    .filter((v) => !isNaN(v));
 
   const minRaw = Math.min(...rawVals);
   const maxRaw = Math.max(...rawVals);
-  const diffRaw = maxRaw - minRaw;
+  const diff = maxRaw - minRaw;
+  const pad = diff < 15 ? 7.5 : diff * 0.15;
 
-  let scaleMin, scaleMax;
-
-  if (diffRaw < 15) {
-    const c = (minRaw + maxRaw) / 2;
-    scaleMin = c - 7.5;
-    scaleMax = c + 7.5;
-  } else {
-    const pad = diffRaw * 0.15;
-    scaleMin = minRaw - pad;
-    scaleMax = maxRaw + pad;
-  }
-
-  // Ensure SIGNAL > ST
-  if (signalPrice <= st) {
-    const adjust = Math.max(Math.abs(st * 0.01), 0.5);
-    signalPrice = st + adjust;
-  }
+  const scaleMin = minRaw - pad;
+  const scaleMax = maxRaw + pad;
 
   const getPos = (v) => ((v - scaleMin) / (scaleMax - scaleMin)) * 100;
 
-  // ============================================================
-  //                   MARKER POSITIONS
-  // ============================================================
-  let positions = {
-    SUP: !isNaN(Number(sup)) ? getPos(Number(sup)) : null,
-    ST: !isNaN(Number(st)) ? getPos(Number(st)) : 0,
-    SIGNAL: getPos(Number(signalPrice)),
-    LIVE: getPos(Number(displayPrice)),
-    T: !isNaN(Number(t)) ? getPos(Number(t)) : 100,
-    RES: !isNaN(Number(res)) ? getPos(Number(res)) : null,
+  const positions = {
+    SUP: sup ? getPos(Number(sup)) : null,
+    ST: st ? getPos(Number(st)) : null,
+    SIGNAL: getPos(sp),
+    LIVE: getPos(cp),
+    T: t ? getPos(Number(t)) : null,
+    RES: res ? getPos(Number(res)) : null,
   };
 
   Object.keys(positions).forEach((k) => {
@@ -140,16 +133,15 @@ export default function SignalCard({
     }
   });
 
-  const fillLeft = Math.min(positions["SIGNAL"], positions["LIVE"]);
-  const fillWidth = Math.abs(positions["SIGNAL"] - positions["LIVE"]);
+  const fillLeft = Math.min(positions.SIGNAL, positions.LIVE);
+  const fillWidth = Math.abs(positions.SIGNAL - positions.LIVE);
 
-  const pnlColor =
-    isClosed && Number(displayPrice) >= Number(signalPrice)
-      ? "#00C853"
-      : "#E53935";
+  const isValid = (v) => v !== null && !isNaN(Number(v));
 
-  const isValidNumber = (v) =>
-    v !== null && v !== undefined && !isNaN(Number(v));
+  // ============================================================
+  // ⭐ LIVE VS SIGNAL COLOR RULE (FINAL)
+  // ============================================================
+  const lineColor = cp > sp ? "#00C853" : "#E53935";
 
   // ============================================================
   //                     RENDER COMPONENT
@@ -161,6 +153,7 @@ export default function SignalCard({
         opacity: isClosed ? 0.6 : 1,
         filter: isClosed ? "grayscale(0%)" : "none",
       }}
+
     >
       {/* ---------------- HEADER ---------------- */}
       <div
@@ -176,19 +169,13 @@ export default function SignalCard({
         <button
           onClick={handleOrderClick}
           style={{
-            background:
-              alertType?.toLowerCase() === "buy"
-                ? "#00C853"
-                : alertType?.toLowerCase() === "sell"
-                ? "#E53935"
-                : "#9E9E9E",
+            background: side === "buy" ? "#00C853" : "#E53935",
             color: "white",
             padding: "2px 6px",
             borderRadius: "4px",
             border: "none",
             fontSize: "11px",
             fontWeight: "600",
-            cursor: "pointer",
           }}
         >
           {alertType?.toUpperCase()}
@@ -211,21 +198,9 @@ export default function SignalCard({
         </div>
 
         {isClosed ? (
-          (() => {
-            const sp = Number(signalPrice);
-            const cp = Number(displayPrice);
-            const side = alertType?.toLowerCase();
-
-            let pnl = 0;
-            if (side === "buy") pnl = cp / sp - 1;
-            else pnl = 1 - cp / sp;
-
-            return (
-              <span style={{ fontWeight: 700, color: pnl > 0 ? "#00C853" : "#E53935" }}>
-                {pnl > 0 ? "PROFIT" : "LOSS"}
-              </span>
-            );
-          })()
+          <span style={{ fontWeight: 700, color: pnlColor }}>
+            {isProfit ? "PROFIT" : "LOSS"}
+          </span>
         ) : (
           !isNaN(confidence) && (
             <span style={{ fontWeight: "700" }}>
@@ -246,14 +221,7 @@ export default function SignalCard({
             color: pnlColor,
           }}
         >
-          {(() => {
-            const sp = Number(signalPrice);
-            const cp = Number(displayPrice);
-            const side = alertType?.toLowerCase();
-
-            let pnl = side === "buy" ? cp / sp - 1 : 1 - cp / sp;
-            return <span>({(pnl * 100).toFixed(2)}%)</span>;
-          })()}
+          ({pnl.toFixed(2)}%)
         </div>
       )}
 
@@ -267,16 +235,16 @@ export default function SignalCard({
           fontWeight: "600",
         }}
       >
-        {!isNaN(Number(res)) && (
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <div style={{ width: "12px", height: "12px", background: "#ff4800", borderRadius: "3px" }} />
+        {isValid(res) && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={{ width: 12, height: 12, background: "#ff4800", borderRadius: 3 }} />
             <span>RES: {Number(res).toFixed(2)}</span>
           </div>
         )}
 
-        {!isNaN(Number(sup)) && (
-          <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-            <div style={{ width: "12px", height: "12px", background: "#a200ff", borderRadius: "3px" }} />
+        {isValid(sup) && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={{ width: 12, height: 12, background: "#a200ff", borderRadius: 3 }} />
             <span>SUP: {Number(sup).toFixed(2)}</span>
           </div>
         )}
@@ -284,43 +252,25 @@ export default function SignalCard({
 
       {/* ---------------- PRICE INDICATOR LINE ---------------- */}
       <div className="indicator-container">
+        {/* Base gray line */}
         <div className="indicator-line" />
 
+        {/* Dynamic fill based ONLY on Live > Signal */}
         <div
           className="indicator-fill"
           style={{
             left: `${fillLeft}%`,
             width: `${fillWidth}%`,
-            backgroundColor:
-              displayPrice > signalPrice ? "#00C853" : "#E53935",
+            backgroundColor: lineColor,
           }}
-        />
+        ></div>
 
-        {/* SUP (no bubble) */}
-        {!isNaN(Number(sup)) && (
-          <Marker type="SUP" pos={positions["SUP"]} squareOnly />
-        )}
-
-        {/* ST */}
-        {isValidNumber(st) && (
-          <Marker pos={positions["ST"]} label="ST" value={Number(st)} line />
-        )}
-
-        {/* SIGNAL */}
-        <Marker pos={positions["SIGNAL"]} circle value={signalPrice} bubble />
-
-        {/* LIVE */}
-        <Marker pos={positions["LIVE"]} triangle value={displayPrice} bubble />
-
-        {/* T */}
-        {isValidNumber(t) && (
-          <Marker pos={positions["T"]} label="T" value={Number(t)} line />
-        )}
-
-        {/* RES (no bubble) */}
-        {!isNaN(Number(res)) && (
-          <Marker type="RES" pos={positions["RES"]} squareOnly />
-        )}
+        {isValid(sup) && <Marker type="SUP" pos={positions.SUP} squareOnly />}
+        {isValid(st) && <Marker pos={positions.ST} label="ST" value={Number(st)} line />}
+        <Marker pos={positions.SIGNAL} circle value={sp} bubble />
+        <Marker pos={positions.LIVE} triangle value={cp} bubble />
+        {isValid(t) && <Marker pos={positions.T} label="T" value={Number(t)} line />}
+        {isValid(res) && <Marker type="RES" pos={positions.RES} squareOnly />}
       </div>
 
       {/* ---------------- ALERT + DESCRIPTION ---------------- */}
@@ -355,15 +305,19 @@ function Marker({
   if (type === "RES") color = "#ff4800";
 
   return (
-    <div className="marker" style={{ left: `${pos}%` }}>
+    <div
+      className="marker"
+      style={{
+        left: `${pos}%`,
+        zIndex: triangle || circle ? 10 : 5,   // ⬅ LIVE & SIGNAL come to front
+        position: "absolute",
+      }}
+    >
+
       {triangle && <div className="shape triangle"></div>}
       {circle && <div className="shape circle"></div>}
       {line && <div className="shape line"></div>}
-
-      {squareOnly && (
-        <div className="shape square" style={{ backgroundColor: color }}></div>
-      )}
-
+      {squareOnly && <div className="shape square" style={{ backgroundColor: color }}></div>}
       {label && <div className="label-top">{label}</div>}
 
       {!squareOnly &&
