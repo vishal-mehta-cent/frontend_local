@@ -241,28 +241,15 @@ export default function Recommendations() {
 
   const pickStrategy = (r) => {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
-
-    if (!raw) return "";
-
-    // Clean only whitespace
     raw = String(raw).trim();
 
-    // Make filtering easier (lowercase copy)
-    const lower = raw.toLowerCase();
+    if (raw === "Intraday") return "intraday";
+    if (raw === "Intraday - Fast Alerts") return "intraday-fast";
+    if (raw === "Shortterm") return "short-term";
+    if (raw === "BTST") return "btst";
 
-    // Match exact CSV wording, but return original text
-    if (lower.includes("intraday - fast alerts")) return "Intraday - Fast Alerts";
-    if (lower.includes("intraday - fast")) return "Intraday - Fast Alerts";
-
-    if (lower.includes("intraday")) return "Intraday";
-    if (lower.includes("btst")) return "BTST";
-    if (lower.includes("short")) return "Short-term";
-
-    // fallback
-    return raw;
+    return raw.toLowerCase();
   };
-
-
 
   const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
 
@@ -421,7 +408,7 @@ export default function Recommendations() {
 
       let matchStrategy = true;
       if (activeType === "Intraday") {
-        matchStrategy = ["Intraday", "Intraday - Fast Alerts"].includes(r.strategy);
+        matchStrategy = ["intraday", "intraday-fast"].includes(r.strategy);
       } else if (activeType === "BTST") {
         matchStrategy = r.strategy === "btst";
       } else if (activeType === "Short-term") {
@@ -430,12 +417,9 @@ export default function Recommendations() {
 
       let matchSub = true;
       if (activeType === "Intraday") {
-        if (subIntraday === "Intraday")
-          matchSub = r.strategy === "Intraday";
+        if (subIntraday === "Intraday") matchSub = r.strategy === "intraday";
         else if (subIntraday === "Intraday - Fast Alerts")
-          matchSub = r.strategy === "Intraday - Fast Alerts";
-
-
+          matchSub = r.strategy === "intraday-fast-alerts";
       }
 
       const matchPriceClose =
