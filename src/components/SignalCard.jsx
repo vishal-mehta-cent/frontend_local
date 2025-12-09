@@ -1,7 +1,3 @@
-// ============================================================
-//                 FINAL UPDATED SIGNALCARD.JSX
-//     (Correct BUY/SELL PNL Logic + Live>Signal Color Rule)
-// ============================================================
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
