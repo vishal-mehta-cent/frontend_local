@@ -306,7 +306,7 @@ export default function Recommendations() {
     const isClosedFinal = !!outcome;
 
     const rawdt = rawDate || `${dateVal} ${timeVal}`;
-    const ID = `${script}-${rawdt}-${strategy}`.replace(/\s+/g, "");
+    const ID = `${script}-${rawdt}-${strategy}-${live}`.replace(/\s+/g, "");
 
     return {
       id: ID,
@@ -345,6 +345,8 @@ export default function Recommendations() {
         );
 
         const json = await res.json();
+        console.log("LIVE BACKEND DATA:", json);
+
         if (!alive) return;
 
         const normalized = (Array.isArray(json) ? json : []).map(normalize);
@@ -654,7 +656,7 @@ export default function Recommendations() {
                   {activeSignals.length > 0 ? (
                     activeSignals.map((sig) => (
                       <SignalCard
-                        key={sig.id}
+                        key={`${sig.id}-${sig.currentPrice}`}
                         script={sig.script}
                         confidence={sig.confidence}
                         alertType={sig.alertType}
@@ -739,9 +741,24 @@ export default function Recommendations() {
                         className="closed-card-wrapper"
                         key={sig.id}
                         style={{
-                          backgroundColor: isProfit ? "#e6ffe6" : "#ffe5e5",
+                          backgroundColor:
+                            (() => {
+                              const sp = Number(sig.signalPrice);
+                              const cp = Number(sig.currentPrice);
+                              const side = String(sig.alertType).toLowerCase();
+
+                              let pnl = 0;
+                              if (side === "buy") pnl = (cp / sp - 1) * 100;
+                              else pnl = (1 - cp / sp) * 100;
+
+                              return pnl >= 0 ? "#E6FFE6" : "#FFE5E5"; // Green or Red outer box
+                            })(),
+                          borderRadius: "12px",
+                          padding: "8px",
+                          transition: "0.25s ease",
                         }}
                       >
+
                         {/* PNL Section */}
                         {(() => {
                           const sp = Number(sig.signalPrice);
