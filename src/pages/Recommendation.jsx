@@ -251,13 +251,36 @@ export default function Recommendations() {
     }
   }
   // ----------------------------------------------------
-  // NORMALIZE FUNCTION
+  // NORMALIZE FUNCTION (FINAL — ONLY CSV decides open/closed)
+  // ----------------------------------------------------
+  // ----------------------------------------------------
+  // NORMALIZE FUNCTION (FINAL — ONLY CSV decides open/closed)
   // ----------------------------------------------------
   const normalize = (row) => {
     const script = pickScript(row);
 
     const sigPrice = pickSignalPrice(row);
-    const live = pickCurrentPrice(row);
+
+    // ---- CSV close price ----
+    let csvCloseRaw = getField(row, ["close_price"]);
+    let csvClose = Number(csvCloseRaw);
+    if (isNaN(csvClose)) csvClose = null;
+
+    // ---- CSV close time ----
+    const csvCloseTime = getField(row, ["close_time"]) || "";
+
+
+    // ---- UI Classification ----
+    const isActive =
+      csvClose === null ||
+      csvClose <= 0 ||
+      Math.abs(csvClose - sigPrice) < 0.001;
+
+    const isClosed = !isActive;
+
+    // Freeze price for CLOSED, Live price for ACTIVE
+    let live = pickCurrentPrice(row);
+    const currentPrice = isClosed ? csvClose : live;
 
     const sup = pickSupport(row);
     const st = pickStoploss(row);
@@ -271,26 +294,11 @@ export default function Recommendations() {
     const alertText = pickAlertText(row);
     const userActions = pickUserActions(row);
 
-    const backendOutcome =
-      row.outcome ? String(row.outcome).toUpperCase() : null;
-
-    let outcome = backendOutcome;
-
-    if (!outcome) {
-      const hitTarget = t > 0 && live >= t;
-      const hitStop = st > 0 && live <= st;
-
-      if (hitTarget) outcome = "PROFIT";
-      else if (hitStop) outcome = "LOSS";
-    }
-
-    const isClosedFinal = !!outcome;
-
-    const rawdt = rawDate || `${dateVal} ${timeVal}`;
-    const ID = `${script}-${rawdt}-${strategy}-${live}`.replace(/\s+/g, "");
+    // outcome only needed to visually color closed blocks
+    const outcome = isClosed ? "CLOSED" : null;
 
     return {
-      id: ID,
+      id: `${script}-${rawDate}-${sigPrice}`,
       script,
       screener: pickScreener(row),
       alertType: pickAlertType(row),
@@ -302,13 +310,16 @@ export default function Recommendations() {
       t,
       res,
       signalPrice: sigPrice,
-      currentPrice: live,
+      currentPrice,
       outcome,
-      isClosed: isClosedFinal,
+      isClosed,
       dateVal,
       timeVal,
       alertText,
       userActions,
+      closeTime: csvCloseTime,
+      // ⭐ NEW ⭐
+      closeTime: csvCloseTime,
     };
   };
 
@@ -400,7 +411,7 @@ export default function Recommendations() {
       if (activeType === "Intraday") {
         if (subIntraday === "Intraday") matchSub = r.strategy === "intraday";
         else if (subIntraday === "Intraday - Fast Alerts")
-          matchSub = r.strategy === "intraday-fast-alerts";
+          matchSub = r.strategy === "intraday-fast";
       }
 
       const matchPriceClose =
@@ -450,9 +461,6 @@ export default function Recommendations() {
     (r) => String(r.alertType).toLowerCase() === "sell"
   ).length;
 
-  // -------------------------------------------------------
-  // BUY / SELL Closed Signals
-  // -------------------------------------------------------
   // -------------------------------------------------------
   // BUY / SELL Closed Signals
   // -------------------------------------------------------
@@ -655,6 +663,7 @@ export default function Recommendations() {
                         rawDate={sig.dateVal}
                         rawTime={sig.timeVal}
                         fromReco={true}
+                        closeTime={sig.closeTime}
                       />
                     ))
                   ) : (
@@ -709,6 +718,7 @@ export default function Recommendations() {
                 color: "#333"
               }}>
                 % = Gain
+                | ▲ = Close Price
               </div>
               <div className="signal-grid">
                 {closedSignals.length > 0 ? (
@@ -794,6 +804,7 @@ export default function Recommendations() {
                           strategy={sig.strategy}
                           rawDate={sig.dateVal}
                           rawTime={sig.timeVal}
+                          closeTime={sig.closeTime}
                         />
                       </div>
                     );
