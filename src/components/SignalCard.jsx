@@ -1,3 +1,7 @@
+// ============================================================
+//                 FINAL UPDATED SIGNALCARD.JSX
+//     (Correct BUY/SELL PNL Logic + Live>Signal Color Rule)
+// ============================================================
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +26,7 @@ export default function SignalCard({
   strategy,
   rawDate,
   rawTime,
+  closeTime,   // ⭐ ADD THIS
 }) {
   const navigate = useNavigate();
 
@@ -79,7 +84,34 @@ export default function SignalCard({
 
   // ---------------- CURRENT PRICE ----------------
   const sp = Number(signalPrice);
+  // Closed cards receive frozen price from backend
   const cp = Number(currentPrice);
+
+  // Format close_time from CSV (contains both date + time)
+  const formatCloseDateTime = (ct) => {
+    if (!ct) return "";
+
+    const d = new Date(ct);
+    if (isNaN(d)) return ct;  // fallback
+
+    const date = d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    const time = d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+
+    return `${date} | ${time}`;
+  };
+
+  const formattedCloseDT = formatCloseDateTime(closeTime);
+
+
+
 
   // ============================================================
   // ⭐ UNIVERSAL CORRECT PNL CALCULATION
@@ -133,7 +165,8 @@ export default function SignalCard({
   // ============================================================
   // ⭐ LIVE VS SIGNAL COLOR RULE (FINAL)
   // ============================================================
-  const lineColor = cp > sp ? "#00C853" : "#E53935";
+  const lineColor = isClosed ? "#999" : (cp > sp ? "#00C853" : "#E53935");
+
 
   // ============================================================
   //                     RENDER COMPONENT
@@ -156,7 +189,30 @@ export default function SignalCard({
           gap: "8px",
         }}
       >
-        <span>{formattedTime}</span>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            lineHeight: "13px",
+            marginTop: "-10px"   // ⭐ move label upward 1–2 steps
+          }}
+        >
+          <span
+            style={{
+              fontSize: "8px",
+              color: "#666",
+              marginBottom: "1px",   // ⭐ reduce gap between label & time
+            }}
+          >
+            Signal Time
+          </span>
+
+          <span style={{ fontWeight: "600", fontSize: "13px" }}>
+            {formattedTime}
+          </span>
+        </div>
+
 
         <button
           onClick={handleOrderClick}
@@ -227,6 +283,8 @@ export default function SignalCard({
           fontWeight: "600",
         }}
       >
+
+
         {isValid(res) && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <div style={{ width: 12, height: 12, background: "#ff4800", borderRadius: 3 }} />
@@ -241,6 +299,20 @@ export default function SignalCard({
           </div>
         )}
       </div>
+      {/* ⭐ ONLY SHOW CLOSE DATE/TIME IF CLOSED SIGNAL */}
+      {isClosed && formattedCloseDT && (
+        <div
+          style={{
+            marginTop: "-4px",
+            marginLeft: "5px",
+            fontSize: "11px",
+            color: "#444",
+            fontWeight: "600",
+          }}
+        >
+          Close Time: {formattedCloseDT}
+        </div>
+      )}
 
       {/* ---------------- PRICE INDICATOR LINE ---------------- */}
       <div className="indicator-container">
