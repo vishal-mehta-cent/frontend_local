@@ -52,7 +52,6 @@ export default function Trade({ username }) {
     fetch(`${API}/whatsapp/list`)
       .then((r) => r.json())
       .then((data) => {
-        console.log("WHATSAPP LIST FROM API =", data);
         if (Array.isArray(data)) setWhatsappList(data);
         else if (Array.isArray(data.list)) setWhatsappList(data.list);
         else setWhatsappList([]);
@@ -632,8 +631,9 @@ export default function Trade({ username }) {
                         </div>
 
                         {/* ⭐ Show WhatsApp Icon ONLY if script is in WhatsApp alerts */}
-                        {whatsappList.map(s => s.toUpperCase()).includes(sym.toUpperCase()) && (
-                          <FaWhatsapp className="text-green-500 text-lg"
+                        {whatsappList.includes(sym) && (
+                          <FaWhatsapp
+                            className="text-green-500 text-lg cursor-default"
                             title="Added to WhatsApp Alerts"
                           />
                         )}
