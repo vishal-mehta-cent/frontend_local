@@ -262,7 +262,7 @@ export default function Recommendations() {
     const sigPrice = pickSignalPrice(row);
 
     // ---- CSV close price ----
-    let csvCloseRaw = getField(row, ["close_price"]);
+    let csvCloseRaw = getField(row, ["signal_closing_price"]);
     let csvClose = Number(csvCloseRaw);
     if (isNaN(csvClose)) csvClose = null;
 
