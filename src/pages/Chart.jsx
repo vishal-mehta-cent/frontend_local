@@ -613,32 +613,44 @@ if (jumpDT) {
 // ⭐ FORCE TIMEFRAME BASED ON jumpStrategy
 // ------------------------------------------------------
 // ⭐ FORCE TIMEFRAME BASED ON jumpStrategy (Supports intraday-fast)
+// ⭐ FORCE TIMEFRAME BASED ON jumpStrategy (Intraday, Intraday-Fast, BTST, Shortterm)
 useEffect(() => {
   if (!jumpStrategy) return;
 
-  const s = jumpStrategy.toLowerCase();
+  const s = jumpStrategy.toLowerCase().trim();
 
-  // BOTH intraday + intraday-fast + intraday others
-  if (s.includes("intra")) {
-    setTf("15m");
-    setTimeout(() => fetchReco("15m"), 300);  // load markers
-    return;
-  }
-
-  // BTST
-  if (s.includes("btst")) {
+  // 🔥 ALL intraday variants
+  if (
+    s.includes("intra") ||         // intraday, intraday-fast, intraday others
+    s.includes("fast")  ||         // intraday-fast alerts
+    s.includes("u-turn") ||
+    s.includes("gap")   ||
+    s.includes("others")
+  ) {
+    console.log("⏩ Switching to 15m for Intraday Strategy:", s);
     setTf("15m");
     setTimeout(() => fetchReco("15m"), 300);
     return;
   }
 
-  // Short-term
+  // 🔥 BTST
+  if (s.includes("btst")) {
+    console.log("⏩ Switching to 15m for BTST Strategy");
+    setTf("15m");
+    setTimeout(() => fetchReco("15m"), 300);
+    return;
+  }
+
+  // 🔥 SHORT-TERM
   if (s.includes("short")) {
+    console.log("⏩ Switching to 1D for Short-Term Strategy");
     setTf("1d");
     setTimeout(() => fetchReco("1d"), 300);
     return;
   }
+
 }, [jumpStrategy]);
+
 
 
   const [lastPrice, setLastPrice] = useState(null);
