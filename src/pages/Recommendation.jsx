@@ -118,20 +118,25 @@ export default function Recommendations() {
   const normalizeDate = (raw) => {
     if (!raw) return "";
 
+    // Match dd/mm/yyyy or dd-mm-yyyy (with or without time)
+    const m = raw.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+    if (m) {
+      let [_, dd, mm, yyyy] = m;
+
+      // Convert 2-digit year to 20xx
+      if (yyyy.length === 2) yyyy = "20" + yyyy;
+
+      // Convert to ISO yyyy-mm-dd
+      return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+    }
+
+    // Final fallback
     const d = new Date(raw);
     if (!isNaN(d)) return d.toISOString().split("T")[0];
 
-    // try day-first formats
-    const parts = raw.split(/[-/ ]/);
-    if (parts.length >= 3) {
-      let [a, b, c] = parts;
-      if (a.length <= 2 && b.length <= 2 && c.length >= 2) {
-        return `${c.padStart(4, "20")}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`;
-      }
-    }
-
     return "";
   };
+
 
 
   const getField = (row, candidates) => {
@@ -226,7 +231,7 @@ export default function Recommendations() {
 
     if (raw === "Intraday") return "intraday";
     if (raw === "Intraday - Fast Alerts") return "intraday-fast";
-    if (raw === "Shortterm") return "short-term";
+    if (raw.toLowerCase() === "shortterm") return "short-term";
     if (raw === "BTST") return "btst";
 
     return raw.toLowerCase();
@@ -385,10 +390,16 @@ export default function Recommendations() {
   // -------------------------------------------------------
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
-      const matchDate =
-        selectedDate === "All" ||
-        !r.dateVal ||                // allow rows with missing/invalid date
-        r.dateVal === selectedDate;
+      let matchDate = true;
+
+      // Only intraday should filter by date
+      if (activeType === "Intraday") {
+        matchDate =
+          selectedDate === "All" ||
+          !r.dateVal ||
+          r.dateVal === selectedDate;
+      }
+
 
       const matchScreener =
         selectedScreener === "All" ||
