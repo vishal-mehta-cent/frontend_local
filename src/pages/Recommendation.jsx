@@ -595,7 +595,7 @@ export default function Recommendations() {
           <p>
             <strong>T</strong> = Target | <strong>ST</strong> = Stoploss
           </p>
-          <p>▲ = Current Price | ● = Signal Price</p>
+          <p>● = Signal Price</p>
         </div>
       </div>
 
@@ -637,6 +637,7 @@ export default function Recommendations() {
                   color: "#333"
                 }}>
                   % = Confidence
+                  | ▼ = Current Price
                 </div>
                 <div className="signal-grid">
 
@@ -718,7 +719,7 @@ export default function Recommendations() {
                 color: "#333"
               }}>
                 % = Gain
-                | ▲ = Close Price
+                | ▼ = Close Price
               </div>
               <div className="signal-grid">
                 {closedSignals.length > 0 ? (
