@@ -8,7 +8,9 @@ export default function SearchBar({ onSelect }) {
 
   // 🔁 Fetch matching scripts from backend
   const fetchSuggestions = (searchTerm = "") => {
-    fetch(`http://127.0.0.1:8000/search?q=${encodeURIComponent(searchTerm)}`)
+    const q = searchTerm.trim();
+fetch(`http://127.0.0.1:8000/search?q=${encodeURIComponent(q)}&refresh=0`)
+
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -24,13 +26,21 @@ export default function SearchBar({ onSelect }) {
   };
 
   // 🔍 On input change → fetch suggestions
-  useEffect(() => {
-    const delayDebounce = setTimeout(() => {
-      fetchSuggestions(query);
-    }, 300); // debounce
+ useEffect(() => {
+  const delayDebounce = setTimeout(() => {
+    // ❗ If box is empty → do NOT call backend
+    if (query.trim().length === 0) {
+      setSuggestions([]);
+      return;
+    }
 
-    return () => clearTimeout(delayDebounce);
-  }, [query]);
+    // Otherwise call backend
+    fetchSuggestions(query);
+  }, 250);
+
+  return () => clearTimeout(delayDebounce);
+}, [query]);
+
 
   // 🔽 Open dropdown when focused
   const handleFocus = () => {
