@@ -31,22 +31,40 @@ export default function ScriptDetailsModal({
   // =============================
   const addToWhatsappAlert = async () => {
     try {
-      await fetch(`${API}/whatsapp/add-alert`, {
+      const res = await fetch(`${API}/whatsapp/add-alert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ script: sym }),
       });
 
-      toast.success(`${sym} added to WhatsApp Alerts!`);
+      const data = await res.json();
 
-      setTimeout(() => {
-        navigate("/whatsapp");
-      }, 1200);
+      // ⭐ DUPLICATE SCRIPT
+      if (data.status === "exists") {
+        toast.info(`${sym} already exists in WhatsApp Alerts`);
+        return;
+      }
+
+      // ⭐ ADDED SUCCESSFULLY
+      if (data.status === "ok") {
+        toast.success(`${sym} added to WhatsApp Alerts!`);
+
+        // Optional: auto redirect after toast
+        setTimeout(() => {
+          navigate("/whatsapp");
+        }, 1200);
+
+        return;
+      }
+
+      // ⭐ ANY OTHER ERROR
+      toast.error("Unable to add alert. Try again.");
 
     } catch (e) {
       toast.error("Failed to add alert!");
     }
   };
+
 
   const handleAddNotes = () => {
     navigate(`/notes/${sym}`, { state: { symbol: sym } });
@@ -123,32 +141,7 @@ export default function ScriptDetailsModal({
         </div>
 
         <div className="flex flex-wrap gap-3 text-sm">
-          {/* ⭐ WhatsApp Alert button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              addToWhatsappAlert();
-            }}
-            style={{
-              backgroundColor: "white",
-              border: "2px solid #25D366",
-              padding: "6px 10px",
-              borderRadius: "6px",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              color: "#25D366",
-              fontWeight: "600",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = "#e6f9ee";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = "white";
-            }}
-          >
-            <FaWhatsapp size={18} color="#25D366" /> Alert
-          </button>
+
 
           <button
             onClick={() => {
@@ -170,6 +163,35 @@ export default function ScriptDetailsModal({
           >
             📝 Add Notes
           </button>
+
+          {/* ⭐ WhatsApp Alert button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              addToWhatsappAlert();
+            }}
+
+            style={{
+              backgroundColor: "gray-200",
+              border: "2px solid #25D366",
+              padding: "6px 10px",
+              borderRadius: "6px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              color: "#25D366",
+              fontWeight: "600",
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = "#e6f9ee";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = "white";
+            }}
+          >
+            <FaWhatsapp size={18} color="#25D366" /> Alert
+          </button>
+
         </div>
 
         {showConfirmSellFirst && (
