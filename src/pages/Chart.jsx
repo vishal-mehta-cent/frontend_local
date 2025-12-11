@@ -612,18 +612,34 @@ if (jumpDT) {
   // ------------------------------------------------------
 // ⭐ FORCE TIMEFRAME BASED ON jumpStrategy
 // ------------------------------------------------------
+// ⭐ FORCE TIMEFRAME BASED ON jumpStrategy (Supports intraday-fast)
 useEffect(() => {
   if (!jumpStrategy) return;
 
-  if (jumpStrategy === "intraday" || jumpStrategy === "btst") {
+  const s = jumpStrategy.toLowerCase();
+
+  // BOTH intraday + intraday-fast + intraday others
+  if (s.includes("intra")) {
     setTf("15m");
-  }
- 
-  if (jumpStrategy === "short-term") {
-    setTf("1d");
+    setTimeout(() => fetchReco("15m"), 300);  // load markers
+    return;
   }
 
+  // BTST
+  if (s.includes("btst")) {
+    setTf("15m");
+    setTimeout(() => fetchReco("15m"), 300);
+    return;
+  }
+
+  // Short-term
+  if (s.includes("short")) {
+    setTf("1d");
+    setTimeout(() => fetchReco("1d"), 300);
+    return;
+  }
 }, [jumpStrategy]);
+
 
   const [lastPrice, setLastPrice] = useState(null);
   const liveTimerRef = useRef(null);
