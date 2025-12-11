@@ -475,7 +475,11 @@ function pointToSegDist(px, py, x1, y1, x2, y2) {
 }
 
 function startLiveFeed(symbol, onTick) {
-  const ws = new WebSocket(`ws://127.0.0.1:8000/market/ticks?symbol=${symbol}`);
+  const WS_BASE = import.meta.env.VITE_BACKEND_WS_URL 
+    || "wss://paper-trading-backend-sqllite.onrender.com";
+
+const ws = new WebSocket(`${WS_BASE}/market/ticks?symbol=${symbol}`);
+
 
   ws.onmessage = (ev) => {
     try {
@@ -2800,45 +2804,40 @@ async function refreshRecommendations() {
   >
 
     {recoMode ? (
-      latestRecoDesc.length > 0 ? (
-        latestRecoDesc.slice(0, 4).map((row, idx) => (
-          <div
-            key={idx}
-            style={{
-              borderBottom: "1px solid #eee",
-              paddingBottom: "12px",
-              marginBottom: "12px",
-            }}
+  latestRecoDesc.length > 0 ? (
+    latestRecoDesc.slice(0, 4).map((row, idx) => (
+      <div key={idx} style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}>
+        
+        {/* Top row : LEFT Date | RIGHT STRATEGY | BUY/SELL | PRICE */}
+        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
+          <span>{row.Date || "--"}</span>
+
+          <span
+            className={
+              row.signal_type === "BUY"
+                ? "text-green-600"
+                : "text-red-600"
+            }
           >
+            {row.Strategy || "--"} | {row.signal_type || "--"} |{" "}
+            {row.close_price ? Number(row.close_price).toFixed(2) : "--"}
+          </span>
+        </div>
 
-            {/* ===== DATE ===== */}
-            <div className="text-gray-900 font-semibold">
-              {row.Date || "Invalid Date"}
-            </div>
+        {/* Details */}
+        <div className="mt-1">
+          <strong>Alert Details:</strong> {row.Alert_details || "--"} <br />
+          <strong>Screener:</strong> {row.screener || "--"} <br />
+          <strong>User Action:</strong> {row.user_actions || "--"}
+        </div>
 
-            {/* ===== ALERT DETAILS ===== */}
-            <div>
-              <strong>Alert Details:</strong> {row.Alert_details || "--"}
-            </div>
+      </div>
+    ))
+  ) : (
+    <div className="text-gray-500">No recommendations found</div>
+  )
+) : null}
 
-            {/* ===== SCREENER ===== */}
-            <div>
-              <strong>Screener:</strong> {row.screener || "--"}
-            </div>
-
-            {/* ===== USER ACTION ===== */}
-            <div>
-              <strong>User Action:</strong> {row.user_actions || "--"}
-            </div>
-
-          </div>
-        ))
-      ) : (
-        <div className="text-gray-500">No recommendations found</div>
-      )
-    ) : (
-      <div className="text-gray-500">No signals found</div>
-    )}
   
   
     {/* SHOW GENERATE SIGNALS */}
