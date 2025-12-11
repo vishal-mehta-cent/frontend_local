@@ -91,22 +91,50 @@ export default function SignalCard({
   const formatCloseDateTime = (ct) => {
     if (!ct) return "";
 
-    const d = new Date(ct);
-    if (isNaN(d)) return ct;  // fallback
+    // Normalize string (replace multiple slashes/spaces)
+    let norm = ct.replace(/-/g, "/").trim();  // allow 12-03-2025 or 12/03/2025
+    norm = norm.replace(/\s+/g, " ");         // collapse multiple spaces
 
-    const date = d.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+    // Extract date/time using robust regex:
+    const regex = /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/;
+    const m = norm.match(regex);
 
-    const time = d.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!m) return ct; // fallback
 
-    return `${date} | ${time}`;
+    let [_, dd, mm, yyyy, hh, min, sec, ampm] = m;
+
+    dd = parseInt(dd);
+    mm = parseInt(mm) - 1;     // Month index
+    yyyy = yyyy.length === 2 ? Number("20" + yyyy) : Number(yyyy);
+    hh = parseInt(hh);
+    min = parseInt(min);
+
+    // Handle AM/PM
+    if (ampm) {
+      ampm = ampm.toUpperCase();
+      if (ampm === "PM" && hh < 12) hh += 12;
+      if (ampm === "AM" && hh === 12) hh = 0;
+    }
+
+    const d = new Date(yyyy, mm, dd, hh, min);
+
+    if (isNaN(d)) return ct;
+
+    // ----- OUTPUT FORMAT -----
+    const outDay = d.getDate();
+    const outMonth = d.getMonth() + 1;
+
+    let outHour = d.getHours();
+    let outMinutes = String(d.getMinutes()).padStart(2, "0");
+
+    let outAMPM = outHour >= 12 ? "PM" : "AM";
+    if (outHour > 12) outHour -= 12;
+    if (outHour === 0) outHour = 12;
+
+    return `${outDay}/${outMonth} | ${outHour}:${outMinutes} ${outAMPM}`;
   };
+
+
 
   const formattedCloseDT = formatCloseDateTime(closeTime);
 
@@ -157,16 +185,19 @@ export default function SignalCard({
     }
   });
 
-  const fillLeft = Math.min(positions.SIGNAL, positions.LIVE);
-  const fillWidth = Math.abs(positions.SIGNAL - positions.LIVE);
+  // ⭐ For closed signals LIVE = closePrice
+  const liveOrClosePos = positions.LIVE;
+
+  const fillLeft = Math.min(positions.SIGNAL, liveOrClosePos);
+  const fillWidth = Math.abs(positions.SIGNAL - liveOrClosePos);
 
   const isValid = (v) => v !== null && !isNaN(Number(v));
 
   // ============================================================
   // ⭐ LIVE VS SIGNAL COLOR RULE (FINAL)
   // ============================================================
-  const lineColor = isClosed ? "#999" : (cp > sp ? "#00C853" : "#E53935");
-
+  /*const lineColor = isClosed ? "#999" : (cp > sp ? "#00C853" : "#E53935");*/
+  const lineColor = cp > sp ? "#00C853" : "#E53935";
 
   // ============================================================
   //                     RENDER COMPONENT
