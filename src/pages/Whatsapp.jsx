@@ -28,37 +28,47 @@ export default function Whatsapp() {
     // ---------------------------------------------------------
     // ADD SCRIPT (DUPLICATE CHECK)
     // ---------------------------------------------------------
-   const addScript = async () => {
-    const script = newScript.trim().toUpperCase();
-    if (!script) return;
+    const addScript = async () => {
+        const script = newScript.trim().toUpperCase();
+        if (!script) return;
 
-    const res = await fetch(`${API}/whatsapp/add-alert`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ script })
-    });
+        const res = await fetch(`${API}/whatsapp/add-alert`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ script })
+        });
 
-    const data = await res.json();
-    console.log("ADD-ALERT RESPONSE:", data); // DEBUG
+        const data = await res.json();
+        console.log("ADD-ALERT RESPONSE:", data);
 
-    // ⭐ IF SCRIPT ALREADY EXISTS
-    if (data.status === "exists") {
-        showToast(`${script} already exists in WhatsApp Alerts`);
-        setNewScript("");
-        return;
-    }
+        // ⭐ BACKEND RETURNS DUPLICATE
+        if (data.status === "exists") {
+            showToast(`${script} already exists in WhatsApp Alerts`);
+            setNewScript("");
+            return;
+        }
 
-    // ⭐ IF SCRIPT ADDED SUCCESSFULLY
-    if (data.status === "ok") {
-        setScripts(data.alerts);  // backend returns updated full list
-        showToast(`${script} added to WhatsApp Alerts!`);
-        setNewScript("");
-        return;
-    }
+        // ⭐ BACKEND RETURNS "ok" EVEN IF SCRIPT ALREADY EXISTS → FIX HERE
+        if (data.status === "ok") {
 
-    // ⭐ ANY OTHER ERROR
-    showToast("Unable to add script. Try again.");
-};
+            const exists = scripts.some(
+                (s) => s.script.toUpperCase() === script.toUpperCase()
+            );
+
+            if (exists) {
+                showToast(`${script} already exists in WhatsApp Alerts`);
+            } else {
+                showToast(`${script} added to WhatsApp Alerts!`);
+            }
+
+            setScripts(data.alerts);
+            setNewScript("");
+            return;
+        }
+
+        showToast("Unable to add script. Try again.");
+    };
+
 
 
 
@@ -82,17 +92,19 @@ export default function Whatsapp() {
         if (!window.confirm(`Delete ${script}?`)) return;
 
         try {
-            const res = await fetch(`${API}/whatsapp/delete/${script}`, {
+            const res = await fetch(`${API}/whatsapp/remove-alert/${script}`, {
                 method: "DELETE",
             });
 
+
             const data = await res.json();
 
-            if (data.ok) {
+            if (data.status === "ok") {
                 setScripts(data.alerts);
             } else {
                 alert("Delete failed");
             }
+
         } catch (err) {
             alert("Server error");
         }
@@ -102,25 +114,25 @@ export default function Whatsapp() {
     // SAVE SETTINGS TO BACKEND
     // ---------------------------------------------------------
     const handleSave = async () => {
-    
-    // 1) Save settings
-    await fetch(`${API}/whatsapp/save-settings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings: scripts }),
-    });
 
-    // 2) Send WhatsApp messages
-    const res = await fetch(`${API}/whatsapp/push-on-save`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings: scripts }),
-    });
+        // 1) Save settings
+        await fetch(`${API}/whatsapp/save-settings`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ settings: scripts }),
+        });
 
-    const data = await res.json();
+        // 2) Send WhatsApp messages
+        const res = await fetch(`${API}/whatsapp/push-on-save`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ settings: scripts }),
+        });
 
-    alert(`WhatsApp messages sent: ${data.sent_count}`);
-};
+        const data = await res.json();
+
+        alert(`WhatsApp messages sent: ${data.sent_count}`);
+    };
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-between p-4">
@@ -132,7 +144,7 @@ export default function Whatsapp() {
                     WhatsApp Alerts
                 </h1>
 
-               
+
 
                 {/* ⭐ SAVE BUTTON ABOVE TABLE */}
                 <div className="flex justify-end mb-2 pr-2">
