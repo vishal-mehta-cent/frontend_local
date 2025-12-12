@@ -80,7 +80,29 @@ export default function SignalCard({
     return `${match[1].padStart(2, "0")}:${match[2]}`;
   };
 
-  const formattedTime = formatTime(timeVal);
+  const extractTimeFromDate = (d) => {
+    if (!d) return "--:--";
+
+    // Matches: 12/08/2025 09:15 OR 2025-12-08 09:15
+    const m = String(d).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return "--:--";
+
+    let hh = parseInt(m[1], 10);
+    const mm = m[2];
+
+    let ampm = hh >= 12 ? "PM" : "AM";
+    if (hh > 12) hh -= 12;
+    if (hh === 0) hh = 12;
+
+    return `${hh.toString().padStart(2, "0")}:${mm} ${ampm}`;
+  };
+
+
+  const formattedTime =
+    timeVal && timeVal !== "--:--"
+      ? formatTime(timeVal)
+      : extractTimeFromDate(rawDate);
+
 
   // ---------------- CURRENT PRICE ----------------
   const sp = Number(signalPrice);
@@ -242,6 +264,24 @@ export default function SignalCard({
           <span style={{ fontWeight: "600", fontSize: "13px" }}>
             {formattedTime}
           </span>
+
+          {/* DATE (FROM CSV) */}
+          {rawDate && (
+            <span
+              style={{
+                fontSize: "10px",
+                color: "#444",
+                marginTop: "2px",
+              }}
+            >
+              <strong>Signal Date:-</strong>{" "}
+              {(() => {
+                const [, m, d] = rawDate.split("-");
+                return `${d}/${m}`;
+              })()}
+            </span>
+          )}
+
         </div>
 
 
