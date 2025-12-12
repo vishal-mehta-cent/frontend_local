@@ -94,10 +94,7 @@ export default function Recommendations() {
   const [selectedAlertType, setSelectedAlertType] = useState("All");
   const [alertTypeList, setAlertTypeList] = useState([]);
 
-  const [selectedDate, setSelectedDate] = useState(() =>
-    new Date().toISOString().split("T")[0]
-  );
-
+  const [selectedDate, setSelectedDate] = useState("");
   const [activeType, setActiveType] = useState("Intraday");
   const [subIntraday, setSubIntraday] = useState("All");
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
@@ -115,27 +112,26 @@ export default function Recommendations() {
     return Number.isFinite(n) ? n : undefined;
   };
 
-  const normalizeDate = (raw) => {
+  const normalizeToISODate = (raw) => {
     if (!raw) return "";
 
-    // Match dd/mm/yyyy or dd-mm-yyyy (with or without time)
-    const m = raw.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+    const s = String(raw).trim();
+
+    // yyyy-mm-dd (already ISO)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      return s;
+    }
+
+    // MM/DD/YYYY or DD/MM/YYYY (we assume MM/DD as backend already fixed)
+    const m = s.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
     if (m) {
-      let [_, dd, mm, yyyy] = m;
-
-      // Convert 2-digit year to 20xx
-      if (yyyy.length === 2) yyyy = "20" + yyyy;
-
-      // Convert to ISO yyyy-mm-dd
+      const [, mm, dd, yyyy] = m;
       return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
     }
 
-    // Final fallback
-    const d = new Date(raw);
-    if (!isNaN(d)) return d.toISOString().split("T")[0];
-
     return "";
   };
+
 
 
 
@@ -227,15 +223,18 @@ export default function Recommendations() {
 
   const pickStrategy = (r) => {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
-    raw = String(raw).trim();
+    raw = String(raw).trim().toLowerCase();
 
-    if (raw === "Intraday") return "intraday";
-    if (raw === "Intraday - Fast Alerts") return "intraday-fast";
-    if (raw.toLowerCase() === "shortterm") return "short-term";
-    if (raw === "BTST") return "btst";
+    // handle all variants coming from CSV/backend
+    // ex: "Intraday - Fast Alerts", "Intraday Fast Alerts", "INTRADAY_FAST_ALERTS"
+    if (raw.includes("intraday") && raw.includes("fast")) return "intraday-fast";
+    if (raw.includes("intraday")) return "intraday";
+    if (raw.includes("btst")) return "btst";
+    if (raw.includes("short")) return "short-term";
 
-    return raw.toLowerCase();
+    return raw;
   };
+
 
   const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
 
@@ -276,12 +275,14 @@ export default function Recommendations() {
 
 
     // ---- UI Classification ----
-    const isActive =
-      csvClose === null ||
-      csvClose <= 0 ||
-      Math.abs(csvClose - sigPrice) < 0.001;
+    // -------------------------------
+    // FINAL ACTIVE / CLOSED LOGIC
+    // -------------------------------
+    const isClosed = csvClose !== null && csvClose > 0;
+    const isActive = !isClosed;
 
-    const isClosed = !isActive;
+
+
 
     // Freeze price for CLOSED, Live price for ACTIVE
     let live = pickCurrentPrice(row);
@@ -293,8 +294,12 @@ export default function Recommendations() {
     const res = pickResistance(row);
 
     const strategy = pickStrategy(row);
-    const rawDate = pickRawDate(row);
-    const dateVal = normalizeDate(rawDate);
+
+    const rawDate =
+      getField(row, ["date", "raw_datetime", "Date", "signal_date"]);
+
+    const dateVal = normalizeToISODate(rawDate);
+
     const timeVal = pickTime(row);
     const alertText = pickAlertText(row);
     const userActions = pickUserActions(row);
@@ -303,7 +308,7 @@ export default function Recommendations() {
     const outcome = isClosed ? "CLOSED" : null;
 
     return {
-      id: `${script}-${rawDate}-${sigPrice}`,
+      id: `${script}-${dateVal}-${sigPrice}`,
       script,
       screener: pickScreener(row),
       alertType: pickAlertType(row),
@@ -318,14 +323,14 @@ export default function Recommendations() {
       currentPrice,
       outcome,
       isClosed,
-      dateVal,
+      dateVal,              // ← SINGLE SOURCE OF TRUTH
       timeVal,
+      rawDate,
       alertText,
       userActions,
       closeTime: csvCloseTime,
-      // ⭐ NEW ⭐
-      closeTime: csvCloseTime,
     };
+
   };
 
   // ----------------------------------------------------
@@ -390,26 +395,43 @@ export default function Recommendations() {
   // -------------------------------------------------------
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
+      // ✅ DATE FILTER (FINAL & CORRECT)
+      // ✅ DATE FILTER (FINAL FIX)
       let matchDate = true;
 
-      // Only intraday should filter by date
-      if (activeType === "Intraday") {
-        matchDate =
-          selectedDate === "All" ||
-          !r.dateVal ||
-          r.dateVal === selectedDate;
+      if (selectedDate) {
+        console.log(
+          "📅 DATE FILTER →",
+          "selectedDate (ISO):", selectedDate,
+          "| row.dateVal:", r.dateVal
+        );
+        matchDate = r.dateVal === selectedDate;
       }
 
+      // DEBUG (keep this for now)
+      console.log(
+        "DATE CHECK → selected:",
+        selectedDate,
+        "| row:",
+        r.dateVal,
+        "| raw:",
+        r.rawDate,
+        "| match:",
+        matchDate
+      );
 
+      // ✅ SCREENER
       const matchScreener =
         selectedScreener === "All" ||
         (r.screener || "").toLowerCase() === selectedScreener.toLowerCase();
 
+      // ✅ ALERT TYPE
       const matchAlert =
         selectedAlertType === "All" ||
         (r.alertType || "").toLowerCase() === selectedAlertType.toLowerCase();
 
-      let matchStrategy = true;
+      // ✅ MAIN TAB STRATEGY
+      let matchStrategy = false;
       if (activeType === "Intraday") {
         matchStrategy = ["intraday", "intraday-fast"].includes(r.strategy);
       } else if (activeType === "BTST") {
@@ -418,6 +440,7 @@ export default function Recommendations() {
         matchStrategy = r.strategy === "short-term";
       }
 
+      // ✅ Intraday subtype
       let matchSub = true;
       if (activeType === "Intraday") {
         if (subIntraday === "Intraday") matchSub = r.strategy === "intraday";
@@ -425,9 +448,12 @@ export default function Recommendations() {
           matchSub = r.strategy === "intraday-fast";
       }
 
+      // ✅ Price Close To
       const matchPriceClose =
         priceCloseFilter === "All" ||
-        (r.priceCloseTo || "").toLowerCase().includes(priceCloseFilter.toLowerCase());
+        (r.priceCloseTo || "")
+          .toLowerCase()
+          .includes(priceCloseFilter.toLowerCase());
 
       return (
         matchDate &&
@@ -448,6 +474,7 @@ export default function Recommendations() {
     priceCloseFilter,
   ]);
 
+  // 🔹 Date dropdown options based on CSV + selected strategy
   // -------------------------------------------------------
   // ACTIVE & CLOSED SIGNALS
   // -------------------------------------------------------
@@ -523,6 +550,7 @@ export default function Recommendations() {
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
             />
+
 
           </div>
 
