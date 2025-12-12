@@ -98,6 +98,8 @@ export default function Recommendations() {
   const [activeType, setActiveType] = useState("Intraday");
   const [subIntraday, setSubIntraday] = useState("All");
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
+  const [priceCloseList, setPriceCloseList] = useState(["All"]);
+
 
   const [closedPriceMap, setClosedPriceMap] = useState({});
 
@@ -240,6 +242,10 @@ export default function Recommendations() {
 
   const pickUserActions = (r) => getField(r, ["user_actions"]) || "";
 
+  const pickPriceCloseTo = (r) =>
+    (getField(r, ["price_closeto", "price_close_to"]) || "").toString().trim();
+
+
   async function fetchLivePrice(script) {
     try {
       const res = await fetch(
@@ -303,6 +309,8 @@ export default function Recommendations() {
     const timeVal = pickTime(row);
     const alertText = pickAlertText(row);
     const userActions = pickUserActions(row);
+    const priceCloseTo = pickPriceCloseTo(row);
+
 
     // outcome only needed to visually color closed blocks
     const outcome = isClosed ? "CLOSED" : null;
@@ -328,6 +336,7 @@ export default function Recommendations() {
       rawDate,
       alertText,
       userActions,
+      priceCloseTo,
       closeTime: csvCloseTime,
     };
 
@@ -370,9 +379,20 @@ export default function Recommendations() {
           ...new Set(ordered.map((r) => r.alertType)),
         ];
 
+        const uniquePriceCloseTo = [
+          "All",
+          ...new Set(
+            ordered
+              .map((r) => r.priceCloseTo)
+              .filter(Boolean)
+          ),
+        ];
+
+
         startTransition(() => {
           setScreenerList(uniqueScreeners);
           setAlertTypeList(uniqueAlertTypes);
+          setPriceCloseList(uniquePriceCloseTo); // ⭐ ADD THIS
           setRows(ordered);
           setInitialLoading(false);
         });
@@ -614,14 +634,14 @@ export default function Recommendations() {
             value={priceCloseFilter}
             onChange={(e) => setPriceCloseFilter(e.target.value)}
           >
-            <option value="All">All</option>
-            <option value="Resistance">Resistance</option>
-            <option value="Support">Support</option>
-            <option value="Breakout">Breakout</option>
-            <option value="Bearish">Bearish</option>
-            <option value="Bullish">Bullish</option>
+            {priceCloseList.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </select>
         </div>
+
       </div>
 
       {/* ---------------- LEGEND ---------------- */}
