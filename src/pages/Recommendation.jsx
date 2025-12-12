@@ -647,7 +647,7 @@ export default function Recommendations() {
       {/* ---------------- LEGEND ---------------- */}
       <div className="legend-row">
         <div className="legend-box">
-          <h4>Accromance</h4>
+          <h4>Acronyms</h4>
           <p>
             <strong>RES</strong> = Resistance | <strong>SUP</strong> = Support
           </p>
