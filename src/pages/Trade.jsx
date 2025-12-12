@@ -203,6 +203,18 @@ export default function Trade({ username }) {
   const allowedExchange = (s) =>
     ["NSE", "NFO", "BSE"].includes(String(s?.exchange || "").toUpperCase());
 
+  function isPlainEquityQuery(q) {
+  const Q = String(q || "").toUpperCase().trim();
+  if (!Q) return false;
+
+  // contains only letters/numbers, no option keywords
+  const hasDeriv = /(CE|PE|FUT)$/i.test(Q);
+  const hasMonth = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)/i.test(Q);
+
+  return !hasDeriv && !hasMonth;
+}
+
+
   async function backendSearchSmart(parts) {
     const { underlying, month, strike, deriv } = parts;
     const seeds = buildSeeds(parts);
@@ -262,55 +274,64 @@ export default function Trade({ username }) {
   const debouncedQuery = useMemo(() => query.trim(), [query]);
 
   useEffect(() => {
-    if (!debouncedQuery) {
-      setSuggestions([]);
-      return;
-    }
-    const parts = parseOptionish(debouncedQuery);
-    const timer = setTimeout(async () => {
-      try {
-        const results = await backendSearchSmart(parts);
+  if (!debouncedQuery) {
+    setSuggestions([]);
+    return;
+  }
 
-        let finalList = results;
-        if (
-          (!finalList || finalList.length === 0) &&
-          Array.isArray(allScripts) &&
-          allScripts.length
-        ) {
-          const { raw, underlying, month, strike, deriv } = parts;
-          finalList = allScripts
-            .filter(allowedExchange)
-            .filter((s) => {
-              const sym = symbolField(s);
-              const nm = String(s.name || "").toUpperCase();
-
-              if (deriv) {
-                if (!sym.endsWith(deriv)) return false;
-              }
-
-              if (!month && !strike && underlying)
-                return sym.includes(underlying) || nm.includes(underlying);
-              if (!month && !strike && !underlying)
-                return sym.includes(raw) || nm.includes(raw);
-              if (underlying && !(sym.includes(underlying) || nm.includes(underlying)))
-                return false;
-              if (month && !sym.includes(month)) return false;
-              if (strike) {
-                const m = sym.match(/(\d+)(CE|PE)$/);
-                return m ? m[1].startsWith(strike) : sym.includes(strike);
-              }
-              return true;
-            })
-            .sort((a, b) => symbolField(a).localeCompare(symbolField(b)))
-            .slice(0, 50);
-        }
-        setSuggestions(Array.isArray(finalList) ? finalList : []);
-      } catch {
-        setSuggestions([]);
+  const timer = setTimeout(async () => {
+    try {
+      // ✅ STEP A — PLAIN EQUITY SEARCH (360ONE FIX)
+      if (isPlainEquityQuery(debouncedQuery)) {
+        const res = await fetch(
+          `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
+        );
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data.slice(0, 50) : []);
+        return;
       }
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [debouncedQuery, allScripts]);
+
+      // ✅ STEP B — OPTIONS / FUTURES LOGIC (UNCHANGED)
+      const parts = parseOptionish(debouncedQuery);
+      let finalList = await backendSearchSmart(parts);
+
+      // fallback to preloaded list
+      if (
+        (!finalList || finalList.length === 0) &&
+        Array.isArray(allScripts) &&
+        allScripts.length
+      ) {
+        const { raw, underlying, month, strike, deriv } = parts;
+
+        finalList = allScripts
+          .filter(allowedExchange)
+          .filter((s) => {
+            const sym = symbolField(s);
+            const nm = String(s.name || "").toUpperCase();
+
+            if (deriv && !sym.endsWith(deriv)) return false;
+            if (underlying && !(sym.includes(underlying) || nm.includes(underlying)))
+              return false;
+            if (month && !sym.includes(month)) return false;
+            if (strike) {
+              const m = sym.match(/(\d+)(CE|PE)$/);
+              return m ? m[1].startsWith(strike) : sym.includes(strike);
+            }
+            return true;
+          })
+          .sort((a, b) => symbolField(a).localeCompare(symbolField(b)))
+          .slice(0, 50);
+      }
+
+      setSuggestions(Array.isArray(finalList) ? finalList : []);
+    } catch {
+      setSuggestions([]);
+    }
+  }, 200);
+
+  return () => clearTimeout(timer);
+}, [debouncedQuery, allScripts]);
+
 
   function handleSearch(e) {
     setQuery(e.target.value);
