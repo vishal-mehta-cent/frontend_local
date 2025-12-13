@@ -983,22 +983,49 @@ function zoomOut() {
   }
 }
 
+// ✅ FINAL — Recommendation Date Formatter (MM/DD GUARANTEED)
 function formatRecoDate(d) {
-  if (!d) return "Invalid Date";
-  
+  if (!d) return "--";
+
   try {
-    // Convert DD-MM-YYYY HH:MM → YYYY-MM-DD HH:MM (JS readable)
-    const [month, day, rest] = d.split("-");
-    const [year, time] = rest.split(" ");
-    const iso = `${year}-${month}-${day} ${time}`;
-  
-    return new Date(iso).toLocaleString("en-US");
-    console.log("🟢 formatRecoDate() OUTPUT →", result);
-  } catch {
-    return "Invalid Date";
+    // If backend already sends timestamp → BEST CASE
+    if (typeof d === "number") {
+      return new Date(d * 1000).toLocaleString("en-US");
+    }
+
+    if (typeof d === "string") {
+      const s = d.trim();
+
+      // Case 1: DD-MM-YYYY HH:MM or MM-DD-YYYY HH:MM (CSV / Excel)
+      if (s.includes("-")) {
+        const [datePart, timePart = "00:00"] = s.split(" ");
+        const parts = datePart.split("-");
+
+        if (parts.length === 3) {
+          let [a, b, c] = parts;
+
+          // Detect DD-MM vs MM-DD safely
+          const dayFirst = Number(a) > 12;
+
+          const dd = dayFirst ? a : b;
+          const mm = dayFirst ? b : a;
+          const yyyy = c;
+
+          const iso = `${yyyy}-${mm}-${dd}T${timePart}`;
+          return new Date(iso).toLocaleString("en-US");
+        }
+      }
+
+      // Case 2: ISO / browser-readable
+      return new Date(s).toLocaleString("en-US");
+    }
+
+    return "--";
+  } catch (e) {
+    console.warn("Reco date parse failed:", d, e);
+    return "--";
   }
 }
-
 
 
   /* ---------------- Fetch candles ---------------- */
@@ -2829,7 +2856,8 @@ async function refreshRecommendations() {
         
         {/* Top row : LEFT Date | RIGHT STRATEGY | BUY/SELL | PRICE */}
         <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
-          <span>{row.Date || "--"}</span>
+          <span>{formatRecoDate(row.Date)}</span>
+
 
           <span
             className={
