@@ -20,11 +20,16 @@ export default function Whatsapp() {
     // ---------------------------------------------------------
     // LOAD FULL SETTINGS (script + fast + intraday)
     // ---------------------------------------------------------
+
     useEffect(() => {
-        fetch(`${API}/whatsapp/list-full`)
-            .then((r) => r.json())
-            .then((data) => {
-                if (Array.isArray(data)) setScripts(data);
+        fetch(`${API}/whatsapp/user-settings?user_id=Neurocrest_jinal`)
+            .then(res => res.json())
+            .then(data => {
+                if (Array.isArray(data.settings)) {
+                    setScripts(data.settings);
+                } else {
+                    setScripts([]);
+                }
             })
             .catch(() => setScripts([]));
     }, []);
@@ -139,24 +144,25 @@ export default function Whatsapp() {
         const payload = {
             user_id: "Neurocrest_jinal",
             email_id: "jinal@neurocrest.ai",
-            whatsapp_number: whatsappNumber,   // ✅ FROM INPUT
-            settings: scripts                  // ✅ FROM TABLE
+            whatsapp_number: whatsappNumber,
+            settings: scripts
         };
 
-        try {
-            const res = await fetch(`${API}/whatsapp/save-user-details`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
+        const res = await fetch(`${API}/whatsapp/save-user-details`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
 
-            const data = await res.json();
+        const data = await res.json();
 
+        if (data.status === "ok") {
             alert(`Saved successfully (${data.rows_saved} rows)`);
-        } catch (err) {
+        } else {
             alert("Save failed");
         }
     };
+
 
 
 
