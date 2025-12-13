@@ -992,7 +992,7 @@ function formatRecoDate(d) {
     const [year, time] = rest.split(" ");
     const iso = `${year}-${month}-${day} ${time}`;
 
-    return new Date(iso).toLocaleString();
+    return new Date(iso).toLocaleString("en-US");
   } catch {
     return "Invalid Date";
   }
