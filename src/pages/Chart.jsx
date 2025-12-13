@@ -1263,24 +1263,71 @@ applyUnifiedMarkers();
       series = main.addHistogramSeries({ base: 0 });
     }
 
-    // Volume chart below, time-synced
+     // Volume chart below, time-synced
     const vol = createChart(volumeRef.current, {
-      width: volumeRef.current.clientWidth,
-      height: Math.max(120, Math.floor((window.innerHeight - HEADER_H) * 0.18)),
-      layout: { textColor: "#222", background: { type: "Solid", color: "#ffffff" } },
-      grid: { vertLines: { color: "rgba(42,46,57,0.08)" }, horzLines: { color: "rgba(42,46,57,0.08)" } },
-      rightPriceScale: { borderVisible: false },
-      timeScale: {
-        borderVisible: false,
-        timeVisible: true,
-        secondsVisible: false,
-        tickMarkFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t) : "",
-      },
-      crosshair: { mode: CrosshairMode.Normal },
-      localization: {
-        timeFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t, true) : "",
-      },
-    });
+  width: volumeRef.current.clientWidth,
+  height: Math.max(120, Math.floor((window.innerHeight - HEADER_H) * 0.18)),
+
+  layout: {
+    textColor: "#222",
+    background: { type: "Solid", color: "#ffffff" },
+  },
+
+  grid: {
+    vertLines: { color: "rgba(42,46,57,0.08)" },
+    horzLines: { color: "rgba(42,46,57,0.08)" },
+  },
+
+  rightPriceScale: {
+    borderVisible: false,
+  },
+
+  // 🔑 IMPORTANT FIX — SAME DATE LOGIC AS CANDLE CHART
+  timeScale: {
+    borderVisible: false,
+    timeVisible: true,
+    secondsVisible: false,
+
+    tickMarkFormatter: (t, tickMarkType) => {
+      if (typeof t !== "number") return "";
+
+      // Convert UNIX → IST
+      const d = new Date((t + 5.5 * 3600) * 1000);
+      const hh = d.getUTCHours().toString().padStart(2, "0");
+      const mm = d.getUTCMinutes().toString().padStart(2, "0");
+
+      const istHour = d.getUTCHours();
+      const istMinute = d.getUTCMinutes();
+
+      // Show DATE at session start / higher TF
+      if ((istHour === 9 && istMinute < 25) || tickMarkType === 0) {
+        const day = d.getUTCDate().toString().padStart(2, "0");
+        const month = d.toLocaleString("en-GB", { month: "short" });
+        return `${month} ${day}`;
+      }
+
+      // Otherwise show time
+      return `${hh}:${mm}`;
+    },
+  },
+
+  crosshair: {
+    mode: CrosshairMode.Normal,
+  },
+
+  // 🔒 Keep localization SIMPLE (avoid double formatting)
+  localization: {
+    timeFormatter: (t) => {
+      if (typeof t !== "number") return "";
+      const d = new Date((t + 5.5 * 3600) * 1000);
+      return d.toLocaleString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    },
+  },
+});
 
     const volHist = vol.addHistogramSeries({
       priceFormat: { type: "volume" },
