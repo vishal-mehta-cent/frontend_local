@@ -988,7 +988,7 @@ function formatRecoDate(d) {
 
   try {
     // Expected input: DD-MM-YYYY HH:MM
-    const [day, month, rest] = d.split("-");
+    const [month, day, rest] = d.split("-");
     const [year, time] = rest.split(" ");
 
     const iso = `${year}-${month}-${day}T${time}`;
@@ -999,6 +999,7 @@ function formatRecoDate(d) {
       day: "2-digit",
       year: "2-digit",
     });
+    console.log("🟢 formatRecoDate() OUTPUT →", formatted);
   } catch {
     return "Invalid Date";
   }
