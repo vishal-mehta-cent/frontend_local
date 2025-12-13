@@ -988,7 +988,7 @@ function formatRecoDate(d) {
 
   try {
     // Convert DD-MM-YYYY HH:MM → YYYY-MM-DD HH:MM (JS readable)
-    const [day, month, rest] = d.split("-");
+    const [month, day, rest] = d.split("-");
     const [year, time] = rest.split(" ");
     const iso = `${year}-${month}-${day} ${time}`;
 
