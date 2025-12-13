@@ -277,7 +277,7 @@ export default function SignalCard({
               <strong>Signal Date:-</strong>{" "}
               {(() => {
                 const [, m, d] = rawDate.split("-");
-                return `${d}/${m}`;
+                return `${m}/${d}`;
               })()}
             </span>
           )}
