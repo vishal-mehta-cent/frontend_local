@@ -2829,11 +2829,10 @@ async function refreshRecommendations() {
         <div ref={volumeRef} style={{ width: "100%" }} />
       </div>
 
-      {/* Alert Description Section */}
    {/* Alert Description Section */}
 <div className="mt-4 px-4 pb-4">
   <h3 className="text-sm font-semibold text-gray-700 mb-2">
-    {recoMode ? "Latest 4 Recommendation Signals" : "Latest 4 Signals"}
+    Alerts & Recommendations Details
   </h3>
 
   <div
@@ -2849,73 +2848,114 @@ async function refreshRecommendations() {
     }}
   >
 
-    {recoMode ? (
-  latestRecoDesc.length > 0 ? (
-    latestRecoDesc.slice(0, 4).map((row, idx) => (
-      <div key={idx} style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}>
-        
-        {/* Top row : LEFT Date | RIGHT STRATEGY | BUY/SELL | PRICE */}
-        <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
-          <span>{formatRecoDate(row.Date)}</span>
-
-
-          <span
-            className={
-              row.signal_type === "BUY"
-                ? "text-green-600"
-                : "text-red-600"
-            }
-          >
-            {row.Strategy || "--"} | {row.signal_type || "--"} |{" "}
-            {row.close_price ? Number(row.close_price).toFixed(2) : "--"}
-          </span>
+    {/* ================= RECOMMENDATIONS ================= */}
+    {recoMode && (
+      <>
+        <div className="mb-3 text-xs font-semibold text-blue-600">
+          📘 Latest 4 Recommendation Signals
         </div>
 
-        {/* Details */}
-        <div className="mt-1">
-          <strong>Alert Details:</strong> {row.Alert_details || "--"} <br />
-          <strong>Screener:</strong> {row.screener || "--"} <br />
-          <strong>User Action:</strong> {row.user_actions || "--"}
-        </div>
+        {latestRecoDesc.length > 0 ? (
+          latestRecoDesc.slice(0, 4).map((row, idx) => (
+            <div
+              key={`reco-${idx}`}
+              style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontWeight: "600",
+                }}
+              >
+                <span>{formatRecoDate(row.Date)}</span>
 
-      </div>
-    ))
-  ) : (
-    <div className="text-gray-500">No recommendations found</div>
-  )
-) : null}
+                <span
+  className={
+    row.signal_type === "BUY"
+      ? "text-green-600"
+      : "text-red-600"
+  }
+>
+  {[row.Strategy, row.signal_type, row.close_price]
+    .filter(v => v !== undefined && v !== null && v !== "")
+    .map((v, i) =>
+      typeof v === "number" ? v.toFixed(2) : v
+    )
+    .join(" | ")}
+</span>
 
-  
-  
-    {/* SHOW GENERATE SIGNALS */}
-    {!recoMode && (
-      latestSignals.length === 0 ? (
-        <div>No signals found</div>
-      ) : (
-        latestSignals.map((sig, idx) => (
-          <div key={idx} style={{ paddingBottom: "10px", borderBottom: "1px solid #eee", marginBottom: "10px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
-              <span>
-                {new Date(sig.timestamp * 1000).toLocaleString("en-US")}
-              </span>
+              </div>
 
-              <span className={sig.signal === "BUY" ? "text-green-600" : "text-red-600"}>
-                {sig.signal} | {sig.tf} | {Number(sig.close_price).toFixed(2)}
-              </span>
+              <div className="mt-1">
+                <strong>Alert Details:</strong> {row.Alert_details || "--"} <br />
+                <strong>Screener:</strong> {row.screener || "--"} <br />
+                <strong>User Action:</strong> {row.user_actions || "--"}
+              </div>
             </div>
-
-            <div style={{ marginTop: "5px" }}>
-              <strong>Alert Details:</strong> {sig.alert_details || "--"}<br/>
-              <strong>Screener:</strong> {sig.screener || "--"}<br/>
-              <strong>User Action:</strong> {sig.user_action || "--"}
-            </div>
-          </div>
-        ))
-      )
+          ))
+        ) : (
+          <div className="text-gray-500">No recommendations found</div>
+        )}
+      </>
     )}
 
-    
+    {/* ================= GENERATED SIGNALS ================= */}
+    {generateMode && (
+      <>
+        <div className="mt-4 mb-3 text-xs font-semibold text-green-600">
+          ⚡ Latest 4 Generated Signals
+        </div>
 
+        {latestSignals.length === 0 ? (
+          <div>Signals displayinf in few second</div>
+        ) : (
+          latestSignals.map((sig, idx) => (
+            <div
+              key={`gen-${idx}`}
+              style={{
+                paddingBottom: "10px",
+                borderBottom: "1px solid #eee",
+                marginBottom: "10px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontWeight: "600",
+                }}
+              >
+                <span>
+                  {new Date(sig.timestamp * 1000).toLocaleString("en-US")}
+                </span>
+
+                <span
+                  className={
+                    sig.signal === "BUY"
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }
+                >
+                  {sig.signal} | {sig.tf} |{" "}
+                  {Number(sig.close_price).toFixed(2)}
+                </span>
+              </div>
+
+              <div style={{ marginTop: "5px" }}>
+                <strong>Alert Details:</strong>{" "}
+                {sig.alert_details || "--"}
+                <br />
+                <strong>Screener:</strong> {sig.screener || "--"}
+                <br />
+                <strong>User Action:</strong>{" "}
+                {sig.user_action || "--"}
+              </div>
+            </div>
+          ))
+        )}
+      </>
+    )}
   </div>
 </div>
 
