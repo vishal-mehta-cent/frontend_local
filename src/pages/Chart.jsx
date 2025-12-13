@@ -507,7 +507,7 @@ function fmtISTFromUnixSec(sec, withDate=false) {
   const dd = String(d.getUTCDate()).padStart(2, "0");
   const mon = String(d.getUTCMonth() + 1).padStart(2, "0");
   const yyyy = d.getUTCFullYear();
-  return `${dd}/${mon} ${hh}:${mm}`;
+  return `${mon}/${dd} ${hh}:${mm}`;
 }
 
 export default function ChartPage() {
@@ -1183,7 +1183,7 @@ applyUnifiedMarkers();
           if ((istHour === 9 && istMinute < 25) || (tickMarkType === 0)) {
             const day = d.getUTCDate().toString().padStart(2, "0");
             const month = d.toLocaleString("en-GB", { month: "short" });
-            return `${day} ${month}`;
+            return `${month} ${day}`;
           }
           return `${hh}:${mm}`;
         },
@@ -2864,7 +2864,10 @@ async function refreshRecommendations() {
         latestSignals.map((sig, idx) => (
           <div key={idx} style={{ paddingBottom: "10px", borderBottom: "1px solid #eee", marginBottom: "10px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontWeight: "600" }}>
-              <span>{new Date(sig.timestamp * 1000).toLocaleString()}</span>
+              <span>
+                {new Date(sig.timestamp * 1000).toLocaleString("en-US")}
+              </span>
+
               <span className={sig.signal === "BUY" ? "text-green-600" : "text-red-600"}>
                 {sig.signal} | {sig.tf} | {Number(sig.close_price).toFixed(2)}
               </span>
