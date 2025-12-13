@@ -4,6 +4,7 @@ import { Search, ClipboardList, Trash2 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
+
 const API =
     import.meta.env.VITE_BACKEND_BASE_URL ||
     "https://paper-trading-backend.onrender.com";
@@ -12,6 +13,9 @@ export default function Whatsapp() {
     const [scripts, setScripts] = useState([]);
     const [newScript, setNewScript] = useState(""); // ⭐ For adding script
     const navigate = useNavigate();
+    const [whatsappNumber, setWhatsappNumber] = useState("");
+    const [loadingNumber, setLoadingNumber] = useState(false);
+
 
     // ---------------------------------------------------------
     // LOAD FULL SETTINGS (script + fast + intraday)
@@ -24,6 +28,18 @@ export default function Whatsapp() {
             })
             .catch(() => setScripts([]));
     }, []);
+
+    useEffect(() => {
+        fetch(`${API}/whatsapp/get-number?user_id=Neurocrest_jinal`)
+            .then(res => res.json())
+            .then(data => {
+                if (data?.whatsapp_number) {
+                    setWhatsappNumber(data.whatsapp_number);
+                }
+            })
+            .catch(() => { });
+    }, []);
+
 
     // ---------------------------------------------------------
     // ADD SCRIPT (DUPLICATE CHECK)
@@ -110,29 +126,39 @@ export default function Whatsapp() {
         }
     };
 
+
     // ---------------------------------------------------------
     // SAVE SETTINGS TO BACKEND
     // ---------------------------------------------------------
     const handleSave = async () => {
+        if (!whatsappNumber.trim()) {
+            alert("Please enter WhatsApp number");
+            return;
+        }
 
-        // 1) Save settings
-        await fetch(`${API}/whatsapp/save-settings`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ settings: scripts }),
-        });
+        const payload = {
+            user_id: "Neurocrest_jinal",
+            email_id: "jinal@neurocrest.ai",
+            whatsapp_number: whatsappNumber,   // ✅ FROM INPUT
+            settings: scripts                  // ✅ FROM TABLE
+        };
 
-        // 2) Send WhatsApp messages
-        const res = await fetch(`${API}/whatsapp/push-on-save`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ settings: scripts }),
-        });
+        try {
+            const res = await fetch(`${API}/whatsapp/save-user-details`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
 
-        const data = await res.json();
+            const data = await res.json();
 
-        alert(`WhatsApp messages sent: ${data.sent_count}`);
+            alert(`Saved successfully (${data.rows_saved} rows)`);
+        } catch (err) {
+            alert("Save failed");
+        }
     };
+
+
 
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col justify-between p-4">
@@ -143,6 +169,28 @@ export default function Whatsapp() {
                 <h1 className="text-xl font-semibold text-center mt-3 mb-6">
                     WhatsApp Alerts
                 </h1>
+
+                {/* WhatsApp Number */}
+                <div className="bg-white rounded-lg shadow p-4 mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        WhatsApp Number
+                    </label>
+
+                    <div className="flex gap-2">
+                        <input
+                            type="tel"
+                            placeholder="e.g. 919876543210"
+                            value={whatsappNumber}
+                            onChange={(e) => setWhatsappNumber(e.target.value)}
+                            className="flex-1 border rounded-md px-3 py-2 text-sm
+                 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        />
+                    </div>
+
+                    <p className="text-xs text-gray-500 mt-1">
+                        Include country code (India → 91)
+                    </p>
+                </div>
 
 
 
@@ -205,19 +253,27 @@ export default function Whatsapp() {
                                     <td className="text-center">
                                         <input
                                             type="checkbox"
+                                            checked={row.btst ?? true}
+                                            onChange={(e) =>
+                                                updateField(i, "btst", e.target.checked)
+                                            }
                                             className="w-4 h-4 accent-blue-600"
-                                            defaultChecked
                                         />
                                     </td>
+
 
                                     {/* Short Term STATIC */}
                                     <td className="text-center">
                                         <input
                                             type="checkbox"
+                                            checked={row.shortterm ?? true}
+                                            onChange={(e) =>
+                                                updateField(i, "shortterm", e.target.checked)
+                                            }
                                             className="w-4 h-4 accent-blue-600"
-                                            defaultChecked
                                         />
                                     </td>
+
 
                                     {/* DELETE BUTTON */}
                                     <td className="text-center">
