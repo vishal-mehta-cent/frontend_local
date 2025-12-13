@@ -985,25 +985,20 @@ function zoomOut() {
 
 function formatRecoDate(d) {
   if (!d) return "Invalid Date";
-
+  
   try {
-    // Expected input: DD-MM-YYYY HH:MM
+    // Convert DD-MM-YYYY HH:MM → YYYY-MM-DD HH:MM (JS readable)
     const [month, day, rest] = d.split("-");
     const [year, time] = rest.split(" ");
-
-    const iso = `${year}-${month}-${day}T${time}`;
-    const date = new Date(iso);
-
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "2-digit",
-    });
-    console.log("🟢 formatRecoDate() OUTPUT →", formatted);
-  } catch {
+    const iso = `${year}-${month}-${day} ${time}`;
+  
+    return new Date(iso).toLocaleString("en-US");
+    console.log("🟢 formatRecoDate() OUTPUT →", result);
+  } catch (e) {
+    console.error("❌ formatRecoDate() ERROR:", e, "| input:", d);
     return "Invalid Date";
   }
-}
+
 
 
   /* ---------------- Fetch candles ---------------- */
