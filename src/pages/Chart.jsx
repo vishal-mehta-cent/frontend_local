@@ -994,10 +994,10 @@ function formatRecoDate(d) {
   
     return new Date(iso).toLocaleString("en-US");
     console.log("🟢 formatRecoDate() OUTPUT →", result);
-  } catch (e) {
-    console.error("❌ formatRecoDate() ERROR:", e, "| input:", d);
+  } catch {
     return "Invalid Date";
   }
+}
 
 
 
