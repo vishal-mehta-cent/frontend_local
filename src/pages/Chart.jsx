@@ -987,16 +987,23 @@ function formatRecoDate(d) {
   if (!d) return "Invalid Date";
 
   try {
-    // Convert DD-MM-YYYY HH:MM → YYYY-MM-DD HH:MM (JS readable)
-    const [month, day, rest] = d.split("-");
+    // Expected input: DD-MM-YYYY HH:MM
+    const [day, month, rest] = d.split("-");
     const [year, time] = rest.split(" ");
-    const iso = `${year}-${month}-${day} ${time}`;
 
-    return new Date(iso).toLocaleString("en-US");
+    const iso = `${year}-${month}-${day}T${time}`;
+    const date = new Date(iso);
+
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "2-digit",
+    });
   } catch {
     return "Invalid Date";
   }
 }
+
 
   /* ---------------- Fetch candles ---------------- */
   const [candles, setCandles] = useState([]);
