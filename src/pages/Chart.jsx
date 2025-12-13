@@ -2908,7 +2908,7 @@ async function refreshRecommendations() {
         </div>
 
         {latestSignals.length === 0 ? (
-          <div>Signals displayinf in few second</div>
+          <div>Signals Displaying in few seconds</div>
         ) : (
           latestSignals.map((sig, idx) => (
             <div
