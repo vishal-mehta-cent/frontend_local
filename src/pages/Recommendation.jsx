@@ -119,12 +119,14 @@ export default function Recommendations() {
 
     const s = String(raw).trim();
 
-    // yyyy-mm-dd (already ISO)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-      return s;
+    // ✅ ISO with or without time: 2025-12-15 OR 2025-12-15 12:45:00
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      const [, yyyy, mm, dd] = isoMatch;
+      return `${yyyy}-${mm}-${dd}`;
     }
 
-    // MM/DD/YYYY or DD/MM/YYYY (we assume MM/DD as backend already fixed)
+    // ✅ MM/DD/YYYY or MM/DD/YYYY HH:MM AM
     const m = s.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
     if (m) {
       const [, mm, dd, yyyy] = m;
@@ -133,7 +135,6 @@ export default function Recommendations() {
 
     return "";
   };
-
 
 
 
@@ -301,10 +302,15 @@ export default function Recommendations() {
 
     const strategy = pickStrategy(row);
 
-    const rawDate =
-      getField(row, ["date", "raw_datetime", "Date", "signal_date"]);
+    // ✅ FULL datetime from backend (date + time)
+    // ✅ FULL datetime (date + time) — DO NOT MODIFY
+    const rawDateTime =
+      getField(row, ["raw_datetime", "signal_date", "Date", "date"]);
 
-    const dateVal = normalizeToISODate(rawDate);
+    // ✅ Date only (used for date filter dropdown)
+    const dateVal = normalizeToISODate(rawDateTime);
+
+
 
     const timeVal = pickTime(row);
     const alertText = pickAlertText(row);
@@ -331,14 +337,18 @@ export default function Recommendations() {
       currentPrice,
       outcome,
       isClosed,
-      dateVal,              // ← SINGLE SOURCE OF TRUTH
+
+      // 🔥 CRITICAL FIELDS
+      dateVal,        // YYYY-MM-DD → for filtering
+      rawDateTime,    // YYYY-MM-DD HH:MM:SS → for sorting
+
       timeVal,
-      rawDate,
       alertText,
       userActions,
       priceCloseTo,
       closeTime: csvCloseTime,
     };
+
 
   };
 
@@ -432,13 +442,14 @@ export default function Recommendations() {
       console.log(
         "DATE CHECK → selected:",
         selectedDate,
-        "| row:",
+        "| row.dateVal:",
         r.dateVal,
-        "| raw:",
-        r.rawDate,
+        "| row.rawDateTime:",
+        r.rawDateTime,
         "| match:",
         matchDate
       );
+
 
       // ✅ SCREENER
       const matchScreener =
@@ -499,9 +510,24 @@ export default function Recommendations() {
   // ACTIVE & CLOSED SIGNALS
   // -------------------------------------------------------
   const activeSignals = useMemo(() => {
-    const allActive = filteredRows.filter((r) => !r.outcome);
-    return allActive.slice(0, 30); // SHOW 30 ACTIVE SIGNALS
+    return filteredRows
+      .filter((r) => !r.outcome)
+      .sort(
+        (a, b) =>
+          new Date(b.rawDateTime).getTime() -
+          new Date(a.rawDateTime).getTime()
+      )
+      .slice(0, 30);
   }, [filteredRows]);
+
+  console.table(
+    activeSignals.map(s => ({
+      script: s.script,
+      rawDateTime: s.rawDateTime,
+      time: s.timeVal
+    }))
+  );
+
 
   const closedSignals = useMemo(
     () => filteredRows.filter((r) => r.outcome),
