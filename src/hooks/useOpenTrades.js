@@ -29,7 +29,7 @@ export default function useOpenTrades(username, {
     setRefreshing(true);
 
     try {
-      const res = await fetch(`${API}/orders/${encodeURIComponent(username)}/open`, {
+      const res = await fetch(`${API}/orders/${encodeURIComponent(username)}`, {
         signal: ctl.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -83,3 +83,4 @@ export default function useOpenTrades(username, {
 
   return { data, isRefreshing, refresh: fetchNow };
 }
+
