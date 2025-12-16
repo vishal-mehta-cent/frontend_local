@@ -108,6 +108,34 @@ export default function Buy() {
     setSuccessText("");
 
     try {
+
+      // 🛠️ STEP 2 — MODIFY LIMIT → MARKET (EXECUTE IMMEDIATELY)
+      if (
+        isModify &&
+        prefill.modifyId &&
+        orderMode === "MARKET"
+      ) {
+        const res = await fetch(
+          `${API}/orders/convert-to-market/${prefill.modifyId}`,
+          { method: "POST" }
+        );
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.detail || "Failed to convert to market order");
+        }
+
+        setSuccessText("Order executed at Market price ✅");
+        setSuccessModal(true);
+
+        setTimeout(() => {
+          setSuccessModal(false);
+          nav("/orders", { state: { refresh: true, tab: "positions" } });
+        }, 1200);
+
+        setSubmitting(false);
+        return; // ⛔ VERY IMPORTANT — stop here
+      }
       if (!username) throw new Error("❌ Please login again.");
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
