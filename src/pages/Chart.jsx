@@ -983,46 +983,80 @@ function zoomOut() {
   }
 }
 
-// ✅ FINAL — Recommendation Date Formatter (MM/DD GUARANTEED)
+// ✅ FINAL — Recommendation Date Formatter (MM/DD/YYYY, hh:mm:ss AM/PM)
 function formatRecoDate(d) {
   if (!d) return "--";
 
   try {
-    // If backend already sends timestamp → BEST CASE
+    let dateObj = null;
+
+    // --------------------------------------------------
+    // Case 1: UNIX timestamp (seconds)
+    // --------------------------------------------------
     if (typeof d === "number") {
-      return new Date(d * 1000).toLocaleString("en-US");
+      dateObj = new Date(d * 1000);
     }
 
-    if (typeof d === "string") {
+    // --------------------------------------------------
+    // Case 2: String input
+    // --------------------------------------------------
+    else if (typeof d === "string") {
       const s = d.trim();
 
-      // Case 1: DD-MM-YYYY HH:MM or MM-DD-YYYY HH:MM (CSV / Excel)
-      if (s.includes("-")) {
-        const [datePart, timePart = "00:00"] = s.split(" ");
-        const parts = datePart.split("-");
+      // 🔹 ISO format (BEST + SAFE)
+      // Example: 2025-12-11T09:30:00
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+        dateObj = new Date(s);
+      }
 
-        if (parts.length === 3) {
-          let [a, b, c] = parts;
+      // 🔹 DD-MM-YYYY or MM-DD-YYYY HH:MM(:SS)
+      else if (s.includes("-")) {
+        const [datePart, timePart = "00:00:00"] = s.split(" ");
+        const [p1, p2, p3] = datePart.split("-");
 
-          // Detect DD-MM vs MM-DD safely
-          const dayFirst = Number(a) > 12;
+        if (p1 && p2 && p3) {
+          const n1 = Number(p1);
+          const n2 = Number(p2);
 
-          const dd = dayFirst ? a : b;
-          const mm = dayFirst ? b : a;
-          const yyyy = c;
+          // If first number > 12 → DD-MM-YYYY
+          const day = n1 > 12 ? p1 : p2;
+          const month = n1 > 12 ? p2 : p1;
+          const year = p3;
 
-          const iso = `${yyyy}-${mm}-${dd}T${timePart}`;
-          return new Date(iso).toLocaleString("en-US");
+          const iso = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${timePart}`;
+          dateObj = new Date(iso);
         }
       }
 
-      // Case 2: ISO / browser-readable
-      return new Date(s).toLocaleString("en-US");
+      // 🔹 Fallback (browser readable)
+      else {
+        dateObj = new Date(s);
+      }
     }
 
-    return "--";
+    // --------------------------------------------------
+    // Validation
+    // --------------------------------------------------
+    if (!dateObj || isNaN(dateObj.getTime())) {
+      console.warn("❌ Invalid reco date:", d);
+      return "--";
+    }
+
+    // --------------------------------------------------
+    // 🔒 FORCE EXACT FORMAT: MM/DD/YYYY, hh:mm:ss AM/PM
+    // --------------------------------------------------
+    return dateObj.toLocaleString("en-US", {
+      month: "2-digit",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+
   } catch (e) {
-    console.warn("Reco date parse failed:", d, e);
+    console.warn("❌ Reco date parse failed:", d, e);
     return "--";
   }
 }
