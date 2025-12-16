@@ -3,7 +3,19 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import BackButton from "../components/BackButton";
 
-const API = "http://localhost:8000"; // backend API base
+const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://localhost:8000"; // backend API base
+
+// ✅ STEP 1 — Market hours helper (UTC based)
+function isMarketOpenUTC() {
+  const nowUTC = new Date();
+  const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
+
+  // 🇮🇳 NSE/BSE: 09:15–15:30 IST → 03:45–10:00 UTC
+  const OPEN = 3 * 60 + 45;
+  const CLOSE = 8 * 60 + 37;
+
+  return minutes >= OPEN && minutes <= CLOSE;
+}
 
 export default function Sell() {
   const { symbol } = useParams();
@@ -33,37 +45,25 @@ export default function Sell() {
 
   const username = localStorage.getItem("username");
   const userEditedPrice = useRef(false);
+  const [marketOpen, setMarketOpen] = useState(true);
 
   // -------- Check market time on mount --------
-// -------- Check market time on mount --------
-useEffect(() => {
-  // Get current UTC time
-  const nowUTC = new Date();
-  const hours = nowUTC.getUTCHours();
-  const minutes = nowUTC.getUTCMinutes();
+  // -------- Check market time on mount --------
+  useEffect(() => {
+    const checkMarket = () => {
+      const open = isMarketOpenUTC();
+      setMarketOpen(open);
 
-  // ---- Define UTC market hours ----
-  // For example: Indian market 09:15–15:30 IST = 03:45–10:00 UTC
-  const MARKET_OPEN_UTC = { h: 3, m: 30 };
-  const MARKET_CLOSE_UTC = { h: 10, m: 30 };
+      if (!open && orderMode === "LIMIT") {
+        setOrderMode("MARKET");
+        setPrice("");
+      }
+    };
 
-  // Convert to comparable numbers (minutes since midnight)
-  const nowMinutes = hours * 60 + minutes;
-  const openMinutes = MARKET_OPEN_UTC.h * 60 + MARKET_OPEN_UTC.m;
-  const closeMinutes = MARKET_CLOSE_UTC.h * 60 + MARKET_CLOSE_UTC.m;
-
-  const isMarketOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
-
-  // Check only when not modifying/adding
-  if (!isMarketOpen && !isModify && !isAdd) {
-    const confirmProceed = window.confirm(
-      "⚠️ Market (UTC 03:30–10:30) is closed. Do you still want to place a SELL order?"
-    );
-    if (!confirmProceed) {
-      nav(`/script/${symbol}`);
-    }
-  }
-}, [nav, symbol, isModify, isAdd]);
+    checkMarket();
+    const id = setInterval(checkMarket, 30_000);
+    return () => clearInterval(id);
+  }, [orderMode]); // ✅ add dependency
 
 
   // -------- Live price polling --------
@@ -85,7 +85,7 @@ useEffect(() => {
             }
           }
         }
-      } catch {}
+      } catch { }
     };
 
     fetchLive();
@@ -105,6 +105,12 @@ useEffect(() => {
     setSuccessText("");
 
     try {
+      // 🔒 HARD BLOCK — LIMIT not allowed after market close
+      if (!marketOpen && orderMode === "LIMIT") {
+        throw new Error("❌ Limit orders are not allowed after market close.");
+      }
+
+
       if (!username) throw new Error("❌ Please login again.");
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
@@ -204,8 +210,8 @@ useEffect(() => {
           {isAdd
             ? `ADD TO ${symbol}`
             : isModify
-            ? "MODIFY ORDER"
-            : `SELL ${symbol}`}
+              ? "MODIFY ORDER"
+              : `SELL ${symbol}`}
         </h2>
 
         {errorMsg && (
@@ -238,10 +244,14 @@ useEffect(() => {
               name="ordermode"
               value="LIMIT"
               checked={orderMode === "LIMIT"}
+              disabled={!marketOpen}
               onChange={() => setOrderMode("LIMIT")}
             />
-            <span>Limit</span>
+            <span className={!marketOpen ? "text-gray-400" : ""}>
+              Limit {!marketOpen && "(Market Closed)"}
+            </span>
           </label>
+
         </div>
 
         <input
@@ -255,35 +265,35 @@ useEffect(() => {
         <input
           type="number"
           value={orderMode === "LIMIT" ? price : ""}
+          disabled={orderMode === "MARKET" || !marketOpen}
           onChange={(e) => {
             setPrice(e.target.value);
             userEditedPrice.current = true;
           }}
           placeholder={
-            orderMode === "LIMIT"
-              ? "Enter Limit Price"
-              : "Disabled for Market orders"
+            !marketOpen
+              ? "Limit orders disabled after market close"
+              : "Enter Limit Price"
           }
-          className={`w-full px-4 py-3 border rounded-lg ${
-            orderMode === "MARKET" ? "bg-gray-100 cursor-not-allowed" : ""
-          }`}
-          disabled={orderMode === "MARKET"}
+          className={`w-full px-4 py-3 border rounded-lg ${orderMode === "MARKET" || !marketOpen
+            ? "bg-gray-100 cursor-not-allowed"
+            : ""
+            }`}
         />
+
 
         <div className="flex justify-between">
           <button
             onClick={() => setSegment("intraday")}
-            className={`w-1/2 py-2 rounded-l-lg ${
-              segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
+            className={`w-1/2 py-2 rounded-l-lg ${segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
+              }`}
           >
             Intraday
           </button>
           <button
             onClick={() => setSegment("delivery")}
-            className={`w-1/2 py-2 rounded-r-lg ${
-              segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
+            className={`w-1/2 py-2 rounded-r-lg ${segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
+              }`}
           >
             Delivery
           </button>
@@ -292,17 +302,15 @@ useEffect(() => {
         <div className="flex justify-between">
           <button
             onClick={() => setExchange("NSE")}
-            className={`w-1/2 py-2 rounded-l-lg ${
-              exchange === "NSE" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
+            className={`w-1/2 py-2 rounded-l-lg ${exchange === "NSE" ? "bg-blue-600 text-white" : "bg-gray-200"
+              }`}
           >
             NSE
           </button>
           <button
             onClick={() => setExchange("BSE")}
-            className={`w-1/2 py-2 rounded-r-lg ${
-              exchange === "BSE" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
+            className={`w-1/2 py-2 rounded-r-lg ${exchange === "BSE" ? "bg-blue-600 text-white" : "bg-gray-200"
+              }`}
           >
             BSE
           </button>
@@ -327,19 +335,18 @@ useEffect(() => {
       <button
         onClick={handleSubmit}
         disabled={submitting}
-        className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${
-          submitting
-            ? "bg-red-400 cursor-not-allowed"
-            : "bg-red-600 hover:bg-red-700"
-        }`}
+        className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${submitting
+          ? "bg-red-400 cursor-not-allowed"
+          : "bg-red-600 hover:bg-red-700"
+          }`}
       >
         {submitting
           ? "Processing…"
           : isAdd
-          ? "Add to Position"
-          : isModify
-          ? "Save Changes"
-          : "SELL"}
+            ? "Add to Position"
+            : isModify
+              ? "Save Changes"
+              : "SELL"}
       </button>
 
       {successModal && (
