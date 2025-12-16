@@ -2,25 +2,26 @@ import React from "react";
 import BackButton from "./BackButton";
 
 /**
- * Back row that matches Trade page placement:
- * - Back on the left (inline, NOT absolute)
- * - Optional centered content (icons, tabs, etc.)
- * - Empty right cell keeps the center perfectly centered
+ * HeaderBackRow — GLOBAL BACK BEHAVIOR
+ *
+ * ✅ Back always goes to previous page (navigate(-1))
+ * ✅ Filters, tabs, and state are preserved
+ * ✅ No hard-coded routes
+ * ✅ Layout remains identical to Trade page
  */
-export default function HeaderBackRow({ children, backTo = "/menu", className = "" }) {
+export default function HeaderBackRow({ children, className = "" }) {
   return (
     <div className={`mt-1 grid grid-cols-[auto_1fr_auto] items-center ${className}`}>
       <div className="pl-5 pt-1">
-        {/* IMPORTANT: BackButton must support inline (not absolute). 
-           If your BackButton doesn't, pass inline or switch to a simple <button> here. */}
-        <BackButton to={backTo} inline />
+        {/* Browser-style back navigation */}
+        <BackButton inline />
       </div>
 
       <div className="justify-self-center">
-        {children /* put your center icons/controls here, or leave empty */}
+        {children /* center icons / tabs / controls */}
       </div>
 
-      <div /> {/* right spacer keeps the middle perfectly centered */}
+      <div /> {/* right spacer keeps center perfectly aligned */}
     </div>
   );
 }
