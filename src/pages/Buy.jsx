@@ -5,6 +5,18 @@ import BackButton from "../components/BackButton";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com"; // backend API base
 
+// ✅ STEP 1 — Market hours helper (UTC based)
+function isMarketOpenUTC() {
+  const nowUTC = new Date();
+  const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
+
+  const OPEN = 3 * 60 + 45;
+  const CLOSE = 8 * 60 + 37;
+
+  return minutes >= OPEN && minutes <= CLOSE;
+}
+
+
 export default function Buy() {
   const { symbol } = useParams();
   const nav = useNavigate();
@@ -33,40 +45,27 @@ export default function Buy() {
 
   const username = localStorage.getItem("username");
   const userEditedPrice = useRef(false);
+  const [marketOpen, setMarketOpen] = useState(true);
 
   // -------- Check market time on mount (UTC based) --------
   useEffect(() => {
-    // Current UTC time
-    const nowUTC = new Date();
-    const hours = nowUTC.getUTCHours();
-    const minutes = nowUTC.getUTCMinutes();
+    const checkMarket = () => {
+      const open = isMarketOpenUTC();
+      setMarketOpen(open);
 
-    // Define UTC market hours
-    // 🇮🇳 Indian Market → 09:15–15:30 IST = 03:45–10:00 UTC
-    // 🇺🇸 US Market → 09:30–16:00 Eastern = 14:30–21:00 UTC
-    // Choose which one you want:
-    const MARKET_OPEN_UTC = { h: 3, m: 30 };  // for Indian
-    const MARKET_CLOSE_UTC = { h: 10, m: 30 }; // for Indian
-    // const MARKET_OPEN_UTC = { h: 14, m: 30 }; // for US
-    // const MARKET_CLOSE_UTC = { h: 21, m: 0 }; // for US
-
-    // Convert to comparable minute counts
-    const nowMinutes = hours * 60 + minutes;
-    const openMinutes = MARKET_OPEN_UTC.h * 60 + MARKET_OPEN_UTC.m;
-    const closeMinutes = MARKET_CLOSE_UTC.h * 60 + MARKET_CLOSE_UTC.m;
-
-    const isMarketOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
-
-    // Show warning if market closed
-    if (!isMarketOpen && !isModify && !isAdd) {
-      const confirmProceed = window.confirm(
-        "⚠️ Market (UTC 03:30–10:30) is closed. Do you still want to place a BUY order?"
-      );
-      if (!confirmProceed) {
-        nav(`/script/${symbol}`);
+      if (!open && orderMode === "LIMIT") {
+        setOrderMode("MARKET");
+        setPrice("");
       }
-    }
-  }, [nav, symbol, isModify, isAdd]);
+    };
+
+    checkMarket(); // run immediately
+    const id = setInterval(checkMarket, 30_000); // every 30 sec
+
+    return () => clearInterval(id);
+  }, [orderMode]);
+
+
 
 
   // -------- Live price polling --------
@@ -108,6 +107,10 @@ export default function Buy() {
     setSuccessText("");
 
     try {
+      // 🔒 HARD BLOCK
+      if (!marketOpen && orderMode === "LIMIT") {
+        throw new Error("❌ Limit orders are not allowed after market close.");
+      }
 
       // 🛠️ STEP 2 — MODIFY LIMIT → MARKET (EXECUTE IMMEDIATELY)
       if (
@@ -136,6 +139,9 @@ export default function Buy() {
         setSubmitting(false);
         return; // ⛔ VERY IMPORTANT — stop here
       }
+
+
+
       if (!username) throw new Error("❌ Please login again.");
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
@@ -291,9 +297,13 @@ export default function Buy() {
               name="ordermode"
               value="LIMIT"
               checked={orderMode === "LIMIT"}
+              disabled={!marketOpen}
               onChange={() => setOrderMode("LIMIT")}
             />
-            <span>Limit</span>
+
+            <span className={!marketOpen ? "text-gray-400" : ""}>
+              Limit {!marketOpen && "(Market Closed)"}
+            </span>
           </label>
         </div>
 
@@ -308,19 +318,18 @@ export default function Buy() {
         <input
           type="number"
           value={orderMode === "LIMIT" ? price : ""}
-          onChange={(e) => {
-            setPrice(e.target.value);
-            userEditedPrice.current = true;
-          }}
+          disabled={orderMode === "MARKET" || !marketOpen}
           placeholder={
-            orderMode === "LIMIT"
-              ? "Enter Limit Price"
-              : "Disabled for Market orders"
+            !marketOpen
+              ? "Limit orders disabled after market close"
+              : "Enter Limit Price"
           }
-          className={`w-full px-4 py-3 border rounded-lg ${orderMode === "MARKET" ? "bg-gray-100 cursor-not-allowed" : ""
+          className={`w-full px-4 py-3 border rounded-lg ${orderMode === "MARKET" || !marketOpen
+            ? "bg-gray-100 cursor-not-allowed"
+            : ""
             }`}
-          disabled={orderMode === "MARKET"}
         />
+
 
         <div className="flex justify-between">
           <button
