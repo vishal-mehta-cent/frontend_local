@@ -772,7 +772,7 @@ async function loadAllSignals(symbol) {
       console.log("TF BLOCKED → clearing generate markers only");
 
       if (priceSeries.current) {
-        priceSeries.current._genMarkers = [];    // clear generate signals
+        priceSeries.current._genMarkers = []; // clear generate signals
 
         // keep recommendations only
         const reco = priceSeries.current._recoMarkers || [];
@@ -786,7 +786,11 @@ async function loadAllSignals(symbol) {
     // --------------------------------------------------
     // 2) ALWAYS FETCH BOTH 2m + 15m FROM BACKEND
     // --------------------------------------------------
-    const url = `${API}/market/all-signals?symbol=${symbol}`;
+    const username = localStorage.getItem("username") || "default_user";
+
+    const url =
+      `${API}/market/all-signals?symbol=${symbol}&username=${encodeURIComponent(username)}`;
+
     console.log("Fetching URL:", url);
 
     const r = await fetch(url);
@@ -806,28 +810,34 @@ async function loadAllSignals(symbol) {
     let final = [];
 
     if (tf === "2m") {
-      // show both
-      final = js.signals.filter(s => s.tf === "2m" || s.tf === "15m");
+      final = js.signals.filter(
+        (s) => s.tf === "2m" || s.tf === "15m"
+      );
     }
 
     if (tf === "15m") {
-      // show both
-      final = js.signals.filter(s => s.tf === "15m" || s.tf === "2m");
+      final = js.signals.filter(
+        (s) => s.tf === "15m" || s.tf === "2m"
+      );
     }
 
     final.sort((a, b) => a.timestamp - b.timestamp);
 
     // --------------------------------------------------
-    // 4) CONVERT TO MARKERS
+    // 4) CONVERT TO MARKERS  ✅ FIX HERE
     // --------------------------------------------------
-    const markers = final.map(sig => ({
-      time: Number(sig.timestamp),
-      price: sig.close_price,
-      position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
-      shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
-      color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-      text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
-    }));
+    const markers = final.map((sig) => {
+      const tsSec = Math.floor(Number(sig.timestamp) / 1000); // 🔥 FIX
+
+      return {
+        time: Number(sig.timestamp), // MUST be seconds
+        price: sig.close_price,
+        position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
+        shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
+        color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
+        text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
+      };
+    });
 
     // --------------------------------------------------
     // 5) APPLY ONLY TO 2m & 15m CHARTS
@@ -837,7 +847,7 @@ async function loadAllSignals(symbol) {
 
       const reco = priceSeries.current._recoMarkers || [];
       const merged = [...markers, ...reco]
-        .filter(m => m && m.time)
+        .filter((m) => m && m.time)
         .sort((a, b) => a.time - b.time);
 
       priceSeries.current.setMarkers(merged);
@@ -847,11 +857,10 @@ async function loadAllSignals(symbol) {
     // 6) LAST 4 SIGNALS
     // --------------------------------------------------
     setLatestSignals(
-  final
-    .slice(-4)
-    .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
-);
-
+      final
+        .slice(-4)
+        .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+    );
 
     console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
 
@@ -859,6 +868,7 @@ async function loadAllSignals(symbol) {
     console.error("Signal Load Error:", err);
   }
 }
+
 
 
 async function loadRecommendationDescriptions(symbol, tf) {
@@ -1060,6 +1070,7 @@ function formatRecoDate(d) {
     return "--";
   }
 }
+
 
 
   /* ---------------- Fetch candles ---------------- */
@@ -2523,13 +2534,11 @@ async function generateSignal() {
   // ⭐ 1. OFF MODE (SECOND CLICK)
   // -------------------------------------
   if (isRunningRef.current) {
-    // stop auto loop
     clearInterval(autoRunRef.current);
     isRunningRef.current = false;
     setGenerateMode(false);
     localStorage.setItem("NC_generateMode_" + symbol, "false");
 
-    // reset button style
     const btn = document.querySelector("#genBtn");
     if (btn) {
       btn.style.background = "";
@@ -2542,7 +2551,7 @@ async function generateSignal() {
   }
 
   // -------------------------------------
-  // ⭐ 2. VALIDATE TIMEFRAME (FIRST CLICK)
+  // ⭐ 2. VALIDATE TIMEFRAME
   // -------------------------------------
   if (!["2m", "15m"].includes(tf)) {
     alert("Generate signals only for 2m and 15m");
@@ -2553,17 +2562,15 @@ async function generateSignal() {
   // ⭐ 3. ON MODE (FIRST CLICK)
   // -------------------------------------
   alert(
-  "• Signal generation started.\n" +
-  "• Displaying signals shortly.\n" +
-  "• Click again for continuous updates stopp."
-);
-
+    "• Signal generation started.\n" +
+    "• Displaying signals shortly.\n" +
+    "• Click again for continuous updates stopp."
+  );
 
   isRunningRef.current = true;
   setGenerateMode(true);
   localStorage.setItem("NC_generateMode_" + symbol, "true");
 
-  // turn button green
   const btn = document.querySelector("#genBtn");
   if (btn) {
     btn.style.background = "#16a34a";
@@ -2581,6 +2588,7 @@ async function generateSignal() {
 
 
 
+
 // ---------------------------------------------------------
 // RUN SIGNAL ONCE (2m + 15m)
 // ---------------------------------------------------------
@@ -2588,14 +2596,19 @@ async function runSignalOnce() {
   try {
     console.log("RUN SIGNAL ONCE");
 
+    const username = localStorage.getItem("username") || "default_user";
+
     // regenerate signals on backend
     await fetch(`${API}/market/generate-signal`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbol }),
+      body: JSON.stringify({
+        symbol,
+        username, // 🔥 CRITICAL FIX
+      }),
     });
 
-    // 🔥 Load ONLY current TF signals
+    // load markers after generation
     await loadAllSignals(symbol);
 
     console.log("✔ Updated signals for:", tf);
@@ -2604,6 +2617,7 @@ async function runSignalOnce() {
     console.error("Signal error:", err);
   }
 }
+
 
 // --------------------------------------------------
 // UNIVERSAL MARKER MERGER (STEP-4)
