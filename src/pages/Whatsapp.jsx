@@ -16,74 +16,105 @@ export default function Whatsapp() {
     const [whatsappNumber, setWhatsappNumber] = useState("");
     const [loadingNumber, setLoadingNumber] = useState(false);
 
+    // ✅ Logged-in user (used for WhatsApp user-wise data)
+    const userId = localStorage.getItem("user_id") || "";
+    const emailId = localStorage.getItem("email_id") || "";
+
+
 
     // ---------------------------------------------------------
     // LOAD FULL SETTINGS (script + fast + intraday)
     // ---------------------------------------------------------
 
     useEffect(() => {
-        fetch(`${API}/whatsapp/user-settings?user_id=Neurocrest_jinal`)
-            .then(res => res.json())
+        if (!userId) return;
+
+        fetch(`${API}/whatsapp/user-settings?user_id=${userId}`)
+            .then(res => res.json())   // ✅ THIS LINE WAS MISSING
             .then(data => {
-                if (Array.isArray(data.settings)) {
-                    setScripts(data.settings);
-                } else {
-                    setScripts([]);
-                }
+                console.log("RAW RESPONSE:", data);
+                console.log("TYPE:", typeof data);
+                console.log("SETTINGS:", data?.settings);
+
+                setScripts(Array.isArray(data?.settings) ? data.settings : []);
             })
-            .catch(() => setScripts([]));
-    }, []);
+            .catch(err => {
+                console.error("USER SETTINGS ERROR:", err);
+                setScripts([]);
+            });
+    }, [userId]);
+
+
+
 
     useEffect(() => {
-        fetch(`${API}/whatsapp/get-number?user_id=Neurocrest_jinal`)
+        // 🚫 Do nothing until userId is available
+        if (!userId) return;
+
+        fetch(`${API}/whatsapp/get-number?user_id=${userId}`)
             .then(res => res.json())
             .then(data => {
-                if (data?.whatsapp_number) {
+                if (data && data.whatsapp_number) {
                     setWhatsappNumber(data.whatsapp_number);
+                } else {
+                    setWhatsappNumber("");
                 }
             })
-            .catch(() => { });
-    }, []);
+            .catch(() => {
+                setWhatsappNumber("");
+            });
+
+    }, [userId]);
 
 
-    // ---------------------------------------------------------
-    // ADD SCRIPT (DUPLICATE CHECK)
+
+
+    // ADD SCRIPT (DUPLICATE CHECK) — FINAL SAFE VERSION
     // ---------------------------------------------------------
     const addScript = async () => {
         const script = newScript.trim().toUpperCase();
         if (!script) return;
 
+        if (!userId) {
+            alert("User not identified. Please login again.");
+            return;
+        }
+
         const res = await fetch(`${API}/whatsapp/add-alert`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ script })
+            body: JSON.stringify({
+                script,
+                user_id: userId
+            })
         });
 
         const data = await res.json();
         console.log("ADD-ALERT RESPONSE:", data);
 
-        // ⭐ BACKEND RETURNS DUPLICATE
         if (data.status === "exists") {
             showToast(`${script} already exists in WhatsApp Alerts`);
             setNewScript("");
             return;
         }
 
-        // ⭐ BACKEND RETURNS "ok" EVEN IF SCRIPT ALREADY EXISTS → FIX HERE
         if (data.status === "ok") {
-
-            const exists = scripts.some(
-                (s) => s.script.toUpperCase() === script.toUpperCase()
-            );
-
-            if (exists) {
-                showToast(`${script} already exists in WhatsApp Alerts`);
-            } else {
-                showToast(`${script} added to WhatsApp Alerts!`);
-            }
-
-            setScripts(data.alerts);
+            showToast(`${script} added to WhatsApp Alerts!`);
             setNewScript("");
+
+            // ✅ IMPORTANT: reload user-wise settings from backend
+            fetch(`${API}/whatsapp/user-settings?user_id=${userId}`)
+
+                .then(res => res.json())
+                .then(d => {
+                    if (Array.isArray(d.settings)) {
+                        setScripts(d.settings);
+                    } else {
+                        setScripts([]);
+                    }
+                })
+                .catch(() => setScripts([]));
+
             return;
         }
 
@@ -95,15 +126,16 @@ export default function Whatsapp() {
 
 
 
+
     // ---------------------------------------------------------
     // UPDATE CHECKBOX FIELD LOCALLY
     // ---------------------------------------------------------
     const updateField = (index, field, value) => {
-        setScripts((prev) => {
-            const updated = [...prev];
-            updated[index][field] = value;
-            return updated;
-        });
+        setScripts(prev =>
+            prev.map((row, i) =>
+                i === index ? { ...row, [field]: value } : row
+            )
+        );
     };
 
     // ---------------------------------------------------------
@@ -129,7 +161,9 @@ export default function Whatsapp() {
         } catch (err) {
             alert("Server error");
         }
-    };
+    }
+
+
 
 
     // ---------------------------------------------------------
@@ -142,8 +176,8 @@ export default function Whatsapp() {
         }
 
         const payload = {
-            user_id: "Neurocrest_jinal",
-            email_id: "jinal@neurocrest.ai",
+            user_id: userId,
+            email_id: emailId,
             whatsapp_number: whatsappNumber,
             settings: scripts
         };
@@ -162,6 +196,7 @@ export default function Whatsapp() {
             alert("Save failed");
         }
     };
+
 
 
 
@@ -210,7 +245,8 @@ export default function Whatsapp() {
                     </button>
                 </div>
 
-                <div className="bg-white rounded-xl shadow p-4 overflow-auto">
+                <div className="bg-white rounded-xl shadow p-4 overflow-auto min-h-[120px]">
+
                     <table className="min-w-full text-sm">
                         <thead className="bg-gray-100">
                             <tr>
@@ -225,7 +261,8 @@ export default function Whatsapp() {
 
                         <tbody>
                             {scripts.map((row, i) => (
-                                <tr key={i} className="border-b hover:bg-gray-50">
+                                <tr key={row.script} className="border-b hover:bg-gray-50">
+
 
                                     <td className="px-4 py-3 font-medium text-gray-800">
                                         {row.script}
