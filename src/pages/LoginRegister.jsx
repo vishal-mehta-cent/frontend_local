@@ -49,6 +49,10 @@ export default function LoginRegister({ onLoginSuccess }) {
       const data = await res.json();
       if (data.success) {
         if (isLogin) {
+          // ✅ SAVE USER DETAILS (VERY IMPORTANT)
+          localStorage.setItem("user_id", username);
+          localStorage.setItem("email_id", data.email || "");
+
           onLoginSuccess(username);
         } else {
           setMessage("✅ " + data.message);
@@ -78,6 +82,9 @@ export default function LoginRegister({ onLoginSuccess }) {
 
       const data = await res.json();
       if (data.success) {
+        // ✅ SAVE USER DETAILS
+        localStorage.setItem("user_id", data.username);
+        localStorage.setItem("email_id", data.email || "");
         onLoginSuccess(data.username);
       } else {
         setMessage("❌ " + (data.message || "Google login failed"));
