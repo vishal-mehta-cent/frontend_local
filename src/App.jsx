@@ -89,41 +89,21 @@ export default function App() {
   );
 
   useEffect(() => {
-    if (!username) return;
-
-    const checkSession = async () => {
-      const user = localStorage.getItem("user_id");
-      const session = localStorage.getItem("session_id");
-
-      if (!user || !session) return;
-
-      try {
-        const res = await fetch(
-          `${API}/auth/validate-session?username=${user}&session_id=${session}`
-        );
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-
-        if (!data.valid) {
-          alert("You were logged out because you logged in from another device.");
-
-          localStorage.clear();
-          setUsername(null);
-          window.location.replace("/");
-        }
-      } catch {
-        // ❗ DO NOTHING (keep checking next time)
-      }
-    };
-
-    // 🔁 Zerodha-style polling
-    const interval = setInterval(checkSession, 3000);
-
-    return () => clearInterval(interval);
+    if (username) localStorage.setItem("user_id", username);
+    else localStorage.removeItem("user_id");
   }, [username]);
 
+
+  const handleLoginSuccess = (user) => {
+    setUsername(user);
+    window.location.href = "/menu";
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setUsername(null);
+    window.location.replace("/");
+  };
 
 
   return (
