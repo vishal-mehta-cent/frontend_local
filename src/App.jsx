@@ -129,26 +129,46 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   }, [navigate]);
 
   useEffect(() => {
-    const user = localStorage.getItem("user_id");
-    const session = localStorage.getItem("session_id");
+  const user = localStorage.getItem("user_id");
+  const session = localStorage.getItem("session_id");
 
-    if (!user || !session) return;
+  // ❗ DO NOT start polling if missing data
+  if (!user || !session) return;
 
-    const interval = setInterval(async () => {
+  let isActive = true;
+
+  const interval = setInterval(async () => {
+    try {
       const res = await fetch(
         `${API}/auth/validate-session?username=${user}&session_id=${session}`
       );
+
+      if (!res.ok) throw new Error("Server error");
+
       const data = await res.json();
 
-      if (!data.valid) {
-        alert("You were logged out because you logged in from another device.");
-        localStorage.clear();
-        window.location.href = "/";
-      }
-    }, 5000); // check every 5 sec
+      if (isActive && !data.valid) {
+        isActive = false;
+        clearInterval(interval);
 
-    return () => clearInterval(interval);
-  }, []);
+        alert("You were logged out because you logged in from another device.");
+
+        localStorage.clear();
+        window.location.replace("/");
+      }
+    } catch (err) {
+      // ❗ SILENT FAIL (do NOT show error)
+      console.log("Session check stopped");
+      clearInterval(interval);
+    }
+  }, 5000);
+
+  return () => {
+    isActive = false;
+    clearInterval(interval);
+  };
+}, []);
+
 
 
   return (
