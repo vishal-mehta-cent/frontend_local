@@ -128,6 +128,29 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
       window.removeEventListener("open-script-details", onOpenDetails);
   }, [navigate]);
 
+  useEffect(() => {
+    const user = localStorage.getItem("user_id");
+    const session = localStorage.getItem("session_id");
+
+    if (!user || !session) return;
+
+    const interval = setInterval(async () => {
+      const res = await fetch(
+        `${API}/auth/validate-session?username=${user}&session_id=${session}`
+      );
+      const data = await res.json();
+
+      if (!data.valid) {
+        alert("You were logged out because you logged in from another device.");
+        localStorage.clear();
+        window.location.href = "/";
+      }
+    }, 5000); // check every 5 sec
+
+    return () => clearInterval(interval);
+  }, []);
+
+
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
@@ -240,7 +263,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           path="/profile/funds"
           element={<Funds username={localStorage.getItem("username")} />}
         />
-         <Route
+        <Route
           path="/payments"
           element={username ? <Payments /> : <Navigate to="/" replace />}
         />
