@@ -81,20 +81,26 @@ function AuthScreen({ onLoginSuccess }) {
 
 export default function App() {
   const [username, setUsername] = useState(() =>
-    localStorage.getItem("username")
+    localStorage.getItem("user_id")
   );
 
   useEffect(() => {
-    if (username) localStorage.setItem("username", username);
-    else localStorage.removeItem("username");
+    if (username) localStorage.setItem("user_id", username);
+    else localStorage.removeItem("user_id");
   }, [username]);
+
 
   const handleLoginSuccess = (user) => {
     setUsername(user);
     window.location.href = "/menu";
   };
 
-  const handleLogout = () => setUsername(null);
+  const handleLogout = () => {
+    localStorage.clear();
+    setUsername(null);
+    window.location.replace("/");
+  };
+
 
   return (
     <BrowserRouter>
@@ -129,45 +135,44 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   }, [navigate]);
 
   useEffect(() => {
-  const user = localStorage.getItem("user_id");
-  const session = localStorage.getItem("session_id");
+    const user = localStorage.getItem("user_id");
+    const session = localStorage.getItem("session_id");
 
-  // ❗ DO NOT start polling if missing data
-  if (!user || !session) return;
+    if (!user || !session) return;
 
-  let isActive = true;
+    let active = true;
 
-  const interval = setInterval(async () => {
-    try {
-      const res = await fetch(
-        `${API}/auth/validate-session?username=${user}&session_id=${session}`
-      );
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `${API}/auth/validate-session?username=${user}&session_id=${session}`
+        );
 
-      if (!res.ok) throw new Error("Server error");
+        if (!res.ok) throw new Error("Network");
 
-      const data = await res.json();
+        const data = await res.json();
 
-      if (isActive && !data.valid) {
-        isActive = false;
-        clearInterval(interval);
+        if (active && !data.valid) {
+          active = false;
+          clearInterval(interval);
 
-        alert("You were logged out because you logged in from another device.");
+          alert("You were logged out because you logged in from another device.");
 
-        localStorage.clear();
-        window.location.replace("/");
+          localStorage.clear();
+          setUsername(null);
+          window.location.replace("/");
+        }
+      } catch {
+        clearInterval(interval); // silent stop
       }
-    } catch (err) {
-      // ❗ SILENT FAIL (do NOT show error)
-      console.log("Session check stopped");
-      clearInterval(interval);
-    }
-  }, 5000);
+    }, 5000);
 
-  return () => {
-    isActive = false;
-    clearInterval(interval);
-  };
-}, []);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [username]);
+
 
 
 
