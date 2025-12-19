@@ -51,6 +51,8 @@ export default function LoginRegister({ onLoginSuccess }) {
         if (isLogin) {
           // ✅ SAVE USER DETAILS (VERY IMPORTANT)
           localStorage.setItem("user_id", username);
+          localStorage.setItem("session_id", data.session_id);
+
           localStorage.setItem("email_id", data.email || "");
 
           onLoginSuccess(username);
