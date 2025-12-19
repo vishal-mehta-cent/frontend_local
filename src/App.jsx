@@ -39,8 +39,12 @@ import History from "./pages/History";
 import ModifyOrderPage from "./pages/ModifyOrderPage";
 import ProfileDetail from "./pages/ProfileDetail";
 import Payments from "./pages/Payments.jsx";
-import LiveChart from "./pages/LiveChart"; // ✅ added
+import LiveChart from "./pages/LiveChart";
 import Whatsapp from "./pages/Whatsapp";
+
+// ✅ Backend API base
+const API =
+  import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
 function RouteAwareTopRightLogo() {
@@ -50,18 +54,13 @@ function RouteAwareTopRightLogo() {
     pathname === "/loginregister" ||
     pathname.startsWith("/auth");
 
-  const API =
-    import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
-
-
   if (hide) return null;
 
-  // Render on top of everything to avoid being hidden by page headers
   return createPortal(
     <div className="fixed top-1 right-3 z-[99999] pointer-events-none">
       <a href="/menu" aria-label="Home" className="pointer-events-auto">
         <img
-          src="/logo1.png" // ensure this file is in /public
+          src="/logo1.png"
           alt="App Logo"
           className="h-10 w-auto md:h-12 drop-shadow-lg select-none"
           draggable={false}
@@ -72,7 +71,7 @@ function RouteAwareTopRightLogo() {
   );
 }
 
-/** Auth screen with centered branding above the login/register UI */
+/** Auth screen */
 function AuthScreen({ onLoginSuccess }) {
   return (
     <div className="flex-1 flex items-start justify-center px-4 pb-8">
@@ -93,7 +92,6 @@ export default function App() {
     else localStorage.removeItem("user_id");
   }, [username]);
 
-
   const handleLoginSuccess = (user) => {
     setUsername(user);
     window.location.href = "/menu";
@@ -105,13 +103,9 @@ export default function App() {
     window.location.replace("/");
   };
 
-
   return (
     <BrowserRouter>
-      {/* Top-right logo for all non-auth routes */}
       <RouteAwareTopRightLogo />
-
-      {/* Toasts */}
       <ToastContainer position="top-center" autoClose={2000} />
 
       <AnimatedRoutes
@@ -127,6 +121,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // -------------------------------------------------------
+  // Listen to custom open-script-details event
+  // -------------------------------------------------------
   useEffect(() => {
     function onOpenDetails(e) {
       const symbol = e?.detail?.symbol;
@@ -138,6 +135,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
       window.removeEventListener("open-script-details", onOpenDetails);
   }, [navigate]);
 
+  // -------------------------------------------------------
+  // 🔥 ZERODHA-STYLE SINGLE SESSION WATCHER
+  // -------------------------------------------------------
   useEffect(() => {
     const user = localStorage.getItem("user_id");
     const session = localStorage.getItem("session_id");
@@ -152,7 +152,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           `${API}/auth/validate-session?username=${user}&session_id=${session}`
         );
 
-        if (!res.ok) throw new Error("Network");
+        if (!res.ok) throw new Error("Network error");
 
         const data = await res.json();
 
@@ -160,14 +160,14 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           active = false;
           clearInterval(interval);
 
-          alert("You were logged out because you logged in from another device.");
+          alert(
+            "You were logged out because you logged in from another device."
+          );
 
-          localStorage.clear();
-          setUsername(null);
-          window.location.replace("/");
+          onLogout(); // ✅ single source of truth
         }
       } catch {
-        clearInterval(interval); // silent stop
+        clearInterval(interval); // silent stop on network fail
       }
     }, 5000);
 
@@ -175,15 +175,11 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
       active = false;
       clearInterval(interval);
     };
-  }, [username]);
-
-
-
+  }, [username, onLogout]);
 
   return (
     <AnimatePresence mode="wait" initial={false}>
       <Routes location={location} key={location.pathname}>
-        {/* Auth route: branding + login/register */}
         <Route
           path="/"
           element={
@@ -261,13 +257,17 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             )
           }
         />
+
         <Route
           path="/recommendations"
-          element={username ? <Recommendation /> : <Navigate to="/" replace />} />
+          element={username ? <Recommendation /> : <Navigate to="/" replace />}
+        />
+
         <Route
           path="/insight"
           element={username ? <Insight /> : <Navigate to="/" replace />}
         />
+
         <Route
           path="/ipo-tracker"
           element={username ? <IpoTracker /> : <Navigate to="/" replace />}
@@ -275,7 +275,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
         <Route
           path="/feedback"
-          element={<Feedback username={localStorage.getItem("username")} />}
+          element={<Feedback username={username} />}
         />
 
         <Route
@@ -288,22 +288,16 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             )
           }
         />
-        <Route
-          path="/profile/funds"
-          element={<Funds username={localStorage.getItem("username")} />}
-        />
+
+        <Route path="/profile/funds" element={<Funds username={username} />} />
+
         <Route
           path="/payments"
           element={username ? <Payments /> : <Navigate to="/" replace />}
         />
+
         <Route
           path="/history"
-          element={
-            username ? <History username={username} /> : <Navigate to="/" replace />
-          }
-        />
-        <Route
-          path="/history/:username"
           element={
             username ? <History username={username} /> : <Navigate to="/" replace />
           }
@@ -313,14 +307,14 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           path="/settings"
           element={username ? <Settings /> : <Navigate to="/" replace />}
         />
+
         <Route
           path="/settings/change-password"
           element={username ? <PasswordChange /> : <Navigate to="/" replace />}
         />
-        <Route
-          path="/profile/details"
-          element={<ProfileDetail />}
-        />
+
+        <Route path="/profile/details" element={<ProfileDetail />} />
+
         <Route
           path="/settings/change-email"
           element={username ? <EmailChange /> : <Navigate to="/" replace />}
@@ -328,18 +322,17 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
         <Route path="/modify/:id" element={<ModifyOrderPage />} />
 
-        {/* ✅ New: realtime TradingView-like live chart page */}
         <Route
           path="/live"
           element={username ? <LiveChart /> : <Navigate to="/" replace />}
         />
+
         <Route
           path="/whatsapp"
           element={username ? <Whatsapp /> : <Navigate to="/" replace />}
         />
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/" replace />} />
 
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
   );
