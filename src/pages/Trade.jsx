@@ -28,6 +28,8 @@ export default function Trade({ username }) {
   const [sellConfirmMsg, setSellConfirmMsg] = useState("");
   const [sellPreviewData, setSellPreviewData] = useState(null);
   const [sellSymbol, setSellSymbol] = useState(null);
+  const [portfolioMap, setPortfolioMap] = useState({});
+
 
   // ⭐ NEW — WhatsApp alert list
   const [whatsappList, setWhatsappList] = useState([]);
@@ -41,11 +43,32 @@ export default function Trade({ username }) {
   // ---------------------------
   // INITIAL LOAD
   // ---------------------------
-  useEffect(() => {
-    fetchWatchlist();
-    fetchFunds();
-    preloadScripts();
-  }, [username]);
+useEffect(() => {
+  if (!who) return;
+
+  fetch(`${API}/portfolio/${who}`)
+    .then(res => res.json())
+    .then(data => {
+      const map = {};
+      (data?.open || []).forEach(p => {
+  if (Number(p.qty) > 0) {
+    map[p.symbol.toUpperCase()] = true;
+  }
+});
+
+      setPortfolioMap(map);
+    })
+    .catch(() => setPortfolioMap({}));
+}, [who]);
+
+useEffect(() => {
+  if (!who) return;
+
+  fetchWatchlist();
+  fetchFunds();
+  preloadScripts();
+}, [who]);
+
 
   // ⭐ Load WhatsApp Alerts only once
   useEffect(() => {
@@ -426,11 +449,18 @@ export default function Trade({ username }) {
         body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
-      const needsConfirm =
-        data?.needs_confirmation === true ||
-        data?.code === "NEEDS_CONFIRM_SHORT" ||
-        res.status === 409 ||
-        Number(data?.owned_qty || 0) === 0;
+      const needsConfirm = data?.needs_confirmation === true;
+
+if (!needsConfirm) {
+  nav(`/sell/${sym}`, {
+    state: {
+      preview: data,
+      allow_short: false
+    }
+  });
+  return;
+}
+
 
       if (res.ok && !needsConfirm) {
         nav(`/sell/${sym}`, {
@@ -699,6 +729,7 @@ export default function Trade({ username }) {
       <ScriptDetailsModal
         symbol={selectedSymbol}
         quote={selectedQuote}
+        hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}  // ✅ FIX
         onClose={() => {
           setSelectedSymbol(null);
           if (modalPollRef.current) {
