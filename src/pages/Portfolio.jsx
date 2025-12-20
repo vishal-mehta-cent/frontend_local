@@ -195,8 +195,45 @@ export default function Portfolio({ username }) {
     return () => clearInterval(pollRef.current);
   }, [filteredOpen]);
 
-  const handleAdd = (symbol) => navigate(`/buy/${symbol}`);
-  const handleExit = (symbol) => navigate(`/sell/${symbol}`);
+const handleAdd = (symbol, position) => {
+  navigate(`/buy/${symbol}`, {
+    state: {
+      fromPortfolio: true,
+      fromAdd: true,
+
+      qty: position.qty,
+      segment: position.segment || "delivery",
+      exchange: "NSE",
+
+      stoploss: position.stoploss || "",
+      target: position.target || "",
+
+      orderMode: "MARKET",
+    },
+  });
+};
+
+const handleExit = (symbol, position) => {
+  navigate(`/sell/${symbol}`, {
+    state: {
+      fromPortfolio: true,
+
+      qty: position.qty,
+      segment: position.segment || "delivery",
+      exchange: "NSE",
+
+      stoploss: position.stoploss || "",
+      target: position.target || "",
+
+      orderMode: "MARKET",
+
+      // 🔥 IMPORTANT FLAGS
+      skipSellFirstCheck: true,
+      allowShort: false,
+    },
+  });
+};
+
   const handleCloseModal = () => setSelected(null);
   const handleNoteIn = (symbol) =>
     navigate(`/notes/${encodeURIComponent((symbol || "").toUpperCase())}`);
@@ -487,10 +524,17 @@ export default function Portfolio({ username }) {
                     }
                   >
                     <div className="flex justify-between text-sm">
-                      <span className="text-green-600 font-semibold">
-                        BUY • {qty} Qty
-                      </span>
-                    </div>
+  {qty < 0 ? (
+    <span className="text-orange-600 font-semibold">
+      SELL FIRST • {Math.abs(qty)} Qty
+    </span>
+  ) : (
+    <span className="text-green-600 font-semibold">
+      BUY • {qty} Qty
+    </span>
+  )}
+</div>
+
 
                     <div className="mt-1 flex items-start justify-between gap-2">
                       <div>
@@ -612,7 +656,7 @@ export default function Portfolio({ username }) {
             <div className="flex justify-around border-t pt-4 mt-4">
               <button
                 onClick={() => {
-                  handleAdd(selected.symbol);
+                  handleAdd(selected.symbol, selected);
                   handleCloseModal();
                 }}
                 className="px-4 py-2 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600"
@@ -621,7 +665,7 @@ export default function Portfolio({ username }) {
               </button>
               <button
                 onClick={() => {
-                  handleExit(selected.symbol);
+                  handleExit(selected.symbol, selected);
                   handleCloseModal();
                 }}
                 className="px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600"
