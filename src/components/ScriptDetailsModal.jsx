@@ -1,13 +1,14 @@
 // frontend/src/components/ScriptDetailsModal.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaWhatsapp } from "react-icons/fa";
 import { toast } from "react-toastify";
 
+
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
-  "https://paper-trading-backend.onrender.com";
+  "http://localhost:8000";
 
 export default function ScriptDetailsModal({
   symbol,
@@ -18,16 +19,19 @@ export default function ScriptDetailsModal({
   onSell,
   hasPosition = false,
 }) {
-  if (!symbol) return null;
-
+  // ✅ HOOKS MUST ALWAYS RUN
   const navigate = useNavigate();
-  const sym = (symbol || quote?.symbol || "").toString().toUpperCase();
   const loc = useLocation();
-
   const [showConfirmSellFirst, setShowConfirmSellFirst] = useState(false);
 
+  // ✅ SAFE early return AFTER hooks
+  if (!symbol) return null;
+
+  const sym = (symbol || quote?.symbol || "").toString().toUpperCase();
+// 🔥 FORCE-HIDE sell-first confirmation on route change
+
   // =============================
-  // ADD TO WHATSAPP ALERT FUNCTION
+  // ADD TO WHATSAPP ALERT
   // =============================
   const addToWhatsappAlert = async () => {
     try {
@@ -39,58 +43,189 @@ export default function ScriptDetailsModal({
 
       const data = await res.json();
 
-      // ⭐ DUPLICATE SCRIPT
       if (data.status === "exists") {
         toast.info(`${sym} already exists in WhatsApp Alerts`);
         return;
       }
 
-      // ⭐ ADDED SUCCESSFULLY
       if (data.status === "ok") {
         toast.success(`${sym} added to WhatsApp Alerts!`);
-
-        // Optional: auto redirect after toast
-        setTimeout(() => {
-          navigate("/whatsapp");
-        }, 1200);
-
+        setTimeout(() => navigate("/whatsapp"), 1200);
         return;
       }
 
-      // ⭐ ANY OTHER ERROR
       toast.error("Unable to add alert. Try again.");
-
-    } catch (e) {
+    } catch {
       toast.error("Failed to add alert!");
     }
   };
 
-
+  // =============================
+  // ADD NOTES
+  // =============================
   const handleAddNotes = () => {
     navigate(`/notes/${sym}`, { state: { symbol: sym } });
   };
+const fetchPortfolioPosition = async (symbol) => {
+  const username =
+    localStorage.getItem("username") ||
+    localStorage.getItem("userId");
 
-  const handleSellClick = () => {
-    if (!hasPosition) {
-      setShowConfirmSellFirst(true);
-    } else {
-      onSell && onSell(false);
-      onClose && onClose();
+  if (!username) return null;
+
+  try {
+    const res = await fetch(`${API}/portfolio/${username}`);
+    const data = await res.json();
+
+    if (!res.ok || !Array.isArray(data.open)) return null;
+
+    const pos = data.open.find(
+      (p) =>
+        (p.symbol || p.script || "").toUpperCase() === symbol.toUpperCase()
+    );
+
+    return pos || null;
+  } catch {
+    return null;
+  }
+};
+
+  // =============================
+  // SELL PREVIEW API
+  // =============================
+  const previewSell = async () => {
+    const username =
+      localStorage.getItem("userId") ||
+      localStorage.getItem("username");
+
+    console.log("SELL PREVIEW USER:", username);
+
+    if (!username) {
+      throw new Error("User not logged in");
     }
+
+    const res = await fetch(`${API}/orders/sell/preview`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username,
+        script: sym,
+        qty: 1,
+      }),
+    });
+
+    const data = await res.json();
+    console.log("SELL PREVIEW RESPONSE:", res.status, data);
+
+    if (!res.ok) {
+      return { needs_confirmation: true };
+    }
+
+
+    return data;
   };
 
-  const confirmSellFirst = () => {
-    setShowConfirmSellFirst(false);
-    onSell && onSell(true);
+  // =============================
+  // SELL CLICK HANDLER
+  // =============================
+const handleSellClick = async () => {
+  try {
+    // =====================================================
+    // ✅ 1. FIRST: Check portfolio holdings
+    // =====================================================
+    const position = await fetchPortfolioPosition(sym);
+
+    // =====================================================
+    // ✅ 2. If user already owns stock → DIRECT SELL
+    //     (NO sell-first confirmation)
+    // =====================================================
+    if (position && Number(position.qty) > 0) {
+      // 🔴 IMPORTANT: close modal FIRST
+      onClose && onClose();
+
+      // ⏱ navigate after modal unmount
+      setTimeout(() => {
+        navigate(`/sell/${sym}`, {
+          state: {
+            fromPortfolio: true,
+            skipSellFirstCheck: true,
+            qty: Math.abs(position.qty),
+            segment: position.segment || "delivery",
+            stoploss: position.stoploss ?? "",
+            target: position.target ?? "",
+            allowShort: false,
+          },
+        });
+      }, 0);
+
+      return;
+    }
+
+    // =====================================================
+    // ❌ 3. ONLY if NO portfolio → call SELL PREVIEW
+    // =====================================================
+    const preview = await previewSell();
+
+    if (preview.needs_confirmation) {
+      setShowConfirmSellFirst(true);
+      return;
+    }
+
+    // =====================================================
+    // 4. Fallback (rare case)
+    // =====================================================
     onClose && onClose();
-  };
+
+    setTimeout(() => {
+      navigate(`/sell/${sym}`, {
+        state: { allowShort: false },
+      });
+    }, 0);
+  } catch (err) {
+    console.error("SELL PREVIEW ERROR:", err);
+    alert("Unable to check holdings right now. Please try again.");
+  }
+};
+
+
+  // =============================
+  // CONFIRM SELL FIRST
+  // =============================
+const confirmSellFirst = async () => {
+  // =====================================================
+  // Close confirmation modal
+  // =====================================================
+  setShowConfirmSellFirst(false);
+
+  const position = await fetchPortfolioPosition(sym);
+
+  // 🔴 IMPORTANT: close ScriptDetailsModal FIRST
+  onClose && onClose();
+
+  // ⏱ navigate after modal unmount
+  setTimeout(() => {
+    navigate(`/sell/${sym}`, {
+      state: position
+        ? {
+            fromPortfolio: true,
+            qty: Math.abs(position.qty),
+            segment: position.segment || "delivery",
+            stoploss: position.stoploss ?? "",
+            target: position.target ?? "",
+            allowShort: true, // ✅ SELL FIRST allowed
+          }
+        : {
+            allowShort: true,
+          },
+    });
+  }, 0);
+};
+
 
   const target = typeof document !== "undefined" ? document.body : null;
+
   const body = (
-    <div
-      key={sym}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    >
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="relative bg-white w-full max-w-md md:rounded-xl rounded-t-2xl md:h-auto h-[70%] overflow-auto p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">{sym}</h2>
@@ -106,7 +241,9 @@ export default function ScriptDetailsModal({
           </div>
           <div>
             Change:{" "}
-            {Number.isFinite(quote?.change) ? Number(quote.change).toFixed(2) : "--"} (
+            {Number.isFinite(quote?.change)
+              ? Number(quote.change).toFixed(2)
+              : "--"} (
             {Number.isFinite(quote?.pct_change)
               ? Number(quote.pct_change).toFixed(2)
               : "--"}
@@ -141,12 +278,12 @@ export default function ScriptDetailsModal({
         </div>
 
         <div className="flex flex-wrap gap-3 text-sm">
-
-
           <button
             onClick={() => {
               window.dispatchEvent(
-                new CustomEvent("open-chart", { detail: { symbol: sym } })
+                new CustomEvent("open-chart", {
+                  detail: { symbol: sym },
+                })
               );
               onClose && onClose();
             }}
@@ -155,8 +292,6 @@ export default function ScriptDetailsModal({
             📈 View Chart
           </button>
 
-          {/* ❌ REMOVED "Set Alert" button */}
-
           <button
             onClick={handleAddNotes}
             className="bg-gray-200 px-3 py-2 rounded-lg"
@@ -164,15 +299,12 @@ export default function ScriptDetailsModal({
             📝 Add Notes
           </button>
 
-          {/* ⭐ WhatsApp Alert button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               addToWhatsappAlert();
             }}
-
             style={{
-              backgroundColor: "gray-200",
               border: "2px solid #25D366",
               padding: "6px 10px",
               borderRadius: "6px",
@@ -181,31 +313,25 @@ export default function ScriptDetailsModal({
               gap: "6px",
               color: "#25D366",
               fontWeight: "600",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = "#e6f9ee";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = "white";
+              background: "white",
             }}
           >
-            <FaWhatsapp size={18} color="#25D366" /> Alert
+            <FaWhatsapp size={18} /> Alert
           </button>
-
         </div>
 
         {showConfirmSellFirst && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
             <div className="bg-white rounded-xl p-5 w-full max-w-sm shadow-lg">
               <p className="text-center text-gray-800 mb-5">
-                You didn&apos;t buy <span className="font-semibold">{sym}</span>.
+                You didn&apos;t buy <b>{sym}</b>.
                 <br />
                 Do you still want to sell first?
               </p>
               <div className="flex justify-center gap-3">
                 <button
                   onClick={() => setShowConfirmSellFirst(false)}
-                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800"
+                  className="px-4 py-2 rounded-lg bg-gray-200"
                 >
                   NO
                 </button>
