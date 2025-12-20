@@ -1,21 +1,16 @@
-// frontend/src/pages/Buy.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import BackButton from "../components/BackButton";
 
-const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com"; // backend API base
+const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
 
-// ✅ STEP 1 — Market hours helper (UTC based)
 function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
-
   const OPEN = 3 * 60 + 45;
-  const CLOSE = 8 * 60 + 37;
-
+  const CLOSE = 10 * 60 + 37;
   return minutes >= OPEN && minutes <= CLOSE;
 }
-
 
 export default function Buy() {
   const { symbol } = useParams();
@@ -23,17 +18,20 @@ export default function Buy() {
   const location = useLocation();
   const prefill = location.state || {};
 
-  // Mode flags
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
 
-  // Prefill inputs if passed
   const [qty, setQty] = useState(prefill.qty || "");
   const [price, setPrice] = useState(prefill.price || "");
   const [exchange, setExchange] = useState(prefill.exchange || "NSE");
   const [segment, setSegment] = useState(prefill.segment || "intraday");
   const [stoploss, setStoploss] = useState(prefill.stoploss || "");
   const [target, setTarget] = useState(prefill.target || "");
+
+  const [isFNO, setIsFNO] = useState(false);
+  const [lotSize, setLotSize] = useState(1);
+  const [lotQty, setLotQty] = useState(0);
+  const [fnoPrice, setFnoPrice] = useState(0);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successModal, setSuccessModal] = useState(false);
@@ -47,7 +45,43 @@ export default function Buy() {
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
 
-  // -------- Check market time on mount (UTC based) --------
+  useEffect(() => {
+    if (!symbol) return;
+
+    fetch(`${API}/market/instrument-info?symbol=${symbol}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.is_fno === true) {
+          setIsFNO(true);
+          setLotSize(Number(data.lot_size) || 1);
+        } else {
+          setIsFNO(false);
+          setLotSize(1);
+        }
+      })
+      .catch((err) => {
+        console.error("Instrument info fetch error:", err);
+        setIsFNO(false);
+        setLotSize(1);
+      });
+  }, [symbol]);
+
+  useEffect(() => {
+    if (!isFNO || !livePrice || !lotSize) return;
+
+    const enteredQty = Number(qty);
+
+    if (!enteredQty || enteredQty <= 0) {
+      setLotQty(0);
+      setFnoPrice(livePrice);
+      return;
+    }
+
+    const lots = enteredQty * lotSize;
+    setLotQty(lots);
+    setFnoPrice(lots * livePrice);
+  }, [qty, lotSize, livePrice, isFNO]);
+
   useEffect(() => {
     const checkMarket = () => {
       const open = isMarketOpenUTC();
@@ -59,16 +93,11 @@ export default function Buy() {
       }
     };
 
-    checkMarket(); // run immediately
-    const id = setInterval(checkMarket, 30_000); // every 30 sec
-
+    checkMarket();
+    const id = setInterval(checkMarket, 30_000);
     return () => clearInterval(id);
   }, [orderMode]);
 
-
-
-
-  // -------- Live price polling --------
   useEffect(() => {
     if (!symbol) return;
     let cancelled = false;
@@ -96,10 +125,8 @@ export default function Buy() {
       cancelled = true;
       clearInterval(id);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, orderMode]);
+  }, [symbol, orderMode, price]);
 
-  // -------- Submit --------
   const handleSubmit = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -107,17 +134,11 @@ export default function Buy() {
     setSuccessText("");
 
     try {
-      // 🔒 HARD BLOCK
       if (!marketOpen && orderMode === "LIMIT") {
         throw new Error("❌ Limit orders are not allowed after market close.");
       }
 
-      // 🛠️ STEP 2 — MODIFY LIMIT → MARKET (EXECUTE IMMEDIATELY)
-      if (
-        isModify &&
-        prefill.modifyId &&
-        orderMode === "MARKET"
-      ) {
+      if (isModify && prefill.modifyId && orderMode === "MARKET") {
         const res = await fetch(
           `${API}/orders/convert-to-market/${prefill.modifyId}`,
           { method: "POST" }
@@ -137,15 +158,14 @@ export default function Buy() {
         }, 1200);
 
         setSubmitting(false);
-        return; // ⛔ VERY IMPORTANT — stop here
+        return;
       }
-
-
 
       if (!username) throw new Error("❌ Please login again.");
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
-      const qtyNum = Number(qty);
+      const qtyNum = isFNO ? Number(lotQty) : Number(qty);
+
       if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
         throw new Error("❌ Please enter a valid quantity (> 0).");
       }
@@ -195,16 +215,13 @@ export default function Buy() {
       data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.detail || "Order failed");
 
-      // ✅ Success message mapping you asked for:
       if (isAdd) {
         setSuccessText("Added to Position ✅");
       } else if (isModify) {
         setSuccessText("Modify Successful ✅");
       } else if (orderMode === "LIMIT") {
-        // LIMIT: show "Order Successful"
         setSuccessText("Order Successful ✅");
       } else {
-        // MARKET: show "Buy Successful"
         setSuccessText("Buy Successful ✅");
       }
 
@@ -212,7 +229,6 @@ export default function Buy() {
 
       setTimeout(() => {
         setSuccessModal(false);
-        // Keep your existing redirection logic:
         if (data && data.triggered) {
           nav("/orders", { state: { refresh: true, tab: "positions" } });
         } else {
@@ -227,15 +243,19 @@ export default function Buy() {
   };
 
   const handleModifyPosition = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    setErrorMsg("");
+
     try {
       const payload = {
-        username: localStorage.getItem("username"),
-        script: symbol, // e.g. "TCS"
-        new_qty: Number(qty),
+        username,
+        script: symbol,
+        new_qty: isFNO ? Number(lotQty) : Number(qty),
         stoploss: stoploss ? Number(stoploss) : null,
         target: target ? Number(target) : null,
-        price_type: orderType, // "MARKET" or "LIMIT"
-        limit_price: limitPrice ? Number(limitPrice) : null,
+        price_type: orderMode,
+        limit_price: orderMode === "LIMIT" ? Number(price) : null,
       };
 
       const res = await fetch(`${API}/positions/modify`, {
@@ -247,12 +267,23 @@ export default function Buy() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Error modifying position");
 
-      toast.success("Position modified successfully!");
-      navigate("/orders"); // optional redirect
+      setSuccessText("Position modified successfully!");
+      setSuccessModal(true);
+
+      setTimeout(() => {
+        setSuccessModal(false);
+        nav("/orders", { state: { refresh: true, tab: "positions" } });
+      }, 1500);
     } catch (err) {
-      console.error(err);
-      toast.error(err.message);
+      setErrorMsg(err.message || "Server error");
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const handlePriceChange = (e) => {
+    setPrice(e.target.value);
+    userEditedPrice.current = true;
   };
 
   return (
@@ -273,12 +304,46 @@ export default function Buy() {
           </div>
         )}
 
-        <div className="text-sm text-center text-gray-700 mb-2">
-          Live Price:{" "}
-          <span className="font-semibold text-green-600">
-            {livePrice != null ? `₹${livePrice}` : "--"}
-          </span>
-        </div>
+        {isFNO ? (
+          <div className="bg-white p-4 rounded-lg shadow text-center space-y-2">
+            <div className="text-sm">
+              <strong>PRICE :</strong>{" "}
+              <span className="text-green-600">
+                ₹{fnoPrice ? fnoPrice.toFixed(2) : "--"}
+              </span>
+            </div>
+
+            <div className="flex justify-center gap-6 mt-3">
+              <div>
+                <div className="text-xs text-gray-500">QTY</div>
+                <input
+                  type="number"
+                  min="1"
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                  className="w-20 px-2 py-1 border rounded text-center"
+                />
+              </div>
+
+              <div>
+                <div className="text-xs text-gray-500">LOT</div>
+                <input
+                  type="number"
+                  value={lotQty}
+                  disabled
+                  className="w-24 px-2 py-1 border rounded text-center bg-gray-100"
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-sm text-center text-gray-700 mb-2">
+            Live Price:{" "}
+            <span className="font-semibold text-green-600">
+              {livePrice != null ? `₹${livePrice}` : "--"}
+            </span>
+          </div>
+        )}
 
         <div className="flex justify-center gap-4">
           <label className="flex items-center gap-2">
@@ -300,7 +365,6 @@ export default function Buy() {
               disabled={!marketOpen}
               onChange={() => setOrderMode("LIMIT")}
             />
-
             <span className={!marketOpen ? "text-gray-400" : ""}>
               Limit {!marketOpen && "(Market Closed)"}
             </span>
@@ -318,31 +382,34 @@ export default function Buy() {
         <input
           type="number"
           value={orderMode === "LIMIT" ? price : ""}
+          onChange={handlePriceChange}
           disabled={orderMode === "MARKET" || !marketOpen}
           placeholder={
             !marketOpen
               ? "Limit orders disabled after market close"
               : "Enter Limit Price"
           }
-          className={`w-full px-4 py-3 border rounded-lg ${orderMode === "MARKET" || !marketOpen
-            ? "bg-gray-100 cursor-not-allowed"
-            : ""
-            }`}
+          className={`w-full px-4 py-3 border rounded-lg ${
+            orderMode === "MARKET" || !marketOpen
+              ? "bg-gray-100 cursor-not-allowed"
+              : ""
+          }`}
         />
-
 
         <div className="flex justify-between">
           <button
             onClick={() => setSegment("intraday")}
-            className={`w-1/2 py-2 rounded-l-lg ${segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
-              }`}
+            className={`w-1/2 py-2 rounded-l-lg ${
+              segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
           >
             Intraday
           </button>
           <button
             onClick={() => setSegment("delivery")}
-            className={`w-1/2 py-2 rounded-r-lg ${segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
-              }`}
+            className={`w-1/2 py-2 rounded-r-lg ${
+              segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
           >
             Delivery
           </button>
@@ -351,15 +418,17 @@ export default function Buy() {
         <div className="flex justify-between">
           <button
             onClick={() => setExchange("NSE")}
-            className={`w-1/2 py-2 rounded-l-lg ${exchange === "NSE" ? "bg-blue-600 text-white" : "bg-gray-200"
-              }`}
+            className={`w-1/2 py-2 rounded-l-lg ${
+              exchange === "NSE" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
           >
             NSE
           </button>
           <button
             onClick={() => setExchange("BSE")}
-            className={`w-1/2 py-2 rounded-r-lg ${exchange === "BSE" ? "bg-blue-600 text-white" : "bg-gray-200"
-              }`}
+            className={`w-1/2 py-2 rounded-r-lg ${
+              exchange === "BSE" ? "bg-blue-600 text-white" : "bg-gray-200"
+            }`}
           >
             BSE
           </button>
@@ -382,10 +451,11 @@ export default function Buy() {
       </div>
 
       <button
-        onClick={isAdd ? handleModifyPosition : handleSubmit}  // ✅ key change here
+        onClick={isAdd ? handleModifyPosition : handleSubmit}
         disabled={submitting}
-        className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${submitting ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-          }`}
+        className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${
+          submitting ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+        }`}
       >
         {submitting
           ? "Processing…"
@@ -395,7 +465,6 @@ export default function Buy() {
               ? "Save Changes"
               : "BUY"}
       </button>
-
 
       {successModal && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
