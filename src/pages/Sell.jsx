@@ -25,6 +25,7 @@ const allowShort = Boolean(
   // Mode flags
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
+  const isPositionModify = Boolean(prefill.fromAdd); // 🔥 KEY
 
   // Prefill inputs if passed
   const [qty, setQty] = useState(prefill.qty || "");
@@ -111,6 +112,12 @@ useEffect(() => {
 
   // -------- Submit --------
   const handleSubmit = async () => {
+    // 🔥 ADD behaves exactly like MODIFY POSITION (SELL)
+if (isPositionModify) {
+  await handleModifyPosition();
+  return; // ⛔ STOP – do NOT place a new SELL
+}
+
     if (submitting) return;
     setSubmitting(true);
     setErrorMsg("");
@@ -218,6 +225,46 @@ useEffect(() => {
       setSubmitting(false);
     }
   };
+
+const handleModifyPosition = async () => {
+  if (submitting) return;
+  setSubmitting(true);
+  setErrorMsg("");
+
+  try {
+    const payload = {
+      username,
+      script: symbol,
+      new_qty: Number(qty),               // ✅ REPLACE QTY
+      stoploss: stoploss ? Number(stoploss) : null,
+      target: target ? Number(target) : null,
+      price_type: orderMode,
+      limit_price: orderMode === "LIMIT" ? Number(price) : null,
+    };
+
+    const res = await fetch(`${API}/orders/positions/modify`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.detail || "Error modifying position");
+
+    setSuccessText("Position modified successfully!");
+    setSuccessModal(true);
+
+    setTimeout(() => {
+      setSuccessModal(false);
+      nav("/orders", { state: { refresh: true, tab: "positions" } });
+    }, 1500);
+  } catch (err) {
+    setErrorMsg(err.message || "Server error");
+  } finally {
+    setSubmitting(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:max-w-xl md:mx-auto flex flex-col justify-between">
