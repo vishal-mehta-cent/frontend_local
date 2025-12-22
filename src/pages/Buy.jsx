@@ -44,6 +44,12 @@ export default function Buy() {
   const [submitting, setSubmitting] = useState(false);
 
   const username = localStorage.getItem("username");
+  useEffect(() => {
+  if (!username) {
+    nav("/login", { replace: true });
+  }
+}, [username, nav]);
+
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
 
@@ -162,8 +168,6 @@ export default function Buy() {
         setSubmitting(false);
         return;
       }
-
-      if (!username) throw new Error("❌ Please login again.");
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
       const qtyNum = isFNO ? Number(lotQty) : Number(qty);
