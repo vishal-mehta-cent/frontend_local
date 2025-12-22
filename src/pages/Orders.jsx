@@ -418,22 +418,19 @@ export default function Orders({ username }) {
     setShowActions(false);
   };
 
-  const handleAdd = (pos) => {
-    if (!pos) return;
-    navigate(`/buy/${pos.symbol || pos.script}`, {
-      state: {
-        fromAdd: true,
-        symbol: pos.symbol || pos.script,
-        qty: pos.qty,
-        price: pos.price,
-        exchange: pos.exchange || "NSE",
-        segment: pos.segment || "intraday",
-        orderMode: "MARKET",
-        stoploss: pos.stoploss,
-        target: pos.target,
-      },
-    });
-  };
+const handleAdd = (pos) => {
+  navigate(`/buy/${pos.symbol || pos.script}`, {
+    state: {
+      fromModify: true,          // 🔥 KEY
+      modifyMode: "POSITION",    // 🔥 KEY
+      qty: pos.qty,
+      stoploss: pos.stoploss,
+      target: pos.target,
+      segment: pos.segment,
+    },
+  });
+};
+
 
   const handleClose = async () => {
     if (!selectedOrder) return;
@@ -730,27 +727,26 @@ export default function Orders({ username }) {
               </div>
             ) : (
               // Positions modal actions
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  className="bg-green-600 text-white px-5 py-2 rounded-md hover:bg-green-700"
-                  onClick={() => {
-                    // ✅ use selectedOrder.script (or symbol) instead of undefined selectedScript
-                    const sym = getSymbol(selectedOrder);
-                    console.log("Navigating to Add:", sym);
-                    setShowActions(false);           // close modal
-                    navigate(`/add/${sym}`, { state: { fromAdd: true } });
-                  }}
-                >
-                  Add
-                </button>
+              <div className="flex justify-center gap-6">
+<button
+  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+  onClick={() => {
+    handleAdd(selectedOrder);   // ✅ reuse correct logic
+    setShowActions(false);      // close modal
+  }}
+>
+  Modify
+</button>
 
-                <button
-                  onClick={() => handleExit(selectedOrder)}
-                  className="bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg"
-                >
-                  Exit
-                </button>
-              </div>
+
+  <button
+    onClick={() => handleExit(selectedOrder)}
+    className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md"
+  >
+    Exit
+  </button>
+</div>
+
             )}
           </div>
         </div>
