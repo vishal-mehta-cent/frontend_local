@@ -529,9 +529,16 @@ const handleExit = (symbol, position) => {
       SELL FIRST • {Math.abs(qty)} Qty
     </span>
   ) : (
-    <span className="text-green-600 font-semibold">
-      BUY • {qty} Qty
-    </span>
+    <span
+  className={`font-semibold ${
+    p.side === "BUY"
+      ? "text-green-600"
+      : "text-red-600"
+  }`}
+>
+  {p.side} • {qty} Qty
+</span>
+
   )}
 </div>
 
