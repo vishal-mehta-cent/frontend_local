@@ -20,6 +20,8 @@ export default function Buy() {
 
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
+  const isPositionModify = Boolean(prefill.fromAdd); // 🔥 Add this
+
 
   const [qty, setQty] = useState(prefill.qty || "");
   const [price, setPrice] = useState(prefill.price || "");
@@ -192,13 +194,13 @@ export default function Buy() {
 
       let res, data;
 
-      if (isAdd) {
-        res = await fetch(`${API}/orders/add`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else if (isModify) {
+      if (isPositionModify) {
+  // 🔥 Treat ADD exactly like MODIFY POSITION
+  await handleModifyPosition();
+  return; // ⛔ STOP here, do not place new BUY
+}
+
+ else if (isModify) {
         res = await fetch(`${API}/orders/${prefill.modifyId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -258,7 +260,7 @@ export default function Buy() {
         limit_price: orderMode === "LIMIT" ? Number(price) : null,
       };
 
-      const res = await fetch(`${API}/positions/modify`, {
+      const res = await fetch(`${API}/orders/positions/modify`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -451,12 +453,15 @@ export default function Buy() {
       </div>
 
       <button
-        onClick={isAdd ? handleModifyPosition : handleSubmit}
-        disabled={submitting}
-        className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${
-          submitting ? "bg-green-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-        }`}
-      >
+  onClick={handleSubmit}   // ✅ ALWAYS use handleSubmit
+  disabled={submitting}
+  className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${
+    submitting
+      ? "bg-green-400 cursor-not-allowed"
+      : "bg-green-600 hover:bg-green-700"
+  }`}
+>
+
         {submitting
           ? "Processing…"
           : isAdd
