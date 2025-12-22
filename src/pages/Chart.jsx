@@ -2064,8 +2064,14 @@ useEffect(() => {
     if (!mainChart.current || !oscChart.current || !candles.length) return;
 
     // 1) clear all existing indicator series
-    Object.values(indSeriesMain.current).flat().forEach(s => { try { s.remove(); } catch {} });
-    Object.values(indSeriesOsc.current).flat().forEach(s => { try { s.remove(); } catch {} });
+   Object.values(indSeriesMain.current).flat().forEach(s => {
+  try { mainChart.current?.removeSeries(s); } catch {}
+});
+
+Object.values(indSeriesOsc.current).flat().forEach(s => {
+  try { oscChart.current?.removeSeries(s); } catch {}
+});
+
     indSeriesMain.current = {};
     indSeriesOsc.current = {};
     indDataMain.current = {};
@@ -2380,50 +2386,51 @@ useEffect(() => {
 
     // ✅ Robust delete: always removes the selected series from the chart AND state
     const onDeleteIndicator = () => {
-      const s = selectedIndicator;
-      if (!s) return;
+  const s = selectedIndicator;
+  if (!s) return;
 
-      // best-effort: clear and remove series from the chart immediately
-      try { s.setData([]); } catch {}
-      try { s.remove(); } catch {}
+  let deletedKeys = new Set();
 
-      // purge from main/osc maps
-      let mutatedKeys = new Set();
+  // 🔥 MAIN PANE
+  for (const [key, arr] of Object.entries(indSeriesMain.current)) {
+    if (arr.includes(s)) {
+      // delete ALL series of this indicator
+      arr.forEach(series => {
+        try { mainChart.current?.removeSeries(series); } catch {}
+      });
 
-      for (const [key, arr] of Object.entries(indSeriesMain.current)) {
-        if (!Array.isArray(arr)) continue;
-        const before = arr.length;
-        indSeriesMain.current[key] = arr.filter(series => series !== s);
-        if (indDataMain.current[key])
-          indDataMain.current[key] = indDataMain.current[key].filter(o => o.series !== s);
-        if (indSeriesMain.current[key].length !== before) mutatedKeys.add(key);
-      }
-      for (const [key, arr] of Object.entries(indSeriesOsc.current)) {
-        if (!Array.isArray(arr)) continue;
-        const before = arr.length;
-        indSeriesOsc.current[key] = arr.filter(series => series !== s);
-        if (indDataOsc.current[key])
-          indDataOsc.current[key] = indDataOsc.current[key].filter(o => o.series !== s);
-        if (indSeriesOsc.current[key].length !== before) mutatedKeys.add(key);
-      }
+      delete indSeriesMain.current[key];
+      delete indDataMain.current[key];
+      deletedKeys.add(key);
+    }
+  }
 
-      // any indicator that has no series left -> toggle off
-      if (mutatedKeys.size) {
-        setActive(prev => {
-          const next = { ...prev };
-          for (const key of mutatedKeys) {
-            const noneLeft =
-              (indSeriesMain.current[key]?.length ?? 0) === 0 &&
-              (indSeriesOsc.current[key]?.length ?? 0) === 0;
-            if (noneLeft) next[key] = false;
-          }
-          return next;
-        });
-      }
+  // 🔥 OSC PANE
+  for (const [key, arr] of Object.entries(indSeriesOsc.current)) {
+    if (arr.includes(s)) {
+      arr.forEach(series => {
+        try { oscChart.current?.removeSeries(series); } catch {}
+      });
 
-      setSelectedIndicator(null);
-      setIndTbOpen(false);
-    };
+      delete indSeriesOsc.current[key];
+      delete indDataOsc.current[key];
+      deletedKeys.add(key);
+    }
+  }
+
+  // 🔥 AUTO-UNTICK CHECKBOX
+  if (deletedKeys.size) {
+    setActive(prev => {
+      const next = { ...prev };
+      deletedKeys.forEach(k => (next[k] = false));
+      return next;
+    });
+  }
+
+  setSelectedIndicator(null);
+  setIndTbOpen(false);
+};
+
 
     return (
       <div
