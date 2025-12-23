@@ -2543,8 +2543,8 @@ async function generateSignal() {
   if (isRunningRef.current) {
     clearInterval(autoRunRef.current);
     isRunningRef.current = false;
-    setGenerateMode(false);
-    localStorage.setItem("NC_generateMode_" + symbol, "false");
+    setGenerateMode(true);
+     localStorage.setItem("NC_generateMode_" + symbol, "true");
 
     const btn = document.querySelector("#genBtn");
     if (btn) {
