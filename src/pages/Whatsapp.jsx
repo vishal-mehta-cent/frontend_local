@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import BackButton from "../components/BackButton";
 import { Search, ClipboardList, Trash2 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+
+
 
 
 const API =
@@ -10,8 +12,13 @@ const API =
     "https://paper-trading-backend.onrender.com";
 
 export default function Whatsapp() {
+    const location = useLocation();
+   const chartSymbol = location.state?.symbol || "";
+
     const [scripts, setScripts] = useState([]);
-    const [newScript, setNewScript] = useState(""); // ⭐ For adding script
+   const [newScript, setNewScript] = useState(() => chartSymbol || "");
+
+ // ⭐ For adding script
     const navigate = useNavigate();
     const [whatsappNumber, setWhatsappNumber] = useState("");
     const [loadingNumber, setLoadingNumber] = useState(false);
