@@ -108,10 +108,13 @@ const fetchPortfolioPosition = async (symbol) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        username,
-        script: sym,
-        qty: 1,
-      }),
+  username,
+  script: sym,
+  qty: 1,
+  exchange: "NSE",
+  segment: "intraday",
+  allow_short: false, // 🔥 REQUIRED
+}),
     });
 
     const data = await res.json();
