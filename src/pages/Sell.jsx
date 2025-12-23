@@ -5,6 +5,14 @@ import BackButton from "../components/BackButton";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com"; // backend API base
 
+function isMarketOpenUTC() {
+  const nowUTC = new Date();
+  const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
+  const OPEN = 3 * 60 + 45;
+  const CLOSE = 10 * 50 + 37;
+  return minutes >= OPEN && minutes <= CLOSE;
+}
+
 export default function Sell() {
   const { symbol } = useParams();
   const nav = useNavigate();
@@ -39,6 +47,12 @@ const allowShort = Boolean(
   const [successModal, setSuccessModal] = useState(false);
   const [successText, setSuccessText] = useState("");
   const [livePrice, setLivePrice] = useState(null);
+  // 🔥 FNO states
+const [isFNO, setIsFNO] = useState(false);
+const [lotSize, setLotSize] = useState(1);
+const [lotQty, setLotQty] = useState(0);
+const [totalInvestment, setTotalInvestment] = useState(0);
+
 
   const [orderMode, setOrderMode] = useState(prefill.orderMode || "MARKET");
   const [submitting, setSubmitting] = useState(false);
@@ -46,6 +60,7 @@ const allowShort = Boolean(
 
   const username = localStorage.getItem("username");
   const userEditedPrice = useRef(false);
+  const [marketOpen, setMarketOpen] = useState(true);
 
   // -------- Check market time on mount --------
 // -------- Check market time on mount --------
@@ -109,7 +124,58 @@ useEffect(() => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, orderMode]);
+useEffect(() => {
+  if (!symbol) return;
 
+  fetch(`${API}/market/instrument-info?symbol=${symbol}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.is_fno === true) {
+        setIsFNO(true);
+        setLotSize(Number(data.lot_size) || 1);
+      } else {
+        setIsFNO(false);
+        setLotSize(1);
+      }
+    })
+    .catch(() => {
+      setIsFNO(false);
+      setLotSize(1);
+    });
+}, [symbol]);
+
+useEffect(() => {
+  if (!isFNO || !livePrice || !lotSize) return;
+
+  const enteredQty = Number(qty);
+
+  // Qty not entered → no investment
+  if (!enteredQty || enteredQty <= 0) {
+    setLotQty(0);
+    setTotalInvestment(0);
+    return;
+  }
+
+  const lots = enteredQty * lotSize;
+  setLotQty(lots);
+  setTotalInvestment(lots * livePrice);
+}, [qty, lotSize, livePrice, isFNO]);
+
+  useEffect(() => {
+    const checkMarket = () => {
+      const open = isMarketOpenUTC();
+      setMarketOpen(open);
+
+      if (!open && orderMode === "LIMIT") {
+        setOrderMode("MARKET");
+        setPrice("");
+      }
+    };
+
+    checkMarket();
+    const id = setInterval(checkMarket, 30_000);
+    return () => clearInterval(id);
+  }, [orderMode]);
   // -------- Submit --------
   const handleSubmit = async () => {
     // 🔥 ADD behaves exactly like MODIFY POSITION (SELL)
@@ -122,12 +188,21 @@ if (isPositionModify) {
     setSubmitting(true);
     setErrorMsg("");
     setSuccessText("");
+    // 🚫 BLOCK intraday SELL after market close
+if (!marketOpen && segment === "intraday") {
+  setErrorMsg(
+    "❌ Intraday will not sell after market close. Please use Delivery."
+  );
+  setSubmitting(false);
+  return;
+}
+
 
     try {
       if (!username) throw new Error("❌ Please login again.");
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
-      const qtyNum = Number(qty);
+      const qtyNum = isFNO ? Number(lotQty) : Number(qty);
       if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
         throw new Error("❌ Please enter a valid quantity (> 0).");
       }
@@ -235,7 +310,7 @@ const handleModifyPosition = async () => {
     const payload = {
       username,
       script: symbol,
-      new_qty: Number(qty),               // ✅ REPLACE QTY
+      new_qty: isFNO ? Number(lotQty) : Number(qty),               // ✅ REPLACE QTY
       stoploss: stoploss ? Number(stoploss) : null,
       target: target ? Number(target) : null,
       price_type: orderMode,
@@ -284,12 +359,56 @@ const handleModifyPosition = async () => {
           </div>
         )}
 
-        <div className="text-sm text-center text-gray-700 mb-2">
-          Live Price:{" "}
-          <span className="font-semibold text-red-600">
-            {livePrice != null ? `₹${livePrice}` : "--"}
-          </span>
-        </div>
+        {isFNO ? (
+  <div className="bg-white p-4 rounded-lg shadow text-center space-y-2">
+    <div className="text-sm">
+      <strong>Live Price :</strong>{" "}
+      <span className="text-red-600">
+        ₹{livePrice != null ? livePrice.toFixed(2) : "--"}
+      </span>
+    </div>
+
+    <div className="text-sm">
+      <strong>Total Investment :</strong>{" "}
+      <span className="text-blue-600">
+        {totalInvestment > 0
+          ? `₹${totalInvestment.toFixed(2)}`
+          : "--"}
+      </span>
+    </div>
+
+    <div className="flex justify-center gap-6 mt-2">
+      <div>
+        <div className="text-xs text-gray-500">QTY</div>
+        <input
+          type="number"
+          min="1"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          className="w-20 px-2 py-1 border rounded text-center"
+        />
+      </div>
+
+      <div>
+        <div className="text-xs text-gray-500">LOT</div>
+        <input
+          type="number"
+          value={lotQty}
+          disabled
+          className="w-24 px-2 py-1 border rounded text-center bg-gray-100"
+        />
+      </div>
+    </div>
+  </div>
+) : (
+  <div className="text-sm text-center text-gray-700 mb-2">
+    Live Price:{" "}
+    <span className="font-semibold text-red-600">
+      {livePrice != null ? `₹${livePrice}` : "--"}
+    </span>
+  </div>
+)}
+
 
         <div className="flex justify-center gap-4">
           <label className="flex items-center gap-2">
@@ -314,18 +433,21 @@ const handleModifyPosition = async () => {
           </label>
         </div>
 
-        <input
-  type="number"
-  value={qty}
-  disabled={location.state?.fromPortfolio}
-  onChange={(e) => setQty(e.target.value)}
-  placeholder="Quantity"
-  className={`w-full px-4 py-3 border rounded-lg ${
-    location.state?.fromPortfolio
-      ? "bg-gray-100 cursor-not-allowed"
-      : ""
-  }`}
-/>
+{!isFNO && (
+  <input
+    type="number"
+    value={qty}
+    disabled={location.state?.fromPortfolio}
+    onChange={(e) => setQty(e.target.value)}
+    placeholder="Quantity"
+    className={`w-full px-4 py-3 border rounded-lg ${
+      location.state?.fromPortfolio
+        ? "bg-gray-100 cursor-not-allowed"
+        : ""
+    }`}
+  />
+)}
+
 
 
         <input
