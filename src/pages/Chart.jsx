@@ -6,6 +6,8 @@ import React, {
   useState,
   useCallback
 } from "react";
+import { FaWhatsapp } from "react-icons/fa";
+
 
 
 import { useParams, useNavigate } from "react-router-dom";
@@ -606,6 +608,12 @@ if (jumpDT) {
 
   const symbol = useMemo(() => (rawSym || "").toUpperCase(), [rawSym]);
   const navigate = useNavigate();
+  function openWhatsappPage() {
+  navigate("/whatsapp", {
+    state: { symbol },
+  });
+}
+
 
   const [tf, setTf] = useState("1m");
 
@@ -2481,26 +2489,7 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
     return () => el.removeEventListener("mousedown", handleMouseDown);
   }, [activeTool, toolbarOpen, drawerOpen]); // keep small deps
   
-  async function sendWhatsappAlert() {
-  try {
-    const res = await fetch(`${API}/market/send-whatsapp`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ symbol }),
-    });
-
-    const data = await res.json();
-    if (data.status === "success") {
-      alert("WhatsApp Alert Sent Successfully!");
-    } else {
-      alert("Error: " + data.message);
-    }
-  } catch (err) {
-    alert("Failed: " + err.message);
-  }
-}
+ 
 
 // ---------------------------------------------------------
 // AUTO SIGNAL GENERATION CONTROLLER
@@ -2543,7 +2532,7 @@ async function generateSignal() {
   if (isRunningRef.current) {
     clearInterval(autoRunRef.current);
     isRunningRef.current = false;
-    setGenerateMode(true);
+     setGenerateMode(true);
      localStorage.setItem("NC_generateMode_" + symbol, "true");
 
     const btn = document.querySelector("#genBtn");
@@ -2828,12 +2817,22 @@ async function refreshRecommendations() {
            Recommendation
           </button>
 
-          <button
-            onClick={sendWhatsappAlert}
-            className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
-          >
-           Add to alert WhatsApp
-          </button>
+ <button
+  onClick={openWhatsappPage}
+  title="Open WhatsApp Alerts"
+  className="
+    w-6 h-6 flex items-center justify-center
+    rounded-full border border-green-500
+    text-green-600
+    hover:bg-green-100
+    transition
+  "
+>
+  <FaWhatsapp className="w-4 h-4" />
+</button>
+
+
+
          
                    {/* Go Live button - jump to latest bar & re-enable auto-follow */}
           
