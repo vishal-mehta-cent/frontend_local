@@ -8,7 +8,7 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
   const OPEN = 3 * 60 + 45;
-  const CLOSE = 10 * 60 + 37;
+  const CLOSE = 10 * 50 + 37;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
@@ -33,7 +33,7 @@ export default function Buy() {
   const [isFNO, setIsFNO] = useState(false);
   const [lotSize, setLotSize] = useState(1);
   const [lotQty, setLotQty] = useState(0);
-  const [fnoPrice, setFnoPrice] = useState(0);
+  const [totalInvestment, setTotalInvestment] = useState(0);
 
   const [errorMsg, setErrorMsg] = useState("");
   const [successModal, setSuccessModal] = useState(false);
@@ -69,21 +69,23 @@ export default function Buy() {
       });
   }, [symbol]);
 
-  useEffect(() => {
-    if (!isFNO || !livePrice || !lotSize) return;
+useEffect(() => {
+  if (!isFNO || !livePrice || !lotSize) return;
 
-    const enteredQty = Number(qty);
+  const enteredQty = Number(qty);
 
-    if (!enteredQty || enteredQty <= 0) {
-      setLotQty(0);
-      setFnoPrice(livePrice);
-      return;
-    }
+  // Qty not entered → no investment
+  if (!enteredQty || enteredQty <= 0) {
+    setLotQty(0);
+    setTotalInvestment(0);
+    return;
+  }
 
-    const lots = enteredQty * lotSize;
-    setLotQty(lots);
-    setFnoPrice(lots * livePrice);
-  }, [qty, lotSize, livePrice, isFNO]);
+  const lots = enteredQty * lotSize;
+  setLotQty(lots);
+  setTotalInvestment(lots * livePrice);
+}, [qty, lotSize, livePrice, isFNO]);
+
 
   useEffect(() => {
     const checkMarket = () => {
@@ -135,6 +137,15 @@ export default function Buy() {
     setSubmitting(true);
     setErrorMsg("");
     setSuccessText("");
+    // 🚫 BLOCK intraday BUY after market close
+if (!marketOpen && segment === "intraday") {
+  setErrorMsg(
+    "❌ Intraday will not buy after market close. Please use Delivery."
+  );
+  setSubmitting(false);
+  return;
+}
+
 
     try {
       if (!marketOpen && orderMode === "LIMIT") {
@@ -311,45 +322,59 @@ export default function Buy() {
         )}
 
         {isFNO ? (
-          <div className="bg-white p-4 rounded-lg shadow text-center space-y-2">
-            <div className="text-sm">
-              <strong>PRICE :</strong>{" "}
-              <span className="text-green-600">
-                ₹{fnoPrice ? fnoPrice.toFixed(2) : "--"}
-              </span>
-            </div>
+  <div className="bg-white p-4 rounded-lg shadow text-center space-y-2">
+    <div className="text-sm">
+      <strong>Live Price :</strong>{" "}
+      <span className="text-green-600">
+        ₹{livePrice != null ? livePrice.toFixed(2) : "--"}
+      </span>
+    </div>
 
-            <div className="flex justify-center gap-6 mt-3">
-              <div>
-                <div className="text-xs text-gray-500">QTY</div>
-                <input
-                  type="number"
-                  min="1"
-                  value={qty}
-                  onChange={(e) => setQty(e.target.value)}
-                  className="w-20 px-2 py-1 border rounded text-center"
-                />
-              </div>
+    <div className="text-sm">
+      <strong>Total Investment :</strong>{" "}
+      <span className="text-blue-600">
+        {totalInvestment > 0 ? `₹${totalInvestment.toFixed(2)}` : "--"}
+      </span>
+    </div>
 
-              <div>
-                <div className="text-xs text-gray-500">LOT</div>
-                <input
-                  type="number"
-                  value={lotQty}
-                  disabled
-                  className="w-24 px-2 py-1 border rounded text-center bg-gray-100"
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="text-sm text-center text-gray-700 mb-2">
-            Live Price:{" "}
-            <span className="font-semibold text-green-600">
-              {livePrice != null ? `₹${livePrice}` : "--"}
-            </span>
-          </div>
-        )}
+    <div className="flex justify-center gap-6 mt-3">
+
+  {/* QTY (Lots) */}
+  <div>
+    <div className="text-xs text-gray-500">QTY</div>
+    <input
+      type="number"
+      min="1"
+      value={qty}
+      onChange={(e) => setQty(e.target.value)}
+      className="w-20 px-2 py-1 border rounded text-center"
+    />
+  </div>
+
+  {/* LOT (Dynamic = qty × lotSize) */}
+  <div>
+    <div className="text-xs text-gray-500">LOT</div>
+    <input
+      type="number"
+      value={lotQty}
+      disabled
+      className="w-24 px-2 py-1 border rounded text-center bg-gray-100"
+    />
+  </div>
+
+</div>
+
+
+  </div>
+) : (
+  <div className="text-sm text-center text-gray-700 mb-2">
+    Live Price:{" "}
+    <span className="font-semibold text-green-600">
+      {livePrice != null ? `₹${livePrice}` : "--"}
+    </span>
+  </div>
+)}
+
 
         <div className="flex justify-center gap-4">
           <label className="flex items-center gap-2">
@@ -376,14 +401,17 @@ export default function Buy() {
             </span>
           </label>
         </div>
-
-        <input
-          type="number"
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          placeholder="Quantity"
-          className="w-full px-4 py-3 border rounded-lg"
-        />
+{/* ✅ QTY INPUT FOR NON-F&O (ALWAYS SHOW) */}
+{!isFNO && (
+  <input
+    type="number"
+    min="1"
+    value={qty}
+    onChange={(e) => setQty(e.target.value)}
+    placeholder="Quantity"
+    className="w-full px-4 py-3 border rounded-lg"
+  />
+)}
 
         <input
           type="number"
