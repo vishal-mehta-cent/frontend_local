@@ -93,12 +93,21 @@ useEffect(() => {
       .catch(() => setAllScripts([]));
   }
 
-  function fetchWatchlist() {
-    fetch(`${API}/watchlist/${who}`)
-      .then((r) => r.json())
-      .then(setWatchlist)
-      .catch(() => setWatchlist([]));
-  }
+function fetchWatchlist() {
+  fetch(`${API}/watchlist/${who}`)
+    .then((r) => r.json())
+    .then((data) => {
+      if (Array.isArray(data)) {
+        setWatchlist(data);
+      } else if (Array.isArray(data.list)) {
+        setWatchlist(data.list);
+      } else {
+        console.error("Invalid watchlist response:", data);
+        setWatchlist([]);
+      }
+    })
+    .catch(() => setWatchlist([]));
+}
 
   function fetchFunds() {
     fetch(`${API}/funds/available/${who}`)
@@ -506,7 +515,13 @@ if (!needsConfirm) {
       )
     );
   }
-
+  if (!Array.isArray(watchlist)) {
+    return (
+      <div className="p-6 text-red-500">
+        Failed to load watchlist
+      </div>
+    );
+  }
   // -------------------------------------
   // UI RETURN
   // -------------------------------------
@@ -597,7 +612,8 @@ if (!needsConfirm) {
 
             {suggestions.length > 0 && (
               <ul className="bg-white rounded-lg shadow mt-2 max-h-60 overflow-auto">
-                {suggestions.map((s, i) => {
+                {Array.isArray(suggestions) && suggestions.map((s, i) => {
+
                   const sym = s?.symbol || s?.tradingsymbol || "";
                   return (
                     <li
@@ -628,7 +644,7 @@ if (!needsConfirm) {
                 No scripts in your watchlist.
               </div>
             ) : (
-              watchlist.map((sym) => {
+              Array.isArray(watchlist) && watchlist.map((sym) => {
                 const q = quotes[sym] || {};
                 const isPos = Number(q.change || 0) >= 0;
 
