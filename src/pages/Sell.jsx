@@ -9,7 +9,7 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
   const OPEN = 3 * 60 + 45;
-  const CLOSE = 10 * 50 + 37;
+  const CLOSE = 1 * 60 + 0;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
@@ -33,7 +33,7 @@ const allowShort = Boolean(
   // Mode flags
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
-  const isPositionModify = Boolean(prefill.fromAdd); // 🔥 KEY
+  const isPositionModify = Boolean(prefill.fromPosition); // 🔥 KEY
 
   // Prefill inputs if passed
   const [qty, setQty] = useState(prefill.qty || "");
@@ -177,25 +177,18 @@ useEffect(() => {
     return () => clearInterval(id);
   }, [orderMode]);
   // -------- Submit --------
-  const handleSubmit = async () => {
-    // 🔥 ADD behaves exactly like MODIFY POSITION (SELL)
-if (isPositionModify) {
-  await handleModifyPosition();
-  return; // ⛔ STOP – do NOT place a new SELL
-}
+const handleSubmit = async () => {
+  if (submitting) return;
+  setErrorMsg("");
 
-    if (submitting) return;
-    setSubmitting(true);
-    setErrorMsg("");
-    setSuccessText("");
-    // 🚫 BLOCK intraday SELL after market close
-if (!marketOpen && segment === "intraday") {
-  setErrorMsg(
-    "❌ Intraday will not sell after market close. Please use Delivery."
-  );
-  setSubmitting(false);
-  return;
-}
+  // ✅ EXIT FROM POSITIONS (handled separately)
+  if (isPositionModify) {
+    await handleModifyPosition();
+    return;
+  }
+
+  setSubmitting(true);
+
 
 
     try {
@@ -324,7 +317,17 @@ const handleModifyPosition = async () => {
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data?.detail || "Error modifying position");
+    if (!res.ok) {
+  const msg =
+    typeof data?.detail === "string"
+      ? data.detail
+      : data?.detail?.message ||
+        data?.message ||
+        "Error modifying position";
+
+  throw new Error(msg);
+}
+
 
     setSuccessText("Position modified successfully!");
     setSuccessModal(true);
@@ -334,8 +337,16 @@ const handleModifyPosition = async () => {
       nav("/orders", { state: { refresh: true, tab: "positions" } });
     }, 1500);
   } catch (err) {
-    setErrorMsg(err.message || "Server error");
-  } finally {
+  const msg =
+    typeof err.message === "string"
+      ? err.message
+      : err?.message?.message ||
+        err?.detail?.message ||
+        "Server error";
+
+  setErrorMsg(msg);
+}
+ finally {
     setSubmitting(false);
   }
 };
@@ -354,10 +365,11 @@ const handleModifyPosition = async () => {
         </h2>
 
         {errorMsg && (
-          <div className="text-red-700 bg-red-100 p-3 rounded text-center">
-            {errorMsg}
-          </div>
-        )}
+  <div className="text-red-700 bg-red-100 p-3 rounded text-center">
+    {String(errorMsg)}
+  </div>
+)}
+
 
         {isFNO ? (
   <div className="bg-white p-4 rounded-lg shadow text-center space-y-2">
