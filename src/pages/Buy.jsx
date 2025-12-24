@@ -8,7 +8,7 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
   const OPEN = 3 * 60 + 45;
-  const CLOSE = 10 * 50 + 37;
+  const CLOSE = 12 * 60 + 0;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
@@ -20,7 +20,7 @@ export default function Buy() {
 
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
-  const isPositionModify = Boolean(prefill.fromAdd); // 🔥 Add this
+  const isPositionModify = Boolean(prefill.fromPosition);  // 🔥 Add this
 
 
   const [qty, setQty] = useState(prefill.qty || "");
@@ -209,28 +209,40 @@ if (!marketOpen && segment === "intraday") {
 
       let res, data;
 
-      if (isPositionModify) {
-  // 🔥 Treat ADD exactly like MODIFY POSITION
+      // ✅ POSITION MODIFY (SL / TARGET)
+if (isPositionModify) {
   await handleModifyPosition();
-  return; // ⛔ STOP here, do not place new BUY
+  return;
 }
 
- else if (isModify) {
-        res = await fetch(`${API}/orders/${prefill.modifyId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else {
-        res = await fetch(`${API}/orders`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      }
+// ✅ OPEN ORDER MODIFY
+if (isModify && prefill.modifyId) {
+  res = await fetch(`${API}/orders/${prefill.modifyId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+} else {
+  res = await fetch(`${API}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
 
-      data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || "Order failed");
+
+     data = await res.json().catch(() => ({}));
+if (!res.ok) {
+  const msg =
+    typeof data?.detail === "string"
+      ? data.detail
+      : data?.detail?.message ||
+        data?.message ||
+        "Order failed";
+
+  throw new Error(msg);
+}
+
 
       if (isAdd) {
         setSuccessText("Added to Position ✅");
@@ -282,7 +294,17 @@ if (!marketOpen && segment === "intraday") {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Error modifying position");
+     if (!res.ok) {
+  const msg =
+    typeof data?.detail === "string"
+      ? data.detail
+      : data?.detail?.message ||
+        data?.message ||
+        "Error modifying position";
+
+  throw new Error(msg);
+}
+
 
       setSuccessText("Position modified successfully!");
       setSuccessModal(true);
@@ -292,8 +314,16 @@ if (!marketOpen && segment === "intraday") {
         nav("/orders", { state: { refresh: true, tab: "positions" } });
       }, 1500);
     } catch (err) {
-      setErrorMsg(err.message || "Server error");
-    } finally {
+  const msg =
+    typeof err.message === "string"
+      ? err.message
+      : err?.message?.message ||
+        err?.detail?.message ||
+        "Server error";
+
+  setErrorMsg(msg);
+}
+ finally {
       setSubmitting(false);
     }
   };
@@ -316,10 +346,11 @@ if (!marketOpen && segment === "intraday") {
         </h2>
 
         {errorMsg && (
-          <div className="text-red-700 bg-red-100 p-3 rounded text-center">
-            {errorMsg}
-          </div>
-        )}
+  <div className="text-red-700 bg-red-100 p-3 rounded text-center">
+    {String(errorMsg)}
+  </div>
+)}
+
 
         {isFNO ? (
   <div className="bg-white p-4 rounded-lg shadow text-center space-y-2">
