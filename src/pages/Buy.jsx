@@ -8,7 +8,7 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
   const OPEN = 3 * 60 + 45;
-  const CLOSE = 11 * 60 + 30;
+  const CLOSE = 12 * 60 + 0;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
@@ -20,8 +20,7 @@ export default function Buy() {
 
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
-  const isPositionModify = Boolean(prefill.fromPosition);  // 🔥 Add this
-
+  const isPositionModify = Boolean(prefill.fromPosition);
 
   const [qty, setQty] = useState(prefill.qty || "");
   const [price, setPrice] = useState(prefill.price || "");
@@ -209,11 +208,21 @@ if (!marketOpen && segment === "intraday") {
 
       let res, data;
 
+      // ✅ SAFETY GUARD — prevent zero / negative qty on position modify
+if (isPositionModify && Number(qty) <= 0) {
+  setErrorMsg("❌ Quantity must be greater than zero");
+  setSubmitting(false);
+  return;
+}
+
       // ✅ POSITION MODIFY (SL / TARGET)
-if (isPositionModify) {
+// ✅ POSITION MODIFY (ONLY when NOT ADD)
+if (isPositionModify && !isAdd) {
   await handleModifyPosition();
   return;
 }
+
+
 
 // ✅ OPEN ORDER MODIFY
 if (isModify && prefill.modifyId) {
@@ -281,6 +290,7 @@ if (!res.ok) {
         username,
         script: symbol,
         new_qty: isFNO ? Number(lotQty) : Number(qty),
+        
         stoploss: stoploss ? Number(stoploss) : null,
         target: target ? Number(target) : null,
         price_type: orderMode,
@@ -338,12 +348,13 @@ if (!res.ok) {
       <BackButton to="/orders" />
       <div className="space-y-5">
         <h2 className="text-2xl font-bold text-center text-green-600">
-          {isAdd
-            ? `ADD TO ${symbol}`
-            : isModify
-              ? "MODIFY ORDER"
-              : `BUY ${symbol}`}
-        </h2>
+  {isAdd
+    ? `ADD (${symbol})`
+    : isModify
+      ? "MODIFY ORDER"
+      : `BUY ${symbol}`}
+</h2>
+
 
         {errorMsg && (
   <div className="text-red-700 bg-red-100 p-3 rounded text-center">
