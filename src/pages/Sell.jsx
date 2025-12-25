@@ -8,8 +8,8 @@ const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-back
 function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
-  const OPEN = 3 * 60 + 45;
-  const CLOSE = 11 * 60 + 30
+  const OPEN = 3 * 30 + 30;
+  const CLOSE = 12 * 60 + 0;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
@@ -182,7 +182,7 @@ const handleSubmit = async () => {
   setErrorMsg("");
 
   // ✅ EXIT FROM POSITIONS (handled separately)
-  if (isPositionModify) {
+  if (isPositionModify && !isAdd) {
     await handleModifyPosition();
     return;
   }
@@ -357,12 +357,13 @@ const handleModifyPosition = async () => {
       <BackButton to="/orders" />
       <div className="space-y-5">
         <h2 className="text-2xl font-bold text-center text-red-600">
-          {isAdd
-            ? `ADD TO ${symbol}`
-            : isModify
-            ? "MODIFY ORDER"
-            : `SELL ${symbol}`}
-        </h2>
+  {isAdd
+    ? `ADD (${symbol})`
+    : isModify
+    ? "MODIFY ORDER"
+    : `SELL ${symbol}`}
+</h2>
+
 
         {errorMsg && (
   <div className="text-red-700 bg-red-100 p-3 rounded text-center">
