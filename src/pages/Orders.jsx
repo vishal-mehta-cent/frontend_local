@@ -1,7 +1,7 @@
 // frontend/src/pages/Orders.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ClipboardList, Search, Briefcase, User, X, Clock } from "lucide-react";
+import { ClipboardList, Search, Briefcase, User, X, Clock, Lightbulb } from "lucide-react";
 import BackButton from "../components/BackButton";
 import { toast } from "react-toastify";
 import useOpenTrades from "../hooks/useOpenTrades";
@@ -421,8 +421,8 @@ export default function Orders({ username }) {
 const handleAdd = (pos) => {
   navigate(`/buy/${pos.symbol || pos.script}`, {
     state: {
-      fromModify: true,          // 🔥 KEY
-      modifyMode: "POSITION",    // 🔥 KEY
+      fromAdd: true,             // ✅ KEY CHANGE
+              // ✅ tells Buy.jsx it's from Positions
       qty: pos.qty,
       stoploss: pos.stoploss,
       target: pos.target,
@@ -430,6 +430,7 @@ const handleAdd = (pos) => {
     },
   });
 };
+
 
 
   const handleClose = async () => {
@@ -735,7 +736,7 @@ const handleAdd = (pos) => {
     setShowActions(false);      // close modal
   }}
 >
-  Modify
+  Add
 </button>
 
 
@@ -757,6 +758,10 @@ const handleAdd = (pos) => {
         <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/portfolio")}>
           <Briefcase size={22} className="text-gray-600 dark:text-white hover:text-blue-600" />
           <span className="text-xs text-gray-500 dark:text-white">Portfolio</span>
+        </div>
+        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/Recommendations")}>
+          <Lightbulb size={22} className="text-gray-600 dark:text-white hover:text-blue-600" />
+          <span className="text-xs text-gray-500 dark:text-white">Reco.</span>
         </div>
         <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/history")}>
           <Clock size={22} className="text-gray-600 hover:text-blue-600" />
