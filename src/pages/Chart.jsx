@@ -1,5 +1,5 @@
 // src/pages/Chart.jsx
-import React, { 
+import React, {
   useEffect,
   useMemo,
   useRef,
@@ -23,27 +23,27 @@ import {
 
 // Convert CSV date ("2025-11-21 12:29:00+05:30") → UNIX seconds
 function parseISTDateToUnix(dstr) {
-    try {
-        return Math.floor(new Date(dstr).getTime() / 1000);
-    } catch {
-        return null;
-    }
+  try {
+    return Math.floor(new Date(dstr).getTime() / 1000);
+  } catch {
+    return null;
+  }
 }
 
 // Find nearest candle timestamp for better alignment
 function findNearestCandleTime(candles, targetTime) {
-    if (!Array.isArray(candles) || !candles.length) return targetTime;
-    let nearest = candles[0].time;
-    let minDiff = Math.abs(targetTime - nearest);
+  if (!Array.isArray(candles) || !candles.length) return targetTime;
+  let nearest = candles[0].time;
+  let minDiff = Math.abs(targetTime - nearest);
 
-    for (const c of candles) {
-        const diff = Math.abs(c.time - targetTime);
-        if (diff < minDiff) {
-            minDiff = diff;
-            nearest = c.time;
-        }
+  for (const c of candles) {
+    const diff = Math.abs(c.time - targetTime);
+    if (diff < minDiff) {
+      minDiff = diff;
+      nearest = c.time;
     }
-    return nearest;
+  }
+  return nearest;
 }
 
 
@@ -387,20 +387,20 @@ function toHLCBars(ohlc) {
 
 /* ----------------------- Indicators list ----------------------- */
 const INDICATORS = [
-  { key: "hi52",       label: "52 Week High/Low", where: "main" },
-  { key: "avgprice",   label: "Average Price",    where: "main" },
-  { key: "bbands",     label: "Bollinger Bands",  where: "main" },
-  { key: "bb_pctb",    label: "Bollinger %B",     where: "osc"  },
-  { key: "bb_width",   label: "Bollinger Width",  where: "osc"  },
-  { key: "adx",        label: "ADX (+DI/−DI)",    where: "osc"  },
-  { key: "aroon",      label: "Aroon (Up/Down/OSC)", where: "osc" },
-  { key: "adline",     label: "Accumulation/Distribution", where: "osc" },
-  { key: "bop",        label: "Balance of Power", where: "osc"  },
-  { key: "cci",        label: "CCI",              where: "osc"  },
-  { key: "rsi_stoch",  label: "Stoch RSI",        where: "osc"  },
-  { key: "ao",         label: "Awesome Oscillator", where: "osc" },
-  { key: "ac",         label: "Accelerator Oscillator", where: "osc" },
-  { key: "supertrend", label: "Supertrend",       where: "main" },
+  { key: "hi52", label: "52 Week High/Low", where: "main" },
+  { key: "avgprice", label: "Average Price", where: "main" },
+  { key: "bbands", label: "Bollinger Bands", where: "main" },
+  { key: "bb_pctb", label: "Bollinger %B", where: "osc" },
+  { key: "bb_width", label: "Bollinger Width", where: "osc" },
+  { key: "adx", label: "ADX (+DI/−DI)", where: "osc" },
+  { key: "aroon", label: "Aroon (Up/Down/OSC)", where: "osc" },
+  { key: "adline", label: "Accumulation/Distribution", where: "osc" },
+  { key: "bop", label: "Balance of Power", where: "osc" },
+  { key: "cci", label: "CCI", where: "osc" },
+  { key: "rsi_stoch", label: "Stoch RSI", where: "osc" },
+  { key: "ao", label: "Awesome Oscillator", where: "osc" },
+  { key: "ac", label: "Accelerator Oscillator", where: "osc" },
+  { key: "supertrend", label: "Supertrend", where: "main" },
 ];
 
 /* ----------------------- Drawing tools config ----------------------- */
@@ -408,14 +408,14 @@ const DRAW_TOOLS = [
   {
     group: "Lines",
     items: [
-      { key: "trend",       label: "Trend Line",        icon: PencilRuler, hotkey: "Alt+T" },
-      { key: "ray",         label: "Ray",               icon: RayIcon },
-      { key: "info",        label: "Info Line",         icon: Info },
-      { key: "extended",    label: "Extended Line",     icon: Move3D },
-      { key: "hline",       label: "Horizontal Line",   icon: AlignHorizontalJustifyStart, hotkey: "Alt+H" },
-      { key: "hray",        label: "Horizontal Ray",    icon: AlignHorizontalSpaceAround,  hotkey: "Alt+J" },
-      { key: "vline",       label: "Vertical Line",     icon: AlignVerticalJustifyStart,   hotkey: "Alt+V" },
-      { key: "cross",       label: "Cross Line",        icon: Crosshair,                   hotkey: "Alt+C" },
+      { key: "trend", label: "Trend Line", icon: PencilRuler, hotkey: "Alt+T" },
+      { key: "ray", label: "Ray", icon: RayIcon },
+      { key: "info", label: "Info Line", icon: Info },
+      { key: "extended", label: "Extended Line", icon: Move3D },
+      { key: "hline", label: "Horizontal Line", icon: AlignHorizontalJustifyStart, hotkey: "Alt+H" },
+      { key: "hray", label: "Horizontal Ray", icon: AlignHorizontalSpaceAround, hotkey: "Alt+J" },
+      { key: "vline", label: "Vertical Line", icon: AlignVerticalJustifyStart, hotkey: "Alt+V" },
+      { key: "cross", label: "Cross Line", icon: Crosshair, hotkey: "Alt+C" },
     ],
   },
 ];
@@ -425,44 +425,44 @@ const CHART_GROUPS = [
   {
     title: "Bars / Candles",
     items: [
-      { key: "bars",      label: "Bars",              type: "bar",          supported: true },
-      { key: "candles",   label: "Candles",           type: "candlestick",  supported: true },
-      { key: "hollow",    label: "Hollow candles",    type: "hollow",       supported: true },
-      { key: "vcandles",  label: "Volume candles",    type: "vcandles",     supported: false },
-      { key: "hlc",       label: "HLC bars",          type: "hlc",          supported: true },
+      { key: "bars", label: "Bars", type: "bar", supported: true },
+      { key: "candles", label: "Candles", type: "candlestick", supported: true },
+      { key: "hollow", label: "Hollow candles", type: "hollow", supported: true },
+      { key: "vcandles", label: "Volume candles", type: "vcandles", supported: false },
+      { key: "hlc", label: "HLC bars", type: "hlc", supported: true },
     ],
   },
   {
     title: "Lines",
     items: [
-      { key: "line",      label: "Line",              type: "line",         supported: true },
-      { key: "linemk",    label: "Line with markers", type: "linemk",       supported: true },
-      { key: "step",      label: "Step line",         type: "step",         supported: true },
+      { key: "line", label: "Line", type: "line", supported: true },
+      { key: "linemk", label: "Line with markers", type: "linemk", supported: true },
+      { key: "step", label: "Step line", type: "step", supported: true },
     ],
   },
   {
     title: "Areas / Columns / HL",
     items: [
-      { key: "area",      label: "Area",              type: "area",         supported: true },
-      { key: "baseline",  label: "Baseline",          type: "baseline",     supported: true },
-      { key: "columns",   label: "Columns",           type: "hist",         supported: true },
-      { key: "highlow",   label: "High-low",          type: "highlow",      supported: true },
+      { key: "area", label: "Area", type: "area", supported: true },
+      { key: "baseline", label: "Baseline", type: "baseline", supported: true },
+      { key: "columns", label: "Columns", type: "hist", supported: true },
+      { key: "highlow", label: "High-low", type: "highlow", supported: true },
     ],
   },
   {
     title: "Price-transforms",
     items: [
-      { key: "heikin",    label: "Heikin Ashi",       type: "heikin",       supported: true },
-      { key: "renko",     label: "Renko",             type: "renko",        supported: false },
-      { key: "linebreak", label: "Line break",        type: "linebreak",    supported: false },
-      { key: "kagi",      label: "Kagi",              type: "kagi",         supported: false },
-      { key: "pnf",       label: "Point & figure",    type: "pnf",          supported: false },
+      { key: "heikin", label: "Heikin Ashi", type: "heikin", supported: true },
+      { key: "renko", label: "Renko", type: "renko", supported: false },
+      { key: "linebreak", label: "Line break", type: "linebreak", supported: false },
+      { key: "kagi", label: "Kagi", type: "kagi", supported: false },
+      { key: "pnf", label: "Point & figure", type: "pnf", supported: false },
     ],
   },
 ];
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const dist = (x1,y1,x2,y2) => Math.hypot(x2-x1, y2-y1);
+const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
 
 /* basic distance from a point to a segment */
 function pointToSegDist(px, py, x1, y1, x2, y2) {
@@ -477,17 +477,17 @@ function pointToSegDist(px, py, x1, y1, x2, y2) {
 }
 
 function startLiveFeed(symbol, onTick) {
-  const WS_BASE = import.meta.env.VITE_BACKEND_WS_URL 
+  const WS_BASE = import.meta.env.VITE_BACKEND_WS_URL
     || "wss://paper-trading-backend-sqllite.onrender.com";
 
-const ws = new WebSocket(`${WS_BASE}/market/ticks?symbol=${symbol}`);
+  const ws = new WebSocket(`${WS_BASE}/market/ticks?symbol=${symbol}`);
 
 
   ws.onmessage = (ev) => {
     try {
       const js = JSON.parse(ev.data);
       if (js.price) onTick(js);
-    } catch {}
+    } catch { }
   };
 
   ws.onclose = () => {
@@ -500,7 +500,7 @@ const ws = new WebSocket(`${WS_BASE}/market/ticks?symbol=${symbol}`);
 
 /* ---------- IST helpers ---------- */
 const IST_OFFSET_SEC = 5.5 * 3600;
-function fmtISTFromUnixSec(sec, withDate=false) {
+function fmtISTFromUnixSec(sec, withDate = false) {
   if (typeof sec !== "number" || !isFinite(sec)) return "";
   const d = new Date((sec + IST_OFFSET_SEC) * 1000);
   const hh = String(d.getUTCHours()).padStart(2, "0");
@@ -513,28 +513,28 @@ function fmtISTFromUnixSec(sec, withDate=false) {
 }
 
 export default function ChartPage() {
-const cleanupFns = useRef([]).current;
-const [desc1, setDesc1] = useState("");
-const [desc2, setDesc2] = useState("");
-const [desc3, setDesc3] = useState("");
-const [desc4, setDesc4] = useState("");
+  const cleanupFns = useRef([]).current;
+  const [desc1, setDesc1] = useState("");
+  const [desc2, setDesc2] = useState("");
+  const [desc3, setDesc3] = useState("");
+  const [desc4, setDesc4] = useState("");
 
-const [latestSignals, setLatestSignals] = useState([]);
-const [latestReco, setLatestReco] = useState([]);
-const [latestRecoDesc, setLatestRecoDesc] = useState([]);
-
-
+  const [latestSignals, setLatestSignals] = useState([]);
+  const [latestReco, setLatestReco] = useState([]);
+  const [latestRecoDesc, setLatestRecoDesc] = useState([]);
 
 
-const [signalData, setSignalData] = useState(null);
-// NEW STATES
-const [generateMode, setGenerateMode] = useState(false);
-// ⭐ Freeze chart camera when navigating from Recommendation page
-const [freezeChartAtSignal, setFreezeChartAtSignal] = useState(false);
 
-const [recoMode, setRecoMode] = useState(false);
 
- // 🔁 auto-follow latest candle
+  const [signalData, setSignalData] = useState(null);
+  // NEW STATES
+  const [generateMode, setGenerateMode] = useState(false);
+  // ⭐ Freeze chart camera when navigating from Recommendation page
+  const [freezeChartAtSignal, setFreezeChartAtSignal] = useState(false);
+
+  const [recoMode, setRecoMode] = useState(false);
+
+  // 🔁 auto-follow latest candle
   const [autoFollow, setAutoFollow] = useState(true);
   const autoFollowRef = useRef(true);
 
@@ -577,76 +577,76 @@ const [recoMode, setRecoMode] = useState(false);
   const { symbol: rawSym } = useParams();
 
   const params = new URLSearchParams(window.location.search);
-const fromReco = params.get("fromReco") === "1";
+  const fromReco = params.get("fromReco") === "1";
 
 
   // ------------------------------------------------------
-// ⭐ READ PARAMS PASSED FROM SignalCard.jsx
-// ------------------------------------------------------
-const urlParams = new URLSearchParams(window.location.search);
+  // ⭐ READ PARAMS PASSED FROM SignalCard.jsx
+  // ------------------------------------------------------
+  const urlParams = new URLSearchParams(window.location.search);
 
-const jumpStrategy = urlParams.get("strategy") || null;   // intraday, btst, short-term
-const jumpDT = urlParams.get("dt") || null;               // datetime string
+  const jumpStrategy = urlParams.get("strategy") || null;   // intraday, btst, short-term
+  const jumpDT = urlParams.get("dt") || null;               // datetime string
 
-// ⭐ If navigation came from recommendation, enable chart freeze
-useEffect(() => {
+  // ⭐ If navigation came from recommendation, enable chart freeze
+  useEffect(() => {
+    if (jumpDT) {
+      setFreezeChartAtSignal(true);
+    }
+  }, [jumpDT]);
+
+  let jumpUnix = null;
   if (jumpDT) {
-    setFreezeChartAtSignal(true);
+    try {
+      jumpUnix = Math.floor(new Date(jumpDT).getTime() / 1000);
+    } catch {
+      jumpUnix = null;
+    }
   }
-}, [jumpDT]);
-
-let jumpUnix = null;
-if (jumpDT) {
-  try {
-    jumpUnix = Math.floor(new Date(jumpDT).getTime() / 1000);
-  } catch {
-    jumpUnix = null;
-  }
-}
 
 
 
   const symbol = useMemo(() => (rawSym || "").toUpperCase(), [rawSym]);
   const navigate = useNavigate();
   function openWhatsappPage() {
-  navigate("/whatsapp", {
-    state: { symbol },
-  });
-}
+    navigate("/whatsapp", {
+      state: { symbol },
+    });
+  }
 
 
   const [tf, setTf] = useState("1m");
 
   // ------------------------------------------------------
-// ⭐ FORCE TIMEFRAME BASED ON jumpStrategy
-// ------------------------------------------------------
-// ⭐ FORCE TIMEFRAME BASED ON jumpStrategy (Supports intraday-fast)
-useEffect(() => {
-  if (!jumpStrategy) return;
+  // ⭐ FORCE TIMEFRAME BASED ON jumpStrategy
+  // ------------------------------------------------------
+  // ⭐ FORCE TIMEFRAME BASED ON jumpStrategy (Supports intraday-fast)
+  useEffect(() => {
+    if (!jumpStrategy) return;
 
-  const s = jumpStrategy.toLowerCase();
+    const s = jumpStrategy.toLowerCase();
 
-  // BOTH intraday + intraday-fast + intraday others
-  if (s.includes("intra")) {
-    setTf("15m");
-    setTimeout(() => fetchReco("15m"), 300);  // load markers
-    return;
-  }
+    // BOTH intraday + intraday-fast + intraday others
+    if (s.includes("intra")) {
+      setTf("15m");
+      setTimeout(() => fetchReco("15m"), 300);  // load markers
+      return;
+    }
 
-  // BTST
-  if (s.includes("btst")) {
-    setTf("15m");
-    setTimeout(() => fetchReco("15m"), 300);
-    return;
-  }
+    // BTST
+    if (s.includes("btst")) {
+      setTf("15m");
+      setTimeout(() => fetchReco("15m"), 300);
+      return;
+    }
 
-  // Short-term
-  if (s.includes("short")) {
-    setTf("1d");
-    setTimeout(() => fetchReco("1d"), 300);
-    return;
-  }
-}, [jumpStrategy]);
+    // Short-term
+    if (s.includes("short")) {
+      setTf("1d");
+      setTimeout(() => fetchReco("1d"), 300);
+      return;
+    }
+  }, [jumpStrategy]);
 
 
   const [lastPrice, setLastPrice] = useState(null);
@@ -671,11 +671,11 @@ useEffect(() => {
 
   // ▶ INDICATORS — series managers
   const indSeriesMain = useRef({});
-  const indSeriesOsc  = useRef({});
+  const indSeriesOsc = useRef({});
 
   // ▶ Store the data we set on each indicator series for hit-testing
   const indDataMain = useRef({}); // { key: [{ series, data:[{time,value}]}] }
-  const indDataOsc  = useRef({});
+  const indDataOsc = useRef({});
 
   const tfSec = useMemo(() => TF_MIN[tf] * 60, [tf]);
 
@@ -696,7 +696,7 @@ useEffect(() => {
     if (left + menuW + 8 > vw) left = Math.max(8, vw - menuW - 8);
     setCtPos({ top: rect.bottom + gap, left });
   }, []);
-  
+
 
   useEffect(() => {
     const onDocClick = (e) => {
@@ -763,321 +763,321 @@ useEffect(() => {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
- 
 
 
-// ---------------------------------------------------------
-// LOAD ALL SIGNALS (FINAL VERSION - FULL FIX)
-// ---------------------------------------------------------
-async function loadAllSignals(symbol) {
-  try {
-    console.log("loadAllSignals called for TF:", tf);
 
-    // --------------------------------------------------
-    // 1) BLOCK OTHER TIMEFRAMES (NO SIGNALS)
-    // --------------------------------------------------
-    if (tf !== "2m" && tf !== "15m") {
-      console.log("TF BLOCKED → clearing generate markers only");
+  // ---------------------------------------------------------
+  // LOAD ALL SIGNALS (FINAL VERSION - FULL FIX)
+  // ---------------------------------------------------------
+  async function loadAllSignals(symbol) {
+    try {
+      console.log("loadAllSignals called for TF:", tf);
 
+      // --------------------------------------------------
+      // 1) BLOCK OTHER TIMEFRAMES (NO SIGNALS)
+      // --------------------------------------------------
+      if (tf !== "2m" && tf !== "15m") {
+        console.log("TF BLOCKED → clearing generate markers only");
+
+        if (priceSeries.current) {
+          priceSeries.current._genMarkers = []; // clear generate signals
+
+          // keep recommendations only
+          const reco = priceSeries.current._recoMarkers || [];
+          priceSeries.current.setMarkers(reco);
+        }
+
+        setLatestSignals([]);
+        return;
+      }
+
+      // --------------------------------------------------
+      // 2) ALWAYS FETCH BOTH 2m + 15m FROM BACKEND
+      // --------------------------------------------------
+      const username = localStorage.getItem("username") || "default_user";
+
+      const url =
+        `${API}/market/all-signals?symbol=${symbol}&username=${encodeURIComponent(username)}`;
+
+      console.log("Fetching URL:", url);
+
+      const r = await fetch(url);
+      if (!r.ok) {
+        console.warn("Signal fetch failed");
+        return;
+      }
+
+      const js = await r.json();
+      console.log("Backend signals:", js);
+
+      if (!js.signals || !Array.isArray(js.signals)) return;
+
+      // --------------------------------------------------
+      // 3) FILTER BASED ON CURRENT TF
+      // --------------------------------------------------
+      let final = [];
+
+      if (tf === "2m") {
+        final = js.signals.filter(
+          (s) => s.tf === "2m" || s.tf === "15m"
+        );
+      }
+
+      if (tf === "15m") {
+        final = js.signals.filter(
+          (s) => s.tf === "15m" || s.tf === "2m"
+        );
+      }
+
+      final.sort((a, b) => a.timestamp - b.timestamp);
+
+      // --------------------------------------------------
+      // 4) CONVERT TO MARKERS  ✅ FIX HERE
+      // --------------------------------------------------
+      const markers = final.map((sig) => {
+        const tsSec = Math.floor(Number(sig.timestamp) / 1000); // 🔥 FIX
+
+        return {
+          time: Number(sig.timestamp), // MUST be seconds
+          price: sig.close_price,
+          position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
+          shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
+          color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
+          text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
+        };
+      });
+
+      // --------------------------------------------------
+      // 5) APPLY ONLY TO 2m & 15m CHARTS
+      // --------------------------------------------------
       if (priceSeries.current) {
-        priceSeries.current._genMarkers = []; // clear generate signals
+        priceSeries.current._genMarkers = markers;
 
-        // keep recommendations only
         const reco = priceSeries.current._recoMarkers || [];
-        priceSeries.current.setMarkers(reco);
+        const merged = [...markers, ...reco]
+          .filter((m) => m && m.time)
+          .sort((a, b) => a.time - b.time);
+
+        priceSeries.current.setMarkers(merged);
       }
 
-      setLatestSignals([]);
-      return;
-    }
-
-    // --------------------------------------------------
-    // 2) ALWAYS FETCH BOTH 2m + 15m FROM BACKEND
-    // --------------------------------------------------
-    const username = localStorage.getItem("username") || "default_user";
-
-    const url =
-      `${API}/market/all-signals?symbol=${symbol}&username=${encodeURIComponent(username)}`;
-
-    console.log("Fetching URL:", url);
-
-    const r = await fetch(url);
-    if (!r.ok) {
-      console.warn("Signal fetch failed");
-      return;
-    }
-
-    const js = await r.json();
-    console.log("Backend signals:", js);
-
-    if (!js.signals || !Array.isArray(js.signals)) return;
-
-    // --------------------------------------------------
-    // 3) FILTER BASED ON CURRENT TF
-    // --------------------------------------------------
-    let final = [];
-
-    if (tf === "2m") {
-      final = js.signals.filter(
-        (s) => s.tf === "2m" || s.tf === "15m"
+      // --------------------------------------------------
+      // 6) LAST 4 SIGNALS
+      // --------------------------------------------------
+      setLatestSignals(
+        final
+          .slice(-4)
+          .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
       );
+
+      console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
+
+    } catch (err) {
+      console.error("Signal Load Error:", err);
     }
+  }
 
-    if (tf === "15m") {
-      final = js.signals.filter(
-        (s) => s.tf === "15m" || s.tf === "2m"
-      );
-    }
 
-    final.sort((a, b) => a.timestamp - b.timestamp);
 
-    // --------------------------------------------------
-    // 4) CONVERT TO MARKERS  ✅ FIX HERE
-    // --------------------------------------------------
-    const markers = final.map((sig) => {
-      const tsSec = Math.floor(Number(sig.timestamp) / 1000); // 🔥 FIX
+  async function loadRecommendationDescriptions(symbol, tf) {
+    try {
+      let url = "";
 
-      return {
-        time: Number(sig.timestamp), // MUST be seconds
-        price: sig.close_price,
-        position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
-        shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
-        color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-        text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
-      };
-    });
+      if (tf === "15m") {
+        // ⭐ 15m gets both CSV files
+        url = `${API}/market/reco-15m?symbol=${symbol}&ts=${Date.now()}`;
+      } else if (tf === "1d") {
+        // ⭐ 1d gets short-term CSV
+        url = `${API}/market/reco-1d?symbol=${symbol}&ts=${Date.now()}`;
+      } else {
+        setLatestReco([]);
+        return;
+      }
 
-    // --------------------------------------------------
-    // 5) APPLY ONLY TO 2m & 15m CHARTS
-    // --------------------------------------------------
-    if (priceSeries.current) {
-      priceSeries.current._genMarkers = markers;
+      const res = await fetch(url);
+      const data = await res.json();
 
-      const reco = priceSeries.current._recoMarkers || [];
-      const merged = [...markers, ...reco]
-        .filter((m) => m && m.time)
-        .sort((a, b) => a.time - b.time);
+      if (!Array.isArray(data) || data.length === 0) {
+        setLatestReco([]);
+        return;
+      }
 
-      priceSeries.current.setMarkers(merged);
-    }
-
-    // --------------------------------------------------
-    // 6) LAST 4 SIGNALS
-    // --------------------------------------------------
-    setLatestSignals(
-      final
-        .slice(-4)
+      // Sort by descending time, take 4
+      const rows = data
         .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
-    );
+        .slice(0, 4);
 
-    console.log(`✔ Applied ${markers.length} markers for TF=${tf}`);
+      setLatestReco(rows);
 
-  } catch (err) {
-    console.error("Signal Load Error:", err);
-  }
-}
-
-
-
-async function loadRecommendationDescriptions(symbol, tf) {
-  try {
-    let url = "";
-
-    if (tf === "15m") {
-      // ⭐ 15m gets both CSV files
-      url = `${API}/market/reco-15m?symbol=${symbol}&ts=${Date.now()}`;
-    } else if (tf === "1d") {
-      // ⭐ 1d gets short-term CSV
-      url = `${API}/market/reco-1d?symbol=${symbol}&ts=${Date.now()}`;
-    } else {
+    } catch (err) {
+      console.warn("Reco description failed:", err);
       setLatestReco([]);
-      return;
     }
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!Array.isArray(data) || data.length === 0) {
-      setLatestReco([]);
-      return;
-    }
-
-    // Sort by descending time, take 4
-    const rows = data
-      .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
-      .slice(0, 4);
-
-    setLatestReco(rows);
-
-  } catch (err) {
-    console.warn("Reco description failed:", err);
-    setLatestReco([]);
   }
-}
 
 
-// ------------------------------------------------------
-// AUTO-ACTIVATE RECOMMENDATION WHEN COMING FROM RECO PAGE
-// ------------------------------------------------------
-useEffect(() => {
-  if (fromReco === true || fromReco === "1") {
-    if (!priceSeries.current) return;   // prevent chart crash
+  // ------------------------------------------------------
+  // AUTO-ACTIVATE RECOMMENDATION WHEN COMING FROM RECO PAGE
+  // ------------------------------------------------------
+  useEffect(() => {
+    if (fromReco === true || fromReco === "1") {
+      if (!priceSeries.current) return;   // prevent chart crash
 
 
-    console.log("🔥 Auto Recommendation Mode");
+      console.log("🔥 Auto Recommendation Mode");
 
-    setRecoMode(true);
-    localStorage.setItem("NC_recoMode_" + symbol, "true");
+      setRecoMode(true);
+      localStorage.setItem("NC_recoMode_" + symbol, "true");
 
-    // highlight button
-    const btn = document.querySelector("#recoBtn");
-    if (btn) {
-      btn.style.background = "#2563eb";
-      btn.style.color = "white";
-      btn.style.borderColor = "#2563eb";
-    }
-
-    // run ASAP
-    setTimeout(() => refreshRecommendations(), 800);
-
-    // start auto loop
-    if (recoRunRef.current) clearInterval(recoRunRef.current);
-    recoRunRef.current = setInterval(refreshRecommendations, 20000);
-  }
-}, [symbol, tf]);
-
-
-async function loadRecommendationsDescription(tf) {
-  try {
-    
-    let url = "";
-    if (tf === "15m") {
-      url = `${API}/market/reco-load?symbol=ALL&tf=15m`;
-    } 
-    else if (tf === "1d") {
-      url = `${API}/market/reco-load?symbol=ALL&tf=1d`;
-    } else {
-      return;
-    }
-
-    const r = await fetch(url);
-    const js = await r.json();
-    if (!js.rows || !Array.isArray(js.rows)) return;
-
-    // Sort by timestamp DESC
-    const sorted = [...js.rows].sort(
-      (a, b) => Number(b.timestamp) - Number(a.timestamp)
-    );
-
-    // Pick latest 4
-    setLatestRecommendations(sorted.slice(0, 4));
-
-  } catch (e) {
-    console.log("Recommendation description load failed:", e);
-  }
-}
-
-function zoomIn() {
-  try {
-    const ts = mainChart.current.timeScale();
-    ts.setVisibleLogicalRange({
-      from: ts.getVisibleLogicalRange().from + 5,
-      to: ts.getVisibleLogicalRange().to - 5,
-    });
-  } catch (e) {
-    console.warn("Zoom In error", e);
-  }
-}
-
-function zoomOut() {
-  try {
-    const ts = mainChart.current.timeScale();
-    ts.setVisibleLogicalRange({
-      from: ts.getVisibleLogicalRange().from - 5,
-      to: ts.getVisibleLogicalRange().to + 5,
-    });
-  } catch (e) {
-    console.warn("Zoom Out error", e);
-  }
-}
-
-// ✅ FINAL — Recommendation Date Formatter (MM/DD/YYYY, hh:mm:ss AM/PM)
-function formatRecoDate(d) {
-  if (!d) return "--";
-
-  try {
-    let dateObj = null;
-
-    // --------------------------------------------------
-    // Case 1: UNIX timestamp (seconds)
-    // --------------------------------------------------
-    if (typeof d === "number") {
-      dateObj = new Date(d * 1000);
-    }
-
-    // --------------------------------------------------
-    // Case 2: String input
-    // --------------------------------------------------
-    else if (typeof d === "string") {
-      const s = d.trim();
-
-      // 🔹 ISO format (BEST + SAFE)
-      // Example: 2025-12-11T09:30:00
-      if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-        dateObj = new Date(s);
+      // highlight button
+      const btn = document.querySelector("#recoBtn");
+      if (btn) {
+        btn.style.background = "#2563eb";
+        btn.style.color = "white";
+        btn.style.borderColor = "#2563eb";
       }
 
-      // 🔹 DD-MM-YYYY or MM-DD-YYYY HH:MM(:SS)
-      else if (s.includes("-")) {
-        const [datePart, timePart = "00:00:00"] = s.split(" ");
-        const [p1, p2, p3] = datePart.split("-");
+      // run ASAP
+      setTimeout(() => refreshRecommendations(), 800);
 
-        if (p1 && p2 && p3) {
-          const n1 = Number(p1);
-          const n2 = Number(p2);
+      // start auto loop
+      if (recoRunRef.current) clearInterval(recoRunRef.current);
+      recoRunRef.current = setInterval(refreshRecommendations, 20000);
+    }
+  }, [symbol, tf]);
 
-          // If first number > 12 → DD-MM-YYYY
-          const day = n1 > 12 ? p1 : p2;
-          const month = n1 > 12 ? p2 : p1;
-          const year = p3;
 
-          const iso = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${timePart}`;
-          dateObj = new Date(iso);
+  async function loadRecommendationsDescription(tf) {
+    try {
+
+      let url = "";
+      if (tf === "15m") {
+        url = `${API}/market/reco-load?symbol=ALL&tf=15m`;
+      }
+      else if (tf === "1d") {
+        url = `${API}/market/reco-load?symbol=ALL&tf=1d`;
+      } else {
+        return;
+      }
+
+      const r = await fetch(url);
+      const js = await r.json();
+      if (!js.rows || !Array.isArray(js.rows)) return;
+
+      // Sort by timestamp DESC
+      const sorted = [...js.rows].sort(
+        (a, b) => Number(b.timestamp) - Number(a.timestamp)
+      );
+
+      // Pick latest 4
+      setLatestRecommendations(sorted.slice(0, 4));
+
+    } catch (e) {
+      console.log("Recommendation description load failed:", e);
+    }
+  }
+
+  function zoomIn() {
+    try {
+      const ts = mainChart.current.timeScale();
+      ts.setVisibleLogicalRange({
+        from: ts.getVisibleLogicalRange().from + 5,
+        to: ts.getVisibleLogicalRange().to - 5,
+      });
+    } catch (e) {
+      console.warn("Zoom In error", e);
+    }
+  }
+
+  function zoomOut() {
+    try {
+      const ts = mainChart.current.timeScale();
+      ts.setVisibleLogicalRange({
+        from: ts.getVisibleLogicalRange().from - 5,
+        to: ts.getVisibleLogicalRange().to + 5,
+      });
+    } catch (e) {
+      console.warn("Zoom Out error", e);
+    }
+  }
+
+  // ✅ FINAL — Recommendation Date Formatter (MM/DD/YYYY, hh:mm:ss AM/PM)
+  function formatRecoDate(d) {
+    if (!d) return "--";
+
+    try {
+      let dateObj = null;
+
+      // --------------------------------------------------
+      // Case 1: UNIX timestamp (seconds)
+      // --------------------------------------------------
+      if (typeof d === "number") {
+        dateObj = new Date(d * 1000);
+      }
+
+      // --------------------------------------------------
+      // Case 2: String input
+      // --------------------------------------------------
+      else if (typeof d === "string") {
+        const s = d.trim();
+
+        // 🔹 ISO format (BEST + SAFE)
+        // Example: 2025-12-11T09:30:00
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+          dateObj = new Date(s);
+        }
+
+        // 🔹 DD-MM-YYYY or MM-DD-YYYY HH:MM(:SS)
+        else if (s.includes("-")) {
+          const [datePart, timePart = "00:00:00"] = s.split(" ");
+          const [p1, p2, p3] = datePart.split("-");
+
+          if (p1 && p2 && p3) {
+            const n1 = Number(p1);
+            const n2 = Number(p2);
+
+            // If first number > 12 → DD-MM-YYYY
+            const day = n1 > 12 ? p1 : p2;
+            const month = n1 > 12 ? p2 : p1;
+            const year = p3;
+
+            const iso = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}T${timePart}`;
+            dateObj = new Date(iso);
+          }
+        }
+
+        // 🔹 Fallback (browser readable)
+        else {
+          dateObj = new Date(s);
         }
       }
 
-      // 🔹 Fallback (browser readable)
-      else {
-        dateObj = new Date(s);
+      // --------------------------------------------------
+      // Validation
+      // --------------------------------------------------
+      if (!dateObj || isNaN(dateObj.getTime())) {
+        console.warn("❌ Invalid reco date:", d);
+        return "--";
       }
-    }
 
-    // --------------------------------------------------
-    // Validation
-    // --------------------------------------------------
-    if (!dateObj || isNaN(dateObj.getTime())) {
-      console.warn("❌ Invalid reco date:", d);
+      // --------------------------------------------------
+      // 🔒 FORCE EXACT FORMAT: MM/DD/YYYY, hh:mm:ss AM/PM
+      // --------------------------------------------------
+      return dateObj.toLocaleString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true,
+      });
+
+    } catch (e) {
+      console.warn("❌ Reco date parse failed:", d, e);
       return "--";
     }
-
-    // --------------------------------------------------
-    // 🔒 FORCE EXACT FORMAT: MM/DD/YYYY, hh:mm:ss AM/PM
-    // --------------------------------------------------
-    return dateObj.toLocaleString("en-US", {
-      month: "2-digit",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    });
-
-  } catch (e) {
-    console.warn("❌ Reco date parse failed:", d, e);
-    return "--";
   }
-}
 
 
 
@@ -1099,64 +1099,64 @@ function formatRecoDate(d) {
   const applySeriesData = useCallback((t, rows) => {
     const dataToUse = mapDataForType(t, rows);
 
-// ALWAYS call before updating candles
-applyUnifiedMarkers();
+    // ALWAYS call before updating candles
+    applyUnifiedMarkers();
 
-if (["hist", "line", "linemk", "step", "area", "baseline"].includes(t)) {
-   applyUnifiedMarkers();
-} else {
-   priceSeries.current?.setData(
-      dataToUse.map(d => ({
-        time: d.time,
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-      }))
-   );
-}
-
-
-//---------------------------------------------------------
-// ⭐ AUTO-SCROLL TO ACTIVE SIGNAL TIME (if query params exist)
-//---------------------------------------------------------
-try {
-  const url = new URL(window.location.href);
-  const dt = url.searchParams.get("dt");      // raw IST datetime
-  const strat = url.searchParams.get("strategy");
-
-  if (dt) {
-    // Convert "2025-11-17 20:00" → UNIX seconds
-    const ts = parseISTDateToUnix(dt.replace("%20", " ").replace("T", " "));
-    if (ts) {
-      const nearest = findNearestCandleTime(dataToUse, ts);
-
-      const tsObj = mainChart.current?.timeScale();
-      if (tsObj && typeof nearest === "number") {
-        setTimeout(() => {
-          try {
-            tsObj.scrollToPosition(0, false);
-            tsObj.setVisibleRange({ from: nearest - 2000, to: nearest + 2000 });
-            mainChart.current.timeScale().applyOptions({
-    barSpacing: 8    // ← same spacing as normal chart (adjust if needed)
-});
-            
-          } catch (e) {
-            console.warn("Scroll failed:", e);
-          }
-        }, 120);
-      }
+    if (["hist", "line", "linemk", "step", "area", "baseline"].includes(t)) {
+      applyUnifiedMarkers();
+    } else {
+      priceSeries.current?.setData(
+        dataToUse.map(d => ({
+          time: d.time,
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close,
+        }))
+      );
     }
-  }
-} catch (err) {
-  console.warn("Auto-scroll error:", err);
-}
-
-// ALWAYS call after updating
-applyUnifiedMarkers();
 
 
-    
+    //---------------------------------------------------------
+    // ⭐ AUTO-SCROLL TO ACTIVE SIGNAL TIME (if query params exist)
+    //---------------------------------------------------------
+    try {
+      const url = new URL(window.location.href);
+      const dt = url.searchParams.get("dt");      // raw IST datetime
+      const strat = url.searchParams.get("strategy");
+
+      if (dt) {
+        // Convert "2025-11-17 20:00" → UNIX seconds
+        const ts = parseISTDateToUnix(dt.replace("%20", " ").replace("T", " "));
+        if (ts) {
+          const nearest = findNearestCandleTime(dataToUse, ts);
+
+          const tsObj = mainChart.current?.timeScale();
+          if (tsObj && typeof nearest === "number") {
+            setTimeout(() => {
+              try {
+                tsObj.scrollToPosition(0, false);
+                tsObj.setVisibleRange({ from: nearest - 2000, to: nearest + 2000 });
+                mainChart.current.timeScale().applyOptions({
+                  barSpacing: 8    // ← same spacing as normal chart (adjust if needed)
+                });
+
+              } catch (e) {
+                console.warn("Scroll failed:", e);
+              }
+            }, 120);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Auto-scroll error:", err);
+    }
+
+    // ALWAYS call after updating
+    applyUnifiedMarkers();
+
+
+
     // --- Volume bars on separate pane (time-synced with main) ---
     if (volSeries.current) {
       volSeries.current.setData(
@@ -1179,7 +1179,7 @@ applyUnifiedMarkers();
         const lr = main.timeScale().getVisibleLogicalRange();
         if (lr && lr.from && lr.to)
           vol.timeScale().setVisibleLogicalRange(lr);
-      } catch {}
+      } catch { }
     }
   }, []);
 
@@ -1215,7 +1215,7 @@ applyUnifiedMarkers();
       if (Array.isArray(older) && older.length) {
         const mergedMap = new Map();
         [...older, ...candles].forEach(c => mergedMap.set(c.time, c));
-        const merged = Array.from(mergedMap.values()).sort((a,b)=>a.time-b.time);
+        const merged = Array.from(mergedMap.values()).sort((a, b) => a.time - b.time);
         setCandles(merged);
         earliestRef.current = merged[0]?.time ?? earliestRef.current;
 
@@ -1241,9 +1241,9 @@ applyUnifiedMarkers();
 
   /* ---------------- Build charts ---------------- */
   useEffect(() => {
-    if (mainChart.current) { try { mainChart.current.remove(); } catch {} mainChart.current = null; }
-    if (volumeChart.current) { try { volumeChart.current.remove(); } catch {} volumeChart.current = null; }
-    if (oscChart.current)  { try { oscChart.current.remove();  } catch {} oscChart.current  = null; }
+    if (mainChart.current) { try { mainChart.current.remove(); } catch { } mainChart.current = null; }
+    if (volumeChart.current) { try { volumeChart.current.remove(); } catch { } volumeChart.current = null; }
+    if (oscChart.current) { try { oscChart.current.remove(); } catch { } oscChart.current = null; }
 
     const main = createChart(mainRef.current, {
       width: mainRef.current.clientWidth,
@@ -1279,7 +1279,7 @@ applyUnifiedMarkers();
         visible: true,
       },
       handleScroll: { mouseWheel: true, pressedMouseMove: true },
-      handleScale:  { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true } },
+      handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true } },
       localization: {
         timeFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t, true) : "",
       },
@@ -1291,18 +1291,18 @@ applyUnifiedMarkers();
       const opts =
         t === "hollow"
           ? {
-              upColor: "rgba(0,0,0,0)",
-              downColor: "#dc2626",
-              borderUpColor: "#16a34a",
-              borderDownColor: "#dc2626",
-              wickUpColor: "#16a34a",
-              wickDownColor: "#dc2626",
-            }
+            upColor: "rgba(0,0,0,0)",
+            downColor: "#dc2626",
+            borderUpColor: "#16a34a",
+            borderDownColor: "#dc2626",
+            wickUpColor: "#16a34a",
+            wickDownColor: "#dc2626",
+          }
           : {
-              upColor: "#16a34a", downColor: "#dc2626",
-              borderUpColor: "#16a34a", borderDownColor: "#dc2626",
-              wickUpColor: "#16a34a", wickDownColor: "#dc2626",
-            };
+            upColor: "#16a34a", downColor: "#dc2626",
+            borderUpColor: "#16a34a", borderDownColor: "#dc2626",
+            wickUpColor: "#16a34a", wickDownColor: "#dc2626",
+          };
       series = main.addCandlestickSeries(opts);
     } else if (t === "bar" || t === "hlc" || t === "highlow") {
       series = main.addBarSeries({});
@@ -1316,71 +1316,71 @@ applyUnifiedMarkers();
       series = main.addHistogramSeries({ base: 0 });
     }
 
-     // Volume chart below, time-synced
+    // Volume chart below, time-synced
     const vol = createChart(volumeRef.current, {
-  width: volumeRef.current.clientWidth,
-  height: Math.max(120, Math.floor((window.innerHeight - HEADER_H) * 0.18)),
+      width: volumeRef.current.clientWidth,
+      height: Math.max(120, Math.floor((window.innerHeight - HEADER_H) * 0.18)),
 
-  layout: {
-    textColor: "#222",
-    background: { type: "Solid", color: "#ffffff" },
-  },
+      layout: {
+        textColor: "#222",
+        background: { type: "Solid", color: "#ffffff" },
+      },
 
-  grid: {
-    vertLines: { color: "rgba(42,46,57,0.08)" },
-    horzLines: { color: "rgba(42,46,57,0.08)" },
-  },
+      grid: {
+        vertLines: { color: "rgba(42,46,57,0.08)" },
+        horzLines: { color: "rgba(42,46,57,0.08)" },
+      },
 
-  rightPriceScale: {
-    borderVisible: false,
-  },
+      rightPriceScale: {
+        borderVisible: false,
+      },
 
-  // 🔑 IMPORTANT FIX — SAME DATE LOGIC AS CANDLE CHART
-  timeScale: {
-    borderVisible: false,
-    timeVisible: true,
-    secondsVisible: false,
+      // 🔑 IMPORTANT FIX — SAME DATE LOGIC AS CANDLE CHART
+      timeScale: {
+        borderVisible: false,
+        timeVisible: true,
+        secondsVisible: false,
 
-    tickMarkFormatter: (t, tickMarkType) => {
-      if (typeof t !== "number") return "";
+        tickMarkFormatter: (t, tickMarkType) => {
+          if (typeof t !== "number") return "";
 
-      // Convert UNIX → IST
-      const d = new Date((t + 5.5 * 3600) * 1000);
-      const hh = d.getUTCHours().toString().padStart(2, "0");
-      const mm = d.getUTCMinutes().toString().padStart(2, "0");
+          // Convert UNIX → IST
+          const d = new Date((t + 5.5 * 3600) * 1000);
+          const hh = d.getUTCHours().toString().padStart(2, "0");
+          const mm = d.getUTCMinutes().toString().padStart(2, "0");
 
-      const istHour = d.getUTCHours();
-      const istMinute = d.getUTCMinutes();
+          const istHour = d.getUTCHours();
+          const istMinute = d.getUTCMinutes();
 
-      // Show DATE at session start / higher TF
-      if ((istHour === 9 && istMinute < 25) || tickMarkType === 0) {
-        const day = d.getUTCDate().toString().padStart(2, "0");
-        const month = d.toLocaleString("en-GB", { month: "short" });
-        return `${month} ${day}`;
-      }
+          // Show DATE at session start / higher TF
+          if ((istHour === 9 && istMinute < 25) || tickMarkType === 0) {
+            const day = d.getUTCDate().toString().padStart(2, "0");
+            const month = d.toLocaleString("en-GB", { month: "short" });
+            return `${month} ${day}`;
+          }
 
-      // Otherwise show time
-      return `${hh}:${mm}`;
-    },
-  },
+          // Otherwise show time
+          return `${hh}:${mm}`;
+        },
+      },
 
-  crosshair: {
-    mode: CrosshairMode.Normal,
-  },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+      },
 
-  // 🔒 Keep localization SIMPLE (avoid double formatting)
-  localization: {
-    timeFormatter: (t) => {
-      if (typeof t !== "number") return "";
-      const d = new Date((t + 5.5 * 3600) * 1000);
-      return d.toLocaleString("en-IN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
-    },
-  },
-});
+      // 🔒 Keep localization SIMPLE (avoid double formatting)
+      localization: {
+        timeFormatter: (t) => {
+          if (typeof t !== "number") return "";
+          const d = new Date((t + 5.5 * 3600) * 1000);
+          return d.toLocaleString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          });
+        },
+      },
+    });
 
     const volHist = vol.addHistogramSeries({
       priceFormat: { type: "volume" },
@@ -1414,14 +1414,14 @@ applyUnifiedMarkers();
     priceSeries.current._recoMarkers = [];
 
     // LIVE MOVING PRICE LINE (Zerodha style)
-livePriceLine.current = priceSeries.current.createPriceLine({
-  price: 0,
-  color: "#dc2626",
-  lineWidth: 2,
-  lineStyle: 2,
-  axisLabelVisible: true,
-  title: "LTP"
-});
+    livePriceLine.current = priceSeries.current.createPriceLine({
+      price: 0,
+      color: "#dc2626",
+      lineWidth: 2,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: "LTP"
+    });
 
     volSeries.current = volHist;
 
@@ -1434,15 +1434,15 @@ livePriceLine.current = priceSeries.current.createPriceLine({
     const sync = () => {
       const lr = main.timeScale().getVisibleLogicalRange();
       if (!lr || lr.from == null || lr.to == null) return;
-      try { vol.timeScale().setVisibleLogicalRange(lr); } catch {}
-      try { osc.timeScale().setVisibleLogicalRange(lr); } catch {}
+      try { vol.timeScale().setVisibleLogicalRange(lr); } catch { }
+      try { osc.timeScale().setVisibleLogicalRange(lr); } catch { }
     };
     main.timeScale().subscribeVisibleLogicalRangeChange(sync);
     vol.timeScale().subscribeVisibleLogicalRangeChange(sync);
     osc.timeScale().subscribeVisibleLogicalRangeChange(sync);
 
     // need-more detector (scroll-left)
-      const onNeedMore = () => {
+    const onNeedMore = () => {
       const ts = main.timeScale();
       const lr = ts.getVisibleLogicalRange();
       if (!lr || !priceSeries.current) return;
@@ -1456,7 +1456,7 @@ livePriceLine.current = priceSeries.current.createPriceLine({
             pauseAutoFollow();
           }
         }
-      } catch {}
+      } catch { }
 
       try {
         const info = priceSeries.current.barsInLogicalRange(lr);
@@ -1469,7 +1469,7 @@ livePriceLine.current = priceSeries.current.createPriceLine({
         if (typeof leftEdgeTime === "number" && typeof first === "number") {
           if (leftEdgeTime <= first + tfSec) loadMoreLeft();
         }
-      } catch {}
+      } catch { }
     };
 
 
@@ -1501,12 +1501,12 @@ livePriceLine.current = priceSeries.current.createPriceLine({
     window.addEventListener("resize", handleResize);
 
     return () => {
-      try { main.timeScale().unsubscribeVisibleLogicalRangeChange(sync); } catch {}
-      try { main.timeScale().unsubscribeVisibleLogicalRangeChange(onNeedMore); } catch {}
-      try { main.timeScale().unsubscribeVisibleTimeRangeChange(onNeedMore); } catch {}
+      try { main.timeScale().unsubscribeVisibleLogicalRangeChange(sync); } catch { }
+      try { main.timeScale().unsubscribeVisibleLogicalRangeChange(onNeedMore); } catch { }
+      try { main.timeScale().unsubscribeVisibleTimeRangeChange(onNeedMore); } catch { }
       window.removeEventListener("resize", handleResize);
     };
-// NOTE: don't include `candles` so we don't rebuild chart on every merge
+    // NOTE: don't include `candles` so we don't rebuild chart on every merge
   }, [symbol, tf, chartType, applySeriesData, loadMoreLeft, tfSec]);
 
   /* ---------------- Fetch candles ---------------- */
@@ -1523,13 +1523,13 @@ livePriceLine.current = priceSeries.current.createPriceLine({
         if (cancelled) return;
 
         const setAll = (rows) => {
-    setCandles(rows);
-    const t = chartType.type;
-    applySeriesData(t, rows);
-    
+          setCandles(rows);
+          const t = chartType.type;
+          applySeriesData(t, rows);
 
-    setLastPrice(rows[rows.length - 1]?.close ?? null);
-  };
+
+          setLastPrice(rows[rows.length - 1]?.close ?? null);
+        };
 
 
         if (Array.isArray(data) && data.length) {
@@ -1549,126 +1549,72 @@ livePriceLine.current = priceSeries.current.createPriceLine({
       }
     }
 
-    
+
     load();
     // ========== LIVE PRICE UPDATE ========== //
-let ws = null;
+    let ws = null;
 
-function handleTick(tick) {
-  if (!priceSeries.current) return;
+    function handleTick(tick) {
+      if (!priceSeries.current) return;
 
-  const price = tick.price;
-  const time = Math.floor(Date.now() / 1000);
+      const price = tick.price;
+      const time = Math.floor(Date.now() / 1000);
 
-  setLastPrice(price);
+      setLastPrice(price);
 
-  // Update last candle live
-  setCandles(prev => {
-    if (!prev.length) return prev;
+      // Update last candle live
+      setCandles(prev => {
+        if (!prev.length) return prev;
 
-    const newArr = [...prev];
-    const last = { ...newArr[newArr.length - 1] };
+        const newArr = [...prev];
+        const last = { ...newArr[newArr.length - 1] };
 
-    if (time - last.time < tfSec) {
-      // update existing candle
-      last.high = Math.max(last.high, price);
-      last.low = Math.min(last.low, price);
-      last.close = price;
-      newArr[newArr.length - 1] = last;
-    } else {
-      // new candle
-      newArr.push({
-        time,
-        open: price,
-        high: price,
-        low: price,
-        close: price,
-        volume: 0,
-      });
-    }
-
-    // apply new data to chart
-    applySeriesData(chartType.type, newArr);
-
-    return newArr;
-  });
-
-  // Moving price line (Zerodha-style)
-  priceSeries.current.applyOptions({
-    priceLineVisible: true,
-    lastValueVisible: true,
-    priceLineColor: price >= lastPrice ? "#16a34a" : "#dc2626",
-  });
-}
-
-// Start websocket after initial load
-ws = startLiveFeed(symbol, handleTick);
-
-cleanupFns.push(() => ws?.close());
-
-   return () => {
-    cancelled = true;
-    cleanupFns.forEach(fn => fn && fn());
-  };
-}, [symbol, tf, tfSec, chartType, applySeriesData]);
-  
-// LIVE PRICE UPDATER (updates every second)
-// LIVE PRICE UPDATER — NO BLINK
-useEffect(() => {
-  if (!priceSeries.current) return;
-
-  const timer = setInterval(async () => {
-    try {
-      const res = await fetch(
-        `${API}/market/ohlc?symbol=${symbol}&interval=${tf}&limit=1`
-      );
-      const js = await res.json();
-      if (!Array.isArray(js) || js.length === 0) return;
-
-      const live = js[js.length - 1];
-
-      // update last price in header
-      setLastPrice(live.close);
-
-      // move horizontal price line
-      livePriceLine.current?.applyOptions({ price: live.close });
-
-      // update ONLY last candle without re-render
-      priceSeries.current.update(live);
-      applyUnifiedMarkers();
-
-
-      // update volume also without re-render
-      volSeries.current?.update({
-        time: live.time,
-        value: live.volume,
-        color:
-          live.close >= live.open
-            ? "rgba(16,185,129,0.7)"
-            : "rgba(239,68,68,0.7)"
-      });
-
-      try {
-        const ts = mainChart.current?.timeScale();
-        if (!ts) return;
-
-        // Only force scroll when auto-follow is ON
-        if (autoFollowRef.current) {
-          ts.scrollToRealTime();
+        if (time - last.time < tfSec) {
+          // update existing candle
+          last.high = Math.max(last.high, price);
+          last.low = Math.min(last.low, price);
+          last.close = price;
+          newArr[newArr.length - 1] = last;
+        } else {
+          // new candle
+          newArr.push({
+            time,
+            open: price,
+            high: price,
+            low: price,
+            close: price,
+            volume: 0,
+          });
         }
-      } catch (e) {
-        console.warn("scrollToRealTime failed", e);
-      }
 
+        // apply new data to chart
+        applySeriesData(chartType.type, newArr);
 
-      
-    } catch (e) {
-      console.error("Live price error:", e);
+        return newArr;
+      });
+
+      // Moving price line (Zerodha-style)
+      priceSeries.current.applyOptions({
+        priceLineVisible: true,
+        lastValueVisible: true,
+        priceLineColor: price >= lastPrice ? "#16a34a" : "#dc2626",
+      });
     }
-  }, 1000);
 
-  return () => clearInterval(timer);
-}, [symbol, tf]);
+    // Start websocket after initial load
+    ws = startLiveFeed(symbol, handleTick);
+
+    cleanupFns.push(() => ws?.close());
+
+    return () => {
+      cancelled = true;
+      cleanupFns.forEach(fn => fn && fn());
+    };
+  }, [symbol, tf, tfSec, chartType, applySeriesData]);
+
+  // LIVE PRICE UPDATER (updates every second)
+  // LIVE PRICE UPDATER — NO BLINK
+
 
 
   /* ---------------- Overlay drawing helpers ---------------- */
@@ -1685,19 +1631,19 @@ useEffect(() => {
     if (!mainChart.current || !priceSeries.current || !overlayRef.current) return null;
     const rect = overlayRef.current.getBoundingClientRect();
     const x = clamp(evt.clientX - rect.left, 0, rect.width);
-    const y = clamp(evt.clientY - rect.top,  0, rect.height);
+    const y = clamp(evt.clientY - rect.top, 0, rect.height);
 
     const ts = mainChart.current.timeScale();
     let time = null;
     try {
       const maybe = ts.coordinateToTime(x);
       if (typeof maybe === "number") time = maybe;
-    } catch {}
+    } catch { }
     let price = null;
     try {
       const ps = priceSeries.current.coordinateToPrice(y);
       if (typeof ps === "number" && isFinite(ps)) price = ps;
-    } catch {}
+    } catch { }
     return { time, price, px: { x, y }, client: { x: evt.clientX, y: evt.clientY } };
   }, []);
 
@@ -1709,11 +1655,11 @@ useEffect(() => {
 
     let x = null;
     if (pt && typeof pt.time === "number") {
-      try { x = chart.timeScale().timeToCoordinate(pt.time); } catch {}
+      try { x = chart.timeScale().timeToCoordinate(pt.time); } catch { }
     }
     let y = null;
     if (pt && typeof pt.price === "number") {
-      try { y = series.priceToCoordinate(pt.price); } catch {}
+      try { y = series.priceToCoordinate(pt.price); } catch { }
     }
     if (x == null || y == null) return pt.px ? { x: pt.px.x, y: pt.px.y } : null;
     return { x, y };
@@ -1737,7 +1683,7 @@ useEffect(() => {
       last.points.push(pt);
       if (["hline", "hray", "vline", "cross"].includes(activeTool)) last.done = true;
       if (["trend", "ray", "info", "extended"].includes(activeTool) && last.points.length >= 2) last.done = true;
-      if (last.done && ["trend","ray","info","extended","hline","hray","vline","cross"].includes(activeTool)) {
+      if (last.done && ["trend", "ray", "info", "extended", "hline", "hray", "vline", "cross"].includes(activeTool)) {
         setActiveTool(null);
       }
     }
@@ -1884,7 +1830,7 @@ useEffect(() => {
   };
 
   const clearLast = () => { drawingsRef.current.pop(); setSelectedId(null); setToolbarOpen(false); setRedrawTick(t => t + 1); };
-  const clearAll  = () => { drawingsRef.current = [];   setSelectedId(null); setToolbarOpen(false); setRedrawTick(t => t + 1); };
+  const clearAll = () => { drawingsRef.current = []; setSelectedId(null); setToolbarOpen(false); setRedrawTick(t => t + 1); };
 
   /* ---------------- Left toolbar ---------------- */
   const LeftRail = () => (
@@ -1986,7 +1932,7 @@ useEffect(() => {
       try { return series.priceToCoordinate(p); } catch { return null; }
     };
 
-    const addLine = (x1, y1, x2, y2, style, dashed=false) => {
+    const addLine = (x1, y1, x2, y2, style, dashed = false) => {
       let dashArr = "0";
       if (style?.dash === "dash") dashArr = "6 4";
       if (style?.dash === "dot") dashArr = "2 5";
@@ -2060,25 +2006,25 @@ useEffect(() => {
 
   /* ▶ INDICATORS: create/update series when toggled or data changes */
   const removeAllIndicatorSeries = useCallback(() => {
-    Object.values(indSeriesMain.current).flat().forEach(s => { try { s.remove(); } catch {} });
-    Object.values(indSeriesOsc.current).flat().forEach(s => { try { s.remove(); } catch {} });
+    Object.values(indSeriesMain.current).flat().forEach(s => { try { s.remove(); } catch { } });
+    Object.values(indSeriesOsc.current).flat().forEach(s => { try { s.remove(); } catch { } });
     indSeriesMain.current = {};
     indSeriesOsc.current = {};
     indDataMain.current = {};
     indDataOsc.current = {};
   }, []);
 
-    const updateIndicators = useCallback(() => {
+  const updateIndicators = useCallback(() => {
     if (!mainChart.current || !oscChart.current || !candles.length) return;
 
     // 1) clear all existing indicator series
-   Object.values(indSeriesMain.current).flat().forEach(s => {
-  try { mainChart.current?.removeSeries(s); } catch {}
-});
+    Object.values(indSeriesMain.current).flat().forEach(s => {
+      try { mainChart.current?.removeSeries(s); } catch { }
+    });
 
-Object.values(indSeriesOsc.current).flat().forEach(s => {
-  try { oscChart.current?.removeSeries(s); } catch {}
-});
+    Object.values(indSeriesOsc.current).flat().forEach(s => {
+      try { mainChart.current?.removeSeries(s); } catch { }
+    });
 
     indSeriesMain.current = {};
     indSeriesOsc.current = {};
@@ -2086,10 +2032,10 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
     indDataOsc.current = {};
 
     const main = mainChart.current;
-    const osc  = oscChart.current;
+    const osc = oscChart.current;
 
     const closes = candles.map(c => c.close);
-    const times  = candles.map(c => c.time);
+    const times = candles.map(c => c.time);
 
     const addMainLine = (color = "#0ea5e9", width = 1) =>
       main.addLineSeries({
@@ -2099,29 +2045,34 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
         crosshairMarkerVisible: false,
       });
 
-    const addOscLine = (color = "#0ea5e9", width = 1) =>
-      osc.addLineSeries({
+    // 🔥 FORCE ALL OSC INDICATORS TO MAIN CHART
+    const addOscLine = (color, width, scaleId) =>
+      mainChart.current.addLineSeries({
         color,
         lineWidth: width,
         priceLineVisible: false,
         crosshairMarkerVisible: false,
+        priceScaleId: scaleId,   // 🔥 KEY FIX
       });
 
-    const addOscHist = (color = "#64748b") =>
-      osc.addHistogramSeries({
+    const addOscHist = (color, scaleId) =>
+      mainChart.current.addHistogramSeries({
         color,
-        priceLineVisible: false,
         base: 0,
+        priceLineVisible: false,
+        priceScaleId: scaleId,   // 🔥 KEY FIX
       });
+
+
 
     const pushMain = (key, series, data) => {
       indSeriesMain.current[key] = (indSeriesMain.current[key] || []).concat(series);
-      indDataMain.current[key]   = (indDataMain.current[key]   || []).concat({ series, data });
+      indDataMain.current[key] = (indDataMain.current[key] || []).concat({ series, data });
     };
 
     const pushOsc = (key, series, data) => {
       indSeriesOsc.current[key] = (indSeriesOsc.current[key] || []).concat(series);
-      indDataOsc.current[key]   = (indDataOsc.current[key]   || []).concat({ series, data });
+      indDataOsc.current[key] = (indDataOsc.current[key] || []).concat({ series, data });
     };
 
     const toSeriesData = (values) =>
@@ -2166,146 +2117,167 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
     if (active.bbands) {
       const { ma, upper, lower } = getBB();
       const midS = addMainLine("#0ea5e9", 1);
-      const upS  = addMainLine("rgba(148,163,184,0.9)", 1);
-      const loS  = addMainLine("rgba(148,163,184,0.9)", 1);
+      const upS = addMainLine("rgba(148,163,184,0.9)", 1);
+      const loS = addMainLine("rgba(148,163,184,0.9)", 1);
 
       const dMid = toSeriesData(ma);
-      const dUp  = toSeriesData(upper);
-      const dLo  = toSeriesData(lower);
+      const dUp = toSeriesData(upper);
+      const dLo = toSeriesData(lower);
 
       midS.setData(dMid);
       upS.setData(dUp);
       loS.setData(dLo);
 
       pushMain("bbands", midS, dMid);
-      pushMain("bbands", upS,  dUp);
-      pushMain("bbands", loS,  dLo);
+      pushMain("bbands", upS, dUp);
+      pushMain("bbands", loS, dLo);
     }
 
     // ---------- Bollinger %B (OSC) ----------
     if (active.bb_pctb) {
       const { pctB } = getBB();
-      const s = addOscLine("#6366f1", 1);
+      const scale = "scale_pctb";
+      const s = addOscLine("#6366f1", 1, scale);
       const d = toSeriesData(pctB);
       s.setData(d);
       pushOsc("bb_pctb", s, d);
     }
 
+
     // ---------- Bollinger Width (OSC) ----------
     if (active.bb_width) {
       const { width } = getBB();
-      const s = addOscLine("#f97316", 1);
+      const scale = "scale_bbw";
+      const s = addOscLine("#f97316", 1, scale);
       const d = toSeriesData(width);
       s.setData(d);
       pushOsc("bb_width", s, d);
     }
 
-    // ---------- ADX (+DI / −DI / ADX) (OSC) ----------
-    let adxRes = null;
-    const getADXRes = () => {
-      if (!adxRes) adxRes = ADX(candles, 14);
-      return adxRes;
-    };
 
+    // ---------- ADX (+DI / −DI / ADX) (OSC) ----------
     if (active.adx) {
       const { plusDI, minusDI, adx } = getADXRes();
-      const sPlus  = addOscLine("#22c55e", 1);   // +DI
-      const sMinus = addOscLine("#ef4444", 1);   // -DI
-      const sAdx   = addOscLine("#0ea5e9", 1);   // ADX
+      const scale = "scale_adx";
 
-      const dPlus  = toSeriesData(plusDI);
-      const dMinus = toSeriesData(minusDI);
-      const dAdx   = toSeriesData(adx);
+      const sPlus = addOscLine("#22c55e", 1, scale);
+      const sMinus = addOscLine("#ef4444", 1, scale);
+      const sAdx = addOscLine("#0ea5e9", 1, scale);
+
+      const dPlus = toSeriesData(plusDI).filter(p => Number.isFinite(p.value));
+      const dMinus = toSeriesData(minusDI).filter(p => Number.isFinite(p.value));
+      const dAdx = toSeriesData(adx).filter(p => Number.isFinite(p.value));
 
       sPlus.setData(dPlus);
       sMinus.setData(dMinus);
       sAdx.setData(dAdx);
 
-      pushOsc("adx", sPlus,  dPlus);
+      pushOsc("adx", sPlus, dPlus);
       pushOsc("adx", sMinus, dMinus);
-      pushOsc("adx", sAdx,   dAdx);
+      pushOsc("adx", sAdx, dAdx);
     }
+
+
 
     // ---------- Aroon Up / Down / Osc (OSC) ----------
     if (active.aroon) {
-      const { up, down, osc: arrOsc } = Aroon(candles, 25);
-      const sUp   = addOscLine("#22c55e", 1);
-      const sDown = addOscLine("#ef4444", 1);
-      const sOsc  = addOscLine("#0ea5e9", 1);
+      const { up, down, osc } = Aroon(candles, 25);
+      const scale = "scale_aroon";
 
-      const dUp   = toSeriesData(up);
-      const dDown = toSeriesData(down);
-      const dOsc  = toSeriesData(arrOsc);
+      const sUp = addOscLine("#22c55e", 1, scale);
+      const sDown = addOscLine("#ef4444", 1, scale);
+      const sOsc = addOscLine("#0ea5e9", 1, scale);
 
-      sUp.setData(dUp);
-      sDown.setData(dDown);
-      sOsc.setData(dOsc);
+      sUp.setData(toSeriesData(up));
+      sDown.setData(toSeriesData(down));
+      sOsc.setData(toSeriesData(osc));
 
-      pushOsc("aroon", sUp,   dUp);
-      pushOsc("aroon", sDown, dDown);
-      pushOsc("aroon", sOsc,  dOsc);
+      pushOsc("aroon", sUp);
+      pushOsc("aroon", sDown);
+      pushOsc("aroon", sOsc);
     }
 
+
+    // ---------- Accumulation / Distribution Line (OSC) ----------
     // ---------- Accumulation / Distribution Line (OSC) ----------
     if (active.adline) {
       const vals = ADLine(candles);
-      const s = addOscLine("#0ea5e9", 1);
+
+      const scale = "scale_adline"; // 🔥 separate hidden scale (prevents candle compression)
+
+      const s = addOscLine("#0ea5e9", 1, scale);
       const d = toSeriesData(vals);
+
       s.setData(d);
       pushOsc("adline", s, d);
     }
 
+
     // ---------- Balance of Power (OSC, histogram) ----------
     if (active.bop) {
       const vals = BOP(candles);
-      const s = addOscHist("#64748b");
+      const scale = "scale_bop"; // 🔥 separate hidden scale
+
+      const s = addOscHist("#64748b", scale);
       const d = toSeriesData(vals);
+
       s.setData(d);
       pushOsc("bop", s, d);
     }
 
+
     // ---------- CCI (OSC) ----------
     if (active.cci) {
       const vals = CCI(candles, 20);
-      const s = addOscLine("#22c55e", 1);
-      const d = toSeriesData(vals);
-      s.setData(d);
-      pushOsc("cci", s, d);
+      const scale = "scale_cci";
+      const s = addOscLine("#22c55e", 1, scale);
+      s.setData(toSeriesData(vals));
+      pushOsc("cci", s);
     }
+
 
     // ---------- Stoch RSI (K & D) (OSC) ----------
     if (active.rsi_stoch) {
-      const { k, d: dLine } = StochRSI(closes, 14, 14, 3);
-      const sK = addOscLine("#0ea5e9", 1);
-      const sD = addOscLine("#f97316", 1);
+      const { k, d } = StochRSI(closes, 14, 14, 3);
+      const scale = "scale_stoch";
 
-      const dk = toSeriesData(k);
-      const dd = toSeriesData(dLine);
+      const sK = addOscLine("#0ea5e9", 1, scale);
+      const sD = addOscLine("#f97316", 1, scale);
 
-      sK.setData(dk);
-      sD.setData(dd);
+      sK.setData(toSeriesData(k));
+      sD.setData(toSeriesData(d));
 
-      pushOsc("rsi_stoch", sK, dk);
-      pushOsc("rsi_stoch", sD, dd);
+      pushOsc("rsi_stoch", sK);
+      pushOsc("rsi_stoch", sD);
     }
+
 
     // ---------- Awesome Oscillator (OSC, histogram) ----------
     if (active.ao) {
       const { ao } = AO_AC(candles);
-      const s = addOscHist("#0ea5e9");
+      const scale = "scale_ao"; // 🔥 separate hidden scale
+
+      const s = addOscHist("#0ea5e9", scale);
       const d = toSeriesData(ao);
+
       s.setData(d);
       pushOsc("ao", s, d);
     }
 
+
+
     // ---------- Accelerator Oscillator (OSC, histogram) ----------
     if (active.ac) {
       const { ac } = AO_AC(candles);
-      const s = addOscHist("#22c55e");
+      const scale = "scale_ac"; // 🔥 separate hidden scale
+
+      const s = addOscHist("#22c55e", scale);
       const d = toSeriesData(ac);
+
       s.setData(d);
       pushOsc("ac", s, d);
     }
+
 
     // ---------- Supertrend (MAIN) ----------
     if (active.supertrend) {
@@ -2317,7 +2289,7 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
     }
   }, [candles, active, mainChart, oscChart]);
 
-    // Rebuild indicators when data or active flags change
+  // Rebuild indicators when data or active flags change
   useEffect(() => {
     updateIndicators();
   }, [updateIndicators]);
@@ -2334,15 +2306,15 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
     if (!d) return null;
     const style = d.style || defaultStyle;
 
-    const onColor = (e) => { d.style.color = e.target.value; setRedrawTick(t=>t+1); };
-    const onWidth = (e) => { d.style.width = Number(e.target.value); setRedrawTick(t=>t+1); };
-    const onDash  = (e) => { d.style.dash  = e.target.value; setRedrawTick(t=>t+1); };
-    const onLock  = () => { d.locked = !d.locked; setRedrawTick(t=>t+1); };
+    const onColor = (e) => { d.style.color = e.target.value; setRedrawTick(t => t + 1); };
+    const onWidth = (e) => { d.style.width = Number(e.target.value); setRedrawTick(t => t + 1); };
+    const onDash = (e) => { d.style.dash = e.target.value; setRedrawTick(t => t + 1); };
+    const onLock = () => { d.locked = !d.locked; setRedrawTick(t => t + 1); };
     const onDelete = () => {
       drawingsRef.current = drawingsRef.current.filter(x => x.id !== d.id);
       setSelectedId(null);
       setToolbarOpen(false);
-      setRedrawTick(t=>t+1);
+      setRedrawTick(t => t + 1);
     };
     const onExitDraw = () => { setActiveTool(null); setToolbarOpen(false); };
 
@@ -2350,13 +2322,13 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
       <div
         className="fixed z-[9994] bg-white/95 border rounded-xl shadow-lg px-2 py-1 flex items-center gap-2"
         style={{ left: tbPos.x, top: tbPos.y }}
-        onMouseDown={(e)=>e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
         onMouseEnter={freezeUI}
         onMouseLeave={unfreezeUI}
       >
         <input type="color" value={style.color} onChange={onColor} className="w-8 h-8 p-0 border rounded" title="Color" />
         <select value={style.width} onChange={onWidth} className="text-xs border rounded px-2 py-1" title="Stroke width">
-          {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}px</option>)}
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}px</option>)}
         </select>
         <select value={style.dash} onChange={onDash} className="text-xs border rounded px-2 py-1" title="Line style">
           <option value="solid">Solid</option>
@@ -2394,50 +2366,50 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
 
     // ✅ Robust delete: always removes the selected series from the chart AND state
     const onDeleteIndicator = () => {
-  const s = selectedIndicator;
-  if (!s) return;
+      const s = selectedIndicator;
+      if (!s) return;
 
-  let deletedKeys = new Set();
+      let deletedKeys = new Set();
 
-  // 🔥 MAIN PANE
-  for (const [key, arr] of Object.entries(indSeriesMain.current)) {
-    if (arr.includes(s)) {
-      // delete ALL series of this indicator
-      arr.forEach(series => {
-        try { mainChart.current?.removeSeries(series); } catch {}
-      });
+      // 🔥 MAIN PANE
+      for (const [key, arr] of Object.entries(indSeriesMain.current)) {
+        if (arr.includes(s)) {
+          // delete ALL series of this indicator
+          arr.forEach(series => {
+            try { mainChart.current?.removeSeries(series); } catch { }
+          });
 
-      delete indSeriesMain.current[key];
-      delete indDataMain.current[key];
-      deletedKeys.add(key);
-    }
-  }
+          delete indSeriesMain.current[key];
+          delete indDataMain.current[key];
+          deletedKeys.add(key);
+        }
+      }
 
-  // 🔥 OSC PANE
-  for (const [key, arr] of Object.entries(indSeriesOsc.current)) {
-    if (arr.includes(s)) {
-      arr.forEach(series => {
-        try { oscChart.current?.removeSeries(series); } catch {}
-      });
+      // 🔥 OSC PANE
+      for (const [key, arr] of Object.entries(indSeriesOsc.current)) {
+        if (arr.includes(s)) {
+          arr.forEach(series => {
+            try { oscChart.current?.removeSeries(series); } catch { }
+          });
 
-      delete indSeriesOsc.current[key];
-      delete indDataOsc.current[key];
-      deletedKeys.add(key);
-    }
-  }
+          delete indSeriesOsc.current[key];
+          delete indDataOsc.current[key];
+          deletedKeys.add(key);
+        }
+      }
 
-  // 🔥 AUTO-UNTICK CHECKBOX
-  if (deletedKeys.size) {
-    setActive(prev => {
-      const next = { ...prev };
-      deletedKeys.forEach(k => (next[k] = false));
-      return next;
-    });
-  }
+      // 🔥 AUTO-UNTICK CHECKBOX
+      if (deletedKeys.size) {
+        setActive(prev => {
+          const next = { ...prev };
+          deletedKeys.forEach(k => (next[k] = false));
+          return next;
+        });
+      }
 
-  setSelectedIndicator(null);
-  setIndTbOpen(false);
-};
+      setSelectedIndicator(null);
+      setIndTbOpen(false);
+    };
 
 
     return (
@@ -2449,7 +2421,7 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
       >
         <input type="color" defaultValue="#3b82f6" onChange={onColor} className="w-8 h-8 p-0 border rounded" title="Color" />
         <select defaultValue={2} onChange={onWidth} className="text-xs border rounded px-2 py-1" title="Stroke width">
-          {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{n}px</option>)}
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}px</option>)}
         </select>
         <select defaultValue="solid" onChange={onDash} className="text-xs border rounded px-2 py-1" title="Line style">
           <option value="solid">Solid</option>
@@ -2488,282 +2460,282 @@ Object.values(indSeriesOsc.current).flat().forEach(s => {
     el.addEventListener("mousedown", handleMouseDown);
     return () => el.removeEventListener("mousedown", handleMouseDown);
   }, [activeTool, toolbarOpen, drawerOpen]); // keep small deps
-  
- 
-
-// ---------------------------------------------------------
-// AUTO SIGNAL GENERATION CONTROLLER
-// ---------------------------------------------------------
-const autoRunRef = useRef(null);
-const isRunningRef = useRef(false);
-// ⭐ NEW — 20s loop controller for Recommendations
-const recoRunRef = useRef(null);
-
-// ⭐ track recommendation mode in ref (used when button clicked)
-const recoModeRef = useRef(false);
-
-// ---------------------------------------------------------
-// MERGE SIGNAL DATA (2m + 15m)
-// ---------------------------------------------------------
-function mergeSignals(sig2, sig15) {
-  const final = [];
-
-  [...sig2, ...sig15].forEach(s => final.push({
-    time: Number(s.timestamp),
-    position: s.signal === "BUY" ? "belowBar" : "aboveBar",
-    shape: s.signal === "BUY" ? "arrowUp" : "arrowDown",
-    color: s.signal === "BUY" ? "#16a34a" : "#dc2626",
-    text: `${s.signal} || ${s.close_price}`
-  }));
-
-  return final.sort((a, b) => a.time - b.time);
-}
 
 
-// ---------------------------------------------------------
-// MAIN FUNCTION — NEW VERSION
-// ---------------------------------------------------------
-async function generateSignal() {
-  console.log("=== GENERATE SIGNAL CLICKED ===");
 
-  // -------------------------------------
-  // ⭐ 1. OFF MODE (SECOND CLICK)
-  // -------------------------------------
-  if (isRunningRef.current) {
-    clearInterval(autoRunRef.current);
-    isRunningRef.current = false;
-     setGenerateMode(true);
-     localStorage.setItem("NC_generateMode_" + symbol, "true");
+  // ---------------------------------------------------------
+  // AUTO SIGNAL GENERATION CONTROLLER
+  // ---------------------------------------------------------
+  const autoRunRef = useRef(null);
+  const isRunningRef = useRef(false);
+  // ⭐ NEW — 20s loop controller for Recommendations
+  const recoRunRef = useRef(null);
+
+  // ⭐ track recommendation mode in ref (used when button clicked)
+  const recoModeRef = useRef(false);
+
+  // ---------------------------------------------------------
+  // MERGE SIGNAL DATA (2m + 15m)
+  // ---------------------------------------------------------
+  function mergeSignals(sig2, sig15) {
+    const final = [];
+
+    [...sig2, ...sig15].forEach(s => final.push({
+      time: Number(s.timestamp),
+      position: s.signal === "BUY" ? "belowBar" : "aboveBar",
+      shape: s.signal === "BUY" ? "arrowUp" : "arrowDown",
+      color: s.signal === "BUY" ? "#16a34a" : "#dc2626",
+      text: `${s.signal} || ${s.close_price}`
+    }));
+
+    return final.sort((a, b) => a.time - b.time);
+  }
+
+
+  // ---------------------------------------------------------
+  // MAIN FUNCTION — NEW VERSION
+  // ---------------------------------------------------------
+  async function generateSignal() {
+    console.log("=== GENERATE SIGNAL CLICKED ===");
+
+    // -------------------------------------
+    // ⭐ 1. OFF MODE (SECOND CLICK)
+    // -------------------------------------
+    if (isRunningRef.current) {
+      clearInterval(autoRunRef.current);
+      isRunningRef.current = false;
+      setGenerateMode(true);
+      localStorage.setItem("NC_generateMode_" + symbol, "true");
+
+      const btn = document.querySelector("#genBtn");
+      if (btn) {
+        btn.style.background = "";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      }
+
+      alert("Auto generated signals stopped");
+      return;
+    }
+
+    // -------------------------------------
+    // ⭐ 2. VALIDATE TIMEFRAME
+    // -------------------------------------
+    if (!["2m", "15m"].includes(tf)) {
+      alert("Generate signals only for 2m and 15m");
+      return;
+    }
+
+    // -------------------------------------
+    // ⭐ 3. ON MODE (FIRST CLICK)
+    // -------------------------------------
+    alert(
+      "• Signal generation started.\n" +
+      "• Displaying signals shortly.\n" +
+      "• Click again for continuous updates stopp."
+    );
+
+    isRunningRef.current = true;
+    setGenerateMode(true);
+    localStorage.setItem("NC_generateMode_" + symbol, "true");
 
     const btn = document.querySelector("#genBtn");
     if (btn) {
-      btn.style.background = "";
-      btn.style.color = "";
-      btn.style.borderColor = "";
+      btn.style.background = "#16a34a";
+      btn.style.color = "white";
+      btn.style.borderColor = "#16a34a";
     }
 
-    alert("Auto generated signals stopped");
-    return;
+    // run once immediately
+    await runSignalOnce();
+
+    // start 20-sec auto loop
+    if (autoRunRef.current) clearInterval(autoRunRef.current);
+    autoRunRef.current = setInterval(runSignalOnce, 20000);
   }
 
-  // -------------------------------------
-  // ⭐ 2. VALIDATE TIMEFRAME
-  // -------------------------------------
-  if (!["2m", "15m"].includes(tf)) {
-    alert("Generate signals only for 2m and 15m");
-    return;
+
+
+
+  // ---------------------------------------------------------
+  // RUN SIGNAL ONCE (2m + 15m)
+  // ---------------------------------------------------------
+  async function runSignalOnce() {
+    try {
+      console.log("RUN SIGNAL ONCE");
+
+      const username = localStorage.getItem("username") || "default_user";
+
+      // regenerate signals on backend
+      await fetch(`${API}/market/generate-signal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          symbol,
+          username, // 🔥 CRITICAL FIX
+        }),
+      });
+
+      // load markers after generation
+      await loadAllSignals(symbol);
+
+      console.log("✔ Updated signals for:", tf);
+
+    } catch (err) {
+      console.error("Signal error:", err);
+    }
   }
 
-  // -------------------------------------
-  // ⭐ 3. ON MODE (FIRST CLICK)
-  // -------------------------------------
-  alert(
-    "• Signal generation started.\n" +
-    "• Displaying signals shortly.\n" +
-    "• Click again for continuous updates stopp."
-  );
 
-  isRunningRef.current = true;
-  setGenerateMode(true);
-  localStorage.setItem("NC_generateMode_" + symbol, "true");
+  // --------------------------------------------------
+  // UNIVERSAL MARKER MERGER (STEP-4)
+  // --------------------------------------------------
+  function applyUnifiedMarkers() {
+    if (!priceSeries.current) return;
 
-  const btn = document.querySelector("#genBtn");
-  if (btn) {
-    btn.style.background = "#16a34a";
-    btn.style.color = "white";
-    btn.style.borderColor = "#16a34a";
+    const gen = priceSeries.current._genMarkers || [];
+    const reco = priceSeries.current._recoMarkers || [];
+
+    // FIX: Merge + sort by time
+    const merged = [...gen, ...reco]
+      .filter(m => m && m.time)
+      .sort((a, b) => a.time - b.time);
+
+    try {
+      priceSeries.current.setMarkers(merged);
+    } catch (e) {
+      console.error("❌ Marker apply error:", e, merged);
+    }
   }
 
-  // run once immediately
-  await runSignalOnce();
-
-  // start 20-sec auto loop
-  if (autoRunRef.current) clearInterval(autoRunRef.current);
-  autoRunRef.current = setInterval(runSignalOnce, 20000);
-}
 
 
 
-
-// ---------------------------------------------------------
-// RUN SIGNAL ONCE (2m + 15m)
-// ---------------------------------------------------------
-async function runSignalOnce() {
-  try {
-    console.log("RUN SIGNAL ONCE");
-
-    const username = localStorage.getItem("username") || "default_user";
-
-    // regenerate signals on backend
-    await fetch(`${API}/market/generate-signal`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        symbol,
-        username, // 🔥 CRITICAL FIX
-      }),
-    });
-
-    // load markers after generation
-    await loadAllSignals(symbol);
-
-    console.log("✔ Updated signals for:", tf);
-
-  } catch (err) {
-    console.error("Signal error:", err);
-  }
-}
-
-
-// --------------------------------------------------
-// UNIVERSAL MARKER MERGER (STEP-4)
-// --------------------------------------------------
-function applyUnifiedMarkers() {
-  if (!priceSeries.current) return;
-
-  const gen = priceSeries.current._genMarkers || [];
-  const reco = priceSeries.current._recoMarkers || [];
-
-  // FIX: Merge + sort by time
-  const merged = [...gen, ...reco]
-    .filter(m => m && m.time)
-    .sort((a, b) => a.time - b.time);
-
-  try {
-    priceSeries.current.setMarkers(merged);
-  } catch (e) {
-    console.error("❌ Marker apply error:", e, merged);
-  }
-}
+  // ---------------------------------------------------------
+  // RECOMMENDATIONS FEATURE
+  // ---------------------------------------------------------
+  const [showRecoModal, setShowRecoModal] = useState(false);
+  const [recoData, setRecoData] = useState([]);
 
 
 
+  // ======================================================================
+  // 🔵 OPEN RECOMMENDATIONS — CLICK HANDLER
+  // ======================================================================
+  async function openRecommendations() {
+    console.log("📌 Recommendation button clicked");
 
-// ---------------------------------------------------------
-// RECOMMENDATIONS FEATURE
-// ---------------------------------------------------------
-const [showRecoModal, setShowRecoModal] = useState(false);
-const [recoData, setRecoData] = useState([]);
+    // -----------------------
+    // 🌟 STOP MODE
+    // -----------------------
+    if (recoModeRef.current === true) {
+      alert("Recommendation auto-refresh stopped");
 
+      recoModeRef.current = false;
+      setRecoMode(false);
+      localStorage.setItem("NC_recoMode_" + symbol, "false");
 
+      if (recoRunRef.current) clearInterval(recoRunRef.current);
+      recoRunRef.current = null;
 
-// ======================================================================
-// 🔵 OPEN RECOMMENDATIONS — CLICK HANDLER
-// ======================================================================
-async function openRecommendations() {
-  console.log("📌 Recommendation button clicked");
+      const btn = document.querySelector("#recoBtn");
+      if (btn) {
+        btn.style.background = "";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      }
+      return;
+    }
 
-  // -----------------------
-  // 🌟 STOP MODE
-  // -----------------------
-  if (recoModeRef.current === true) {
-    alert("Recommendation auto-refresh stopped");
+    // -----------------------
+    // 🌟 VALIDATE TF
+    // -----------------------
+    if (!["15m", "1d"].includes(tf)) {
+      alert("Recommendation signals only available for 15m and 1d");
+      return;
+    }
 
-    recoModeRef.current = false;
-    setRecoMode(false);
-    localStorage.setItem("NC_recoMode_" + symbol, "false");
+    // -----------------------
+    // 🌟 START MODE
+    // -----------------------
+    alert(
+      "• Recommendation Signals Started.\n" +
+      "• Updating every 20 seconds.\n" +
+      "• If no data exists for the script, nothing will show.\n" +
+      "• Click again to stop."
+    );
 
-    if (recoRunRef.current) clearInterval(recoRunRef.current);
-    recoRunRef.current = null;
+    recoModeRef.current = true;
+    setRecoMode(true);
+    localStorage.setItem("NC_recoMode_" + symbol, "true");
 
     const btn = document.querySelector("#recoBtn");
     if (btn) {
-      btn.style.background = "";
-      btn.style.color = "";
-      btn.style.borderColor = "";
-    }
-    return;
-  }
-
-  // -----------------------
-  // 🌟 VALIDATE TF
-  // -----------------------
-  if (!["15m", "1d"].includes(tf)) {
-    alert("Recommendation signals only available for 15m and 1d");
-    return;
-  }
-
-  // -----------------------
-  // 🌟 START MODE
-  // -----------------------
-  alert(
-    "• Recommendation Signals Started.\n" +
-    "• Updating every 20 seconds.\n" +
-    "• If no data exists for the script, nothing will show.\n" +
-    "• Click again to stop."
-  );
-
-  recoModeRef.current = true;
-  setRecoMode(true);
-  localStorage.setItem("NC_recoMode_" + symbol, "true");
-
-  const btn = document.querySelector("#recoBtn");
-  if (btn) {
-    btn.style.background = "#2563eb";
-    btn.style.color = "white";
-    btn.style.borderColor = "#2563eb";
-  }
-
-  // -----------------------
-  // 🌟 START LOOP (20 sec)
-  // -----------------------
-  if (recoRunRef.current) clearInterval(recoRunRef.current);
-
-  recoRunRef.current = setInterval(() => {
-    console.log("🔄 Refreshing Recommendations (20s loop)");
-    refreshRecommendations();
-  }, 20000);
-
-  // Run immediately ONCE
-  await refreshRecommendations();
-}
-
-
-
-// ======================================================================
-// 🔵 REFRESH RECOMMENDATIONS — FETCH + APPLY MARKERS + UPDATE DESCRIPTION
-// ======================================================================
-async function refreshRecommendations() {
-  try {
-    const url = `${API}/market/reco-load?symbol=${symbol}&tf=${tf}`;
-    const res = await fetch(url);
-    const js = await res.json();
-
-    // --------------------------
-    // APPLY MARKERS
-    // --------------------------
-    if (Array.isArray(js.markers)) {
-      priceSeries.current._recoMarkers = js.markers;
-      applyUnifiedMarkers();
+      btn.style.background = "#2563eb";
+      btn.style.color = "white";
+      btn.style.borderColor = "#2563eb";
     }
 
-    // --------------------------
-    // DESCRIPTION
-    // --------------------------
-    const rows = Array.isArray(js.rows) ? js.rows : [];
+    // -----------------------
+    // 🌟 START LOOP (20 sec)
+    // -----------------------
+    if (recoRunRef.current) clearInterval(recoRunRef.current);
 
-    // ⭐ Ensure each row contains timestamp (needed for proper sorting)
-    const cleaned = rows.map(r => ({
-      Date: r.Date || "--",
-      Alert_details: r.Alert_details || "--",
-      screener: r.screener || "--",
-      user_actions: r.user_actions || "--",
-      timestamp: r.timestamp ? Number(r.timestamp) : 0   // 💥 FIX: important
-    }));
+    recoRunRef.current = setInterval(() => {
+      console.log("🔄 Refreshing Recommendations (20s loop)");
+      refreshRecommendations();
+    }, 20000);
 
-    // sort latest 4
-    const latest = cleaned
-      .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
-      .slice(0, 4);
-
-    console.log("📌 Recommendation Description Loaded:", latest);
-
-    setLatestRecoDesc(latest);
-
-  } catch (err) {
-    console.error("❌ RECO refresh error:", err);
+    // Run immediately ONCE
+    await refreshRecommendations();
   }
-}
+
+
+
+  // ======================================================================
+  // 🔵 REFRESH RECOMMENDATIONS — FETCH + APPLY MARKERS + UPDATE DESCRIPTION
+  // ======================================================================
+  async function refreshRecommendations() {
+    try {
+      const url = `${API}/market/reco-load?symbol=${symbol}&tf=${tf}`;
+      const res = await fetch(url);
+      const js = await res.json();
+
+      // --------------------------
+      // APPLY MARKERS
+      // --------------------------
+      if (Array.isArray(js.markers)) {
+        priceSeries.current._recoMarkers = js.markers;
+        applyUnifiedMarkers();
+      }
+
+      // --------------------------
+      // DESCRIPTION
+      // --------------------------
+      const rows = Array.isArray(js.rows) ? js.rows : [];
+
+      // ⭐ Ensure each row contains timestamp (needed for proper sorting)
+      const cleaned = rows.map(r => ({
+        Date: r.Date || "--",
+        Alert_details: r.Alert_details || "--",
+        screener: r.screener || "--",
+        user_actions: r.user_actions || "--",
+        timestamp: r.timestamp ? Number(r.timestamp) : 0   // 💥 FIX: important
+      }));
+
+      // sort latest 4
+      const latest = cleaned
+        .sort((a, b) => Number(b.timestamp) - Number(a.timestamp))
+        .slice(0, 4);
+
+      console.log("📌 Recommendation Description Loaded:", latest);
+
+      setLatestRecoDesc(latest);
+
+    } catch (err) {
+      console.error("❌ RECO refresh error:", err);
+    }
+  }
 
 
 
@@ -2772,7 +2744,7 @@ async function refreshRecommendations() {
 
 
 
- /* --------------------------- UI --------------------------- */
+  /* --------------------------- UI --------------------------- */
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -2799,43 +2771,43 @@ async function refreshRecommendations() {
 
           {/* App buttons */}
           <button
-  id="genBtn"
-  onClick={generateSignal}
-  className="text-xs px-2 py-1 rounded border hover:bg-green-100 whitespace-nowrap text-green-600 border-green-500"
->
-  Generate Signal
-</button>
+            id="genBtn"
+            onClick={generateSignal}
+            className="text-xs px-2 py-1 rounded border hover:bg-green-100 whitespace-nowrap text-green-600 border-green-500"
+          >
+            Generate Signal
+          </button>
 
 
-          
-          
+
+
           <button
             id="recoBtn"
             onClick={openRecommendations}
             className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
           >
-           Recommendation
+            Recommendation
           </button>
 
- <button
-  onClick={openWhatsappPage}
-  title="Open WhatsApp Alerts"
-  className="
+          <button
+            onClick={openWhatsappPage}
+            title="Open WhatsApp Alerts"
+            className="
     w-6 h-6 flex items-center justify-center
     rounded-full border border-green-500
     text-green-600
     hover:bg-green-100
     transition
   "
->
-  <FaWhatsapp className="w-4 h-4" />
-</button>
+          >
+            <FaWhatsapp className="w-4 h-4" />
+          </button>
 
 
 
-         
-                   {/* Go Live button - jump to latest bar & re-enable auto-follow */}
-          
+
+          {/* Go Live button - jump to latest bar & re-enable auto-follow */}
+
 
 
         </div>
@@ -2843,8 +2815,8 @@ async function refreshRecommendations() {
       </div>
 
       <div style={{ height: HEADER_H }} />
-      
-      
+
+
 
       {/* Left toolbar */}
       <LeftRail />
@@ -2852,49 +2824,49 @@ async function refreshRecommendations() {
       {/* Main chart + overlay */}
       <div style={{ position: "relative" }}>
         <div ref={mainRef} style={{ width: "100%" }} />
-      {/* Floating Zoom Buttons */}
+        {/* Floating Zoom Buttons */}
 
-{/* Floating Centered Zoom Buttons (horizontal, no dark background) */}
-<div
-  className="absolute z-[9999] flex flex-row gap-2"
-  style={{
-    top: "85%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-  }}
->
-  {/* Zoom In */}
-  <button
-    onClick={zoomIn}
-    className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
+        {/* Floating Centered Zoom Buttons (horizontal, no dark background) */}
+        <div
+          className="absolute z-[9999] flex flex-row gap-2"
+          style={{
+            top: "85%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          {/* Zoom In */}
+          <button
+            onClick={zoomIn}
+            className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
                bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
-  >
-    +
-  </button>
+          >
+            +
+          </button>
 
-  {/* Zoom Out */}
-  <button
-    onClick={zoomOut}
-    className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
+          {/* Zoom Out */}
+          <button
+            onClick={zoomOut}
+            className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
                bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
-  >
-    –
-  </button>
-  <button
-    onClick={resumeAutoFollow}
-    className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
+          >
+            –
+          </button>
+          <button
+            onClick={resumeAutoFollow}
+            className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
                bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
-  >
-    &gt;&gt;
-  </button>
-</div>
+          >
+            &gt;&gt;
+          </button>
+        </div>
 
 
 
 
         {/* Floating Go Live Button */}
 
-{/* Floating Go Live Button — icon only */}
+        {/* Floating Go Live Button — icon only */}
 
 
 
@@ -2930,135 +2902,135 @@ async function refreshRecommendations() {
         <div ref={volumeRef} style={{ width: "100%" }} />
       </div>
 
-   {/* Alert Description Section */}
-<div className="mt-4 px-4 pb-4">
-  <h3 className="text-sm font-semibold text-gray-700 mb-2">
-    Alerts & Recommendations Details
-  </h3>
+      {/* Alert Description Section */}
+      <div className="mt-4 px-4 pb-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">
+          Alerts & Recommendations Details
+        </h3>
 
-  <div
-    style={{
-      background: "#ffffff",
-      borderRadius: "8px",
-      padding: "14px",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
-      fontFamily: "Inter, sans-serif",
-      fontSize: "14px",
-      lineHeight: "20px",
-      minHeight: "80px",
-    }}
-  >
+        <div
+          style={{
+            background: "#ffffff",
+            borderRadius: "8px",
+            padding: "14px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+            fontFamily: "Inter, sans-serif",
+            fontSize: "14px",
+            lineHeight: "20px",
+            minHeight: "80px",
+          }}
+        >
 
-    {/* ================= RECOMMENDATIONS ================= */}
-    {recoMode && (
-      <>
-        <div className="mb-3 text-xs font-semibold text-blue-600">
-          📘 Latest 4 Recommendation Signals
+          {/* ================= RECOMMENDATIONS ================= */}
+          {recoMode && (
+            <>
+              <div className="mb-3 text-xs font-semibold text-blue-600">
+                📘 Latest 4 Recommendation Signals
+              </div>
+
+              {latestRecoDesc.length > 0 ? (
+                latestRecoDesc.slice(0, 4).map((row, idx) => (
+                  <div
+                    key={`reco-${idx}`}
+                    style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontWeight: "600",
+                      }}
+                    >
+                      <span>{formatRecoDate(row.Date)}</span>
+
+                      <span
+                        className={
+                          row.signal_type === "BUY"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      >
+                        {[row.Strategy, row.signal_type, row.close_price]
+                          .filter(v => v !== undefined && v !== null && v !== "")
+                          .map((v, i) =>
+                            typeof v === "number" ? v.toFixed(2) : v
+                          )
+                          .join(" | ")}
+                      </span>
+
+                    </div>
+
+                    <div className="mt-1">
+                      <strong>Alert Details:</strong> {row.Alert_details || "--"} <br />
+                      <strong>Screener:</strong> {row.screener || "--"} <br />
+                      <strong>User Action:</strong> {row.user_actions || "--"}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-gray-500">No recommendations found</div>
+              )}
+            </>
+          )}
+
+          {/* ================= GENERATED SIGNALS ================= */}
+          {generateMode && (
+            <>
+              <div className="mt-4 mb-3 text-xs font-semibold text-green-600">
+                ⚡ Latest 4 Generated Signals
+              </div>
+
+              {latestSignals.length === 0 ? (
+                <div>Signals Displaying in few seconds</div>
+              ) : (
+                latestSignals.map((sig, idx) => (
+                  <div
+                    key={`gen-${idx}`}
+                    style={{
+                      paddingBottom: "10px",
+                      borderBottom: "1px solid #eee",
+                      marginBottom: "10px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontWeight: "600",
+                      }}
+                    >
+                      <span>
+                        {new Date(sig.timestamp * 1000).toLocaleString("en-US")}
+                      </span>
+
+                      <span
+                        className={
+                          sig.signal === "BUY"
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }
+                      >
+                        {sig.signal} | {sig.tf} |{" "}
+                        {Number(sig.close_price).toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div style={{ marginTop: "5px" }}>
+                      <strong>Alert Details:</strong>{" "}
+                      {sig.alert_details || "--"}
+                      <br />
+                      <strong>Screener:</strong> {sig.screener || "--"}
+                      <br />
+                      <strong>User Action:</strong>{" "}
+                      {sig.user_action || "--"}
+                    </div>
+                  </div>
+                ))
+              )}
+            </>
+          )}
         </div>
-
-        {latestRecoDesc.length > 0 ? (
-          latestRecoDesc.slice(0, 4).map((row, idx) => (
-            <div
-              key={`reco-${idx}`}
-              style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontWeight: "600",
-                }}
-              >
-                <span>{formatRecoDate(row.Date)}</span>
-
-                <span
-  className={
-    row.signal_type === "BUY"
-      ? "text-green-600"
-      : "text-red-600"
-  }
->
-  {[row.Strategy, row.signal_type, row.close_price]
-    .filter(v => v !== undefined && v !== null && v !== "")
-    .map((v, i) =>
-      typeof v === "number" ? v.toFixed(2) : v
-    )
-    .join(" | ")}
-</span>
-
-              </div>
-
-              <div className="mt-1">
-                <strong>Alert Details:</strong> {row.Alert_details || "--"} <br />
-                <strong>Screener:</strong> {row.screener || "--"} <br />
-                <strong>User Action:</strong> {row.user_actions || "--"}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-gray-500">No recommendations found</div>
-        )}
-      </>
-    )}
-
-    {/* ================= GENERATED SIGNALS ================= */}
-    {generateMode && (
-      <>
-        <div className="mt-4 mb-3 text-xs font-semibold text-green-600">
-          ⚡ Latest 4 Generated Signals
-        </div>
-
-        {latestSignals.length === 0 ? (
-          <div>Signals Displaying in few seconds</div>
-        ) : (
-          latestSignals.map((sig, idx) => (
-            <div
-              key={`gen-${idx}`}
-              style={{
-                paddingBottom: "10px",
-                borderBottom: "1px solid #eee",
-                marginBottom: "10px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontWeight: "600",
-                }}
-              >
-                <span>
-                  {new Date(sig.timestamp * 1000).toLocaleString("en-US")}
-                </span>
-
-                <span
-                  className={
-                    sig.signal === "BUY"
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }
-                >
-                  {sig.signal} | {sig.tf} |{" "}
-                  {Number(sig.close_price).toFixed(2)}
-                </span>
-              </div>
-
-              <div style={{ marginTop: "5px" }}>
-                <strong>Alert Details:</strong>{" "}
-                {sig.alert_details || "--"}
-                <br />
-                <strong>Screener:</strong> {sig.screener || "--"}
-                <br />
-                <strong>User Action:</strong>{" "}
-                {sig.user_action || "--"}
-              </div>
-            </div>
-          ))
-        )}
-      </>
-    )}
-  </div>
-</div>
+      </div>
 
 
 
