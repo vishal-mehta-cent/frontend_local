@@ -8,7 +8,7 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
   const OPEN = 3 * 60 + 45;
-  const CLOSE = 11 * 30 + 0;
+  const CLOSE = 11 * 60 + 30;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
