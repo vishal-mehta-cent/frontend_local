@@ -207,12 +207,46 @@ export default function Profile({ username, logout }) {
       setLoadingStripeInit(false);
     }
   };
+const handleResetAccount = async () => {
+  const confirmReset = window.confirm(
+    "⚠️ This will RESET your account.\n\nAll funds, orders & history will be cleared.\n\nDo you want to continue?"
+  );
+
+  if (!confirmReset) return;
+
+  try {
+    const res = await fetch(
+      `${API}/users/reset/${username}`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.detail || "Reset failed");
+      return;
+    }
+
+    alert("✅ Account reset successfully");
+
+    // reset UI state
+    setFunds(0);
+
+    // optional redirect
+    nav("/menu");
+
+  } catch (err) {
+    alert("Server error while resetting account");
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-white p-4">
       <BackButton to="/menu" />
       <h2 className="text-xl font-bold text-center text-blue-600 mb-6">ACCOUNT</h2>
-
       {/* Avatar and Info (email first, then name; funds hidden) */}
       <div className="flex flex-col items-center mb-6">
         <div className="w-20 h-20 rounded-full bg-gray-300" />
@@ -264,6 +298,17 @@ export default function Profile({ username, logout }) {
         >
           🚪 Logout
         </button>
+         <div className="flex justify-end pt-2">
+    <button
+      onClick={handleResetAccount}
+      className="flex items-center gap-1
+                 bg-red-100 text-red-600 text-sm
+                 px-4 py-2 rounded-md
+                 hover:bg-red-200"
+    >
+      🔄 Reset Account
+    </button>
+  </div>
       </div>
 
       {/* Logout Confirmation Modal */}
