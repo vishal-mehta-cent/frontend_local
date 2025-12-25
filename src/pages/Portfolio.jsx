@@ -82,52 +82,52 @@ export default function Portfolio({ username }) {
   const fileInputRef = useRef(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const hasLoadedOnce = useRef(false);
 
   // ------- load portfolio -------
-  const load = () => {
-    setLoading(true);
-    setError("");
-    const ctrl = new AbortController();
+const load = (ctrl) => {
+  setLoading(true);
+  setError("");
 
-    fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, {
-      signal: ctrl.signal,
+  fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, {
+    signal: ctrl.signal,
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const j = await res.json();
+          detail = j?.detail || "";
+        } catch {}
+        throw new Error(detail || `HTTP ${res.status}`);
+      }
+      return res.json();
     })
-      .then(async (res) => {
-        if (!res.ok) {
-          let detail = "";
-          try {
-            const j = await res.json();
-            detail = j?.detail || "";
-          } catch {}
-          throw new Error(
-            detail || `Failed to fetch portfolio (HTTP ${res.status})`
-          );
-        }
-        return res.json();
-      })
-      .then((result) => {
-        setData({
-          open: Array.isArray(result?.open) ? result.open : [],
-          closed: Array.isArray(result?.closed) ? result.closed : [],
-        });
-        setError("");
-      })
-      .catch((err) => {
-        if (
-          err?.name === "AbortError" ||
-          err?.message?.toLowerCase().includes("aborted")
-        )
-          return;
-        console.error("Portfolio fetch error:", err);
-        setError(err.message || "Something went wrong. Please try again.");
-        setData({ open: [], closed: [] });
-      })
-      .finally(() => setLoading(false));
+    .then((result) => {
+      setData({
+        open: Array.isArray(result?.open) ? result.open : [],
+        closed: Array.isArray(result?.closed) ? result.closed : [],
+      });
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") return;
+      setError(err.message || "Failed to load portfolio");
+      setData({ open: [], closed: [] });
+    })
+    .finally(() => {
+  setLoading(false);
+  hasLoadedOnce.current = true;
+});
 
-    return () => ctrl.abort();
-  };
+};
 
-  useEffect(load, [username]);
+
+  useEffect(() => {
+  const ctrl = new AbortController();
+  load(ctrl);
+
+  return () => ctrl.abort();
+}, [username]);
 
   const pickDateTime = (o) =>
     o?.datetime || o?.updated_at || o?.created_at || o?.time || o?.date || null;
@@ -458,14 +458,18 @@ const handleExit = (symbol, position) => {
 
           {/* Open Holdings */}
           <h3 className="text-center text-lg font-semibold mt-3">
-            Open Holdings
-          </h3>
+  Open Holdings
+</h3>
 
-          {filteredOpen.length === 0 ? (
-            <div className="text-center text-sm text-gray-500">
-              No holdings in portfolio
-            </div>
-          ) : (
+{loading ? (
+  <div className="text-center text-sm text-gray-500 mt-2">
+    Loading holdings…
+  </div>
+) : filteredOpen.length === 0 ? (
+  <div className="text-center text-sm text-gray-500 mt-2">
+    No holdings in portfolio
+  </div>
+) : (
             <div className="space-y-3">
               {filteredOpen.map((p, i) => {
                 const symbol = (p.symbol || p.script || "").toUpperCase();
@@ -555,9 +559,6 @@ const handleExit = (symbol, position) => {
                             <span className="font-semibold text-gray-800">
                               {money(live)}
                             </span>
-                          </span>
-                          <span className="text-[11px] text-gray-500 border rounded px-1">
-                            NSE
                           </span>
                         </div>
                       </div>
