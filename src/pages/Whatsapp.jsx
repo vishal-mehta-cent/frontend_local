@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import BackButton from "../components/BackButton";
 import { Search, ClipboardList, Trash2 } from "lucide-react";
@@ -5,7 +6,7 @@ import { FaWhatsapp } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 
 
-
+import { useRef } from "react";
 
 const API =
     import.meta.env.VITE_BACKEND_BASE_URL ||
@@ -13,12 +14,13 @@ const API =
 
 export default function Whatsapp() {
     const location = useLocation();
-   const chartSymbol = location.state?.symbol || "";
+    const chartSymbol = location.state?.symbol || "";
+    const fromChart = Boolean(chartSymbol);
 
     const [scripts, setScripts] = useState([]);
-   const [newScript, setNewScript] = useState(() => chartSymbol || "");
+    const [newScript, setNewScript] = useState(() => chartSymbol || "");
 
- // ⭐ For adding script
+    // ⭐ For adding script
     const navigate = useNavigate();
     const [whatsappNumber, setWhatsappNumber] = useState("");
     const [loadingNumber, setLoadingNumber] = useState(false);
@@ -26,6 +28,7 @@ export default function Whatsapp() {
     // ✅ Logged-in user (used for WhatsApp user-wise data)
     const userId = localStorage.getItem("user_id") || "";
     const emailId = localStorage.getItem("email_id") || "";
+    const autoAddedRef = useRef(false);
 
 
 
@@ -35,6 +38,7 @@ export default function Whatsapp() {
 
     useEffect(() => {
         if (!userId) return;
+
 
         fetch(`${API}/whatsapp/user-settings?user_id=${userId}`)
             .then(res => res.json())   // ✅ THIS LINE WAS MISSING
@@ -72,6 +76,33 @@ export default function Whatsapp() {
             });
 
     }, [userId]);
+
+    // ⭐ AUTO-ADD SCRIPT ONLY ONCE WHEN COMING FROM CHART
+    useEffect(() => {
+        if (!chartSymbol || !userId) return;
+        if (autoAddedRef.current) return;
+
+        const script = chartSymbol.toUpperCase();
+
+        // ✅ Already exists → just fill input, do nothing else
+        const alreadyExists = scripts.some(
+            (s) => s.script?.toUpperCase() === script
+        );
+
+        autoAddedRef.current = true;
+
+        if (alreadyExists) {
+            setNewScript("");
+            return;
+        }
+
+        // ⏳ ensure scripts are loaded
+        setTimeout(() => {
+            setNewScript(script);
+            addScript();
+        }, 300);
+
+    }, [chartSymbol, userId, scripts]);
 
 
 
@@ -258,7 +289,7 @@ export default function Whatsapp() {
                         <thead className="bg-gray-100">
                             <tr>
                                 <th className="px-4 py-2 text-left text-gray-700">Script</th>
-                                <th className="px-4 py-2 text-center text-gray-700">Intraday Fast Alert</th>
+                                <th className="px-4 py-2 text-center text-gray-700">Intraday Fast Alert(Generate Signals)</th>
                                 <th className="px-4 py-2 text-center text-gray-700">Intraday</th>
                                 <th className="px-4 py-2 text-center text-gray-700">BTST</th>
                                 <th className="px-4 py-2 text-center text-gray-700">Short-Term</th>
