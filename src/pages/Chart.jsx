@@ -19,6 +19,18 @@ import {
   AlignVerticalJustifyStart
 } from "lucide-react";
 
+const TF_SECONDS = {
+  "1m": 60,
+  "2m": 120,
+  "15m": 900,
+  "1h": 3600,
+  "1d": 86400,
+};
+
+function candleBucket(ts, tf) {
+  const sec = TF_SECONDS[tf] || 60;
+  return Math.floor(ts / sec) * sec;
+}
 
 
 // Convert CSV date ("2025-11-21 12:29:00+05:30") → UNIX seconds
@@ -477,26 +489,54 @@ function pointToSegDist(px, py, x1, y1, x2, y2) {
 }
 
 function startLiveFeed(symbol, onTick) {
-  const WS_BASE = import.meta.env.VITE_BACKEND_WS_URL
-    || "wss://paper-trading-backend-sqllite.onrender.com";
+  const WS_BASE =
+    import.meta.env.VITE_BACKEND_WS_URL ||
+    "wss://paper-trading-backend-sqllite.onrender.com";
 
-  const ws = new WebSocket(`${WS_BASE}/market/ticks?symbol=${symbol}`);
+  let ws;
 
+  function connect() {
+    ws = new WebSocket(`${WS_BASE}/market/ticks?symbol=${encodeURIComponent(symbol)}`);
 
-  ws.onmessage = (ev) => {
-    try {
-      const js = JSON.parse(ev.data);
-      if (js.price) onTick(js);
-    } catch { }
+    ws.onopen = () => {
+      console.log("🟢 WS connected:", symbol);
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const js = JSON.parse(ev.data);
+
+        // ✅ FIX: use ltp, not price
+        if (typeof js.ltp === "number") {
+          onTick(js);
+        }
+      } catch (e) {
+        console.error("WS parse error", e);
+      }
+    };
+
+    ws.onerror = (e) => {
+      console.error("🔴 WS error", e);
+    };
+
+    ws.onclose = () => {
+      console.warn("🟠 WS closed, reconnecting in 2s…");
+      setTimeout(connect, 2000);
+    };
+  }
+
+  connect();
+
+  // ✅ IMPORTANT: return a proper close handle
+  return {
+    close: () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    },
   };
-
-  ws.onclose = () => {
-    console.log("WS closed… reconnecting in 2s");
-    setTimeout(() => startLiveFeed(symbol, onTick), 2000);
-  };
-
-  return ws;
 }
+
 
 /* ---------- IST helpers ---------- */
 const IST_OFFSET_SEC = 5.5 * 3600;
@@ -666,6 +706,8 @@ export default function ChartPage() {
   const volumeChart = useRef(null);
   const oscChart = useRef(null);
   const priceSeries = useRef(null);
+  const liveCandleRef = useRef(null);
+
   const livePriceLine = useRef(null);
   const volSeries = useRef(null);
 
@@ -1512,43 +1554,36 @@ export default function ChartPage() {
   /* ---------------- Fetch candles ---------------- */
   useEffect(() => {
     let cancelled = false;
+
     async function load() {
       setStatus("loading");
-      setCandles([]);
       try {
         const url = `${API}/market/ohlc?symbol=${encodeURIComponent(symbol)}&interval=${tf}&limit=500`;
         const r = await fetch(url);
         if (!r.ok) throw new Error("fetch failed");
+
         const data = await r.json();
         if (cancelled) return;
 
-        const setAll = (rows) => {
-          setCandles(rows);
-          const t = chartType.type;
-          applySeriesData(t, rows);
-
-
-          setLastPrice(rows[rows.length - 1]?.close ?? null);
-        };
-
-
         if (Array.isArray(data) && data.length) {
-          setAll(data);
+          setCandles(data);
+          applySeriesData(chartType.type, data);
+
+          // 🔥 VERY IMPORTANT
+          liveCandleRef.current = { ...data[data.length - 1] };
+          setLastPrice(data[data.length - 1].close);
         } else {
-          const now = Math.floor(Date.now() / 1000);
-          const seed = [];
-          let base = 100;
-          for (let i = 60; i > 0; i--) {
-            const t = now - i * tfSec;
-            seed.push({ time: t, open: base, high: base, low: base, close: base, volume: 0 });
-          }
-          setAll(seed);
+          // Zerodha behavior → empty chart
+          setCandles([]);
+          applySeriesData(chartType.type, []);
+          liveCandleRef.current = null;
         }
-      } catch {
+
+        setStatus("ready");
+      } catch (e) {
         if (!cancelled) setStatus("error");
       }
     }
-
 
     load();
     // ========== LIVE PRICE UPDATE ========== //
@@ -1557,49 +1592,41 @@ export default function ChartPage() {
     function handleTick(tick) {
       if (!priceSeries.current) return;
 
-      const price = tick.price;
-      const time = Math.floor(Date.now() / 1000);
+      const price = tick.ltp;
+      const ts = Math.floor(tick.timestamp / tfSec) * tfSec;
+
+      let c = liveCandleRef.current;
+
+      // New candle
+      if (!c || c.time !== ts) {
+        c = {
+          time: ts,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+        };
+      } else {
+        c.high = Math.max(c.high, price);
+        c.low = Math.min(c.low, price);
+        c.close = price;
+      }
+
+      liveCandleRef.current = c;
+
+      // 🔥 ONLY this update
+      priceSeries.current.update(c);
 
       setLastPrice(price);
 
-      // Update last candle live
-      setCandles(prev => {
-        if (!prev.length) return prev;
-
-        const newArr = [...prev];
-        const last = { ...newArr[newArr.length - 1] };
-
-        if (time - last.time < tfSec) {
-          // update existing candle
-          last.high = Math.max(last.high, price);
-          last.low = Math.min(last.low, price);
-          last.close = price;
-          newArr[newArr.length - 1] = last;
-        } else {
-          // new candle
-          newArr.push({
-            time,
-            open: price,
-            high: price,
-            low: price,
-            close: price,
-            volume: 0,
-          });
-        }
-
-        // apply new data to chart
-        applySeriesData(chartType.type, newArr);
-
-        return newArr;
-      });
-
-      // Moving price line (Zerodha-style)
       priceSeries.current.applyOptions({
         priceLineVisible: true,
         lastValueVisible: true,
-        priceLineColor: price >= lastPrice ? "#16a34a" : "#dc2626",
+        priceLineColor: price >= c.open ? "#16a34a" : "#dc2626",
       });
     }
+
+
 
     // Start websocket after initial load
     ws = startLiveFeed(symbol, handleTick);
