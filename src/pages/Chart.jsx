@@ -1614,7 +1614,61 @@ export default function ChartPage() {
 
   // LIVE PRICE UPDATER (updates every second)
   // LIVE PRICE UPDATER — NO BLINK
+  useEffect(() => {
+    if (!priceSeries.current) return;
 
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `${API}/market/ohlc?symbol=${symbol}&interval=${tf}&limit=1`
+        );
+        const js = await res.json();
+        if (!Array.isArray(js) || js.length === 0) return;
+
+        const live = js[js.length - 1];
+
+        // update last price in header
+        setLastPrice(live.close);
+
+        // move horizontal price line
+        livePriceLine.current?.applyOptions({ price: live.close });
+
+        // update ONLY last candle without re-render
+        priceSeries.current.update(live);
+        applyUnifiedMarkers();
+
+
+        // update volume also without re-render
+        volSeries.current?.update({
+          time: live.time,
+          value: live.volume,
+          color:
+            live.close >= live.open
+              ? "rgba(16,185,129,0.7)"
+              : "rgba(239,68,68,0.7)"
+        });
+
+        try {
+          const ts = mainChart.current?.timeScale();
+          if (!ts) return;
+
+          // Only force scroll when auto-follow is ON
+          if (autoFollowRef.current) {
+            ts.scrollToRealTime();
+          }
+        } catch (e) {
+          console.warn("scrollToRealTime failed", e);
+        }
+
+
+
+      } catch (e) {
+        console.error("Live price error:", e);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [symbol, tf]);
 
 
   /* ---------------- Overlay drawing helpers ---------------- */
