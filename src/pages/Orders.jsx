@@ -419,16 +419,26 @@ export default function Orders({ username }) {
   };
 
 const handleAdd = (pos) => {
-  navigate(`/buy/${pos.symbol || pos.script}`, {
-    state: {
-      fromAdd: true,             // ✅ KEY CHANGE
-              // ✅ tells Buy.jsx it's from Positions
-      qty: pos.qty,
-      stoploss: pos.stoploss,
-      target: pos.target,
-      segment: pos.segment,
-    },
-  });
+  const symbol = pos.symbol || pos.script;
+
+  const isSellFirst = Boolean(pos.short_first);
+
+  navigate(
+    isSellFirst ? `/sell/${symbol}` : `/buy/${symbol}`,
+    {
+      state: {
+        fromAdd: true,
+        fromPosition: true,   // 🔥 IMPORTANT
+        qty: pos.qty,
+        price: pos.price,
+        stoploss: pos.stoploss,
+        target: pos.target,
+        segment: pos.segment,
+        exchange: pos.exchange || "NSE",
+        orderMode: "MARKET",
+      },
+    }
+  );
 };
 
 
@@ -738,6 +748,40 @@ const handleAdd = (pos) => {
 >
   Add
 </button>
+<button
+  onClick={() => {
+    const side = selectedOrder.type || selectedOrder.order_type;
+
+    navigate(
+      side === "BUY"
+        ? `/buy/${selectedOrder.script}`
+        : `/sell/${selectedOrder.script}`,
+      {
+        state: {
+          fromPosition: true,
+          fromModify: true,
+
+          // 🔑 REQUIRED PREFILL
+          qty: selectedOrder.qty,
+          price: selectedOrder.price,
+          stoploss: selectedOrder.stoploss,
+          target: selectedOrder.target,
+          segment: selectedOrder.segment,
+          exchange: selectedOrder.exchange || "NSE",
+
+          // lock behaviour
+          orderMode: "MARKET",
+        },
+      }
+    );
+
+    setShowActions(false);
+  }}
+  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+>
+  Modify
+</button>
+
 
 
   <button
