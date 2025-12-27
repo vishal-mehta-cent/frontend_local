@@ -8,8 +8,8 @@ const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-back
 function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
-  const OPEN = 3 * 30 + 30;
-  const CLOSE = 12 * 60 + 0;
+  const OPEN = 3 * 60 + 30;
+  const CLOSE = 12 * 60 + 50;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
@@ -61,6 +61,9 @@ const [totalInvestment, setTotalInvestment] = useState(0);
   const username = localStorage.getItem("username");
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
+  const isAddMode = isAdd && isPositionModify;
+  const isModifyMode = isModify && isPositionModify;
+
 
   // -------- Check market time on mount --------
 // -------- Check market time on mount --------
@@ -221,6 +224,60 @@ const handleSubmit = async () => {
         payload.price = px;
       }
 
+      // ================================
+// ✅ SELL FIRST + LIMIT validation
+// Limit price must be ABOVE live price
+// ================================
+if (
+  orderMode === "LIMIT" &&
+  allowShort === true &&
+  Number.isFinite(livePrice)
+) {
+  const limitPx = Number(payload.price);
+  const livePx = Number(livePrice);
+
+  if (limitPx <= livePx) {
+    throw new Error(
+      "❌ Limit price must be greater than live price for SELL FIRST."
+    );
+  }
+}
+
+      // ================================
+// ✅ SELL validation: Stoploss & Target
+// ================================
+const entryPrice =
+  orderMode === "LIMIT"
+    ? Number(payload.price)
+    : Number(livePrice);
+
+if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+  throw new Error("❌ Unable to determine entry price.");
+}
+
+// STOPLOSS: must be ABOVE entry for SELL
+if (stoploss !== "") {
+  const sl = Number(stoploss);
+  if (!Number.isFinite(sl)) {
+    throw new Error("❌ Invalid stoploss value.");
+  }
+  if (sl <= entryPrice) {
+    throw new Error("❌ Stoploss must be higher than entry price for SELL.");
+  }
+}
+
+// TARGET: must be BELOW entry for SELL
+if (target !== "") {
+  const tg = Number(target);
+  if (!Number.isFinite(tg)) {
+    throw new Error("❌ Invalid target value.");
+  }
+  if (tg >= entryPrice) {
+    throw new Error("❌ Target must be less than entry price for SELL.");
+  }
+}
+
+
       let res, data;
 
       if (isAdd) {
@@ -281,6 +338,13 @@ const handleSubmit = async () => {
 
       setTimeout(() => {
         setSuccessModal(false);
+          // ✅ LIMIT orders (including SELL FIRST) must always go to Open Trades
+        if (orderMode === "LIMIT") {
+          nav("/orders", { state: { refresh: true, tab: "open" } });
+          return;
+        }
+
+        // MARKET orders behave normally
         if (data.triggered) {
           nav("/orders", { state: { refresh: true, tab: "positions" } });
         } else {
@@ -358,9 +422,9 @@ const handleModifyPosition = async () => {
       <div className="space-y-5">
         <h2 className="text-2xl font-bold text-center text-red-600">
   {isAdd
-    ? `ADD (${symbol})`
+    ? `ADD ${symbol}`
     : isModify
-    ? "MODIFY ORDER"
+    ? `MODIFY ${symbol}`
     : `SELL ${symbol}`}
 </h2>
 
@@ -427,6 +491,7 @@ const handleModifyPosition = async () => {
           <label className="flex items-center gap-2">
             <input
               type="radio"
+              disabled={isAddMode || isModifyMode}
               name="ordermode"
               value="MARKET"
               checked={orderMode === "MARKET"}
@@ -437,6 +502,7 @@ const handleModifyPosition = async () => {
           <label className="flex items-center gap-2">
             <input
               type="radio"
+              disabled={isAddMode || isModifyMode}
               name="ordermode"
               value="LIMIT"
               checked={orderMode === "LIMIT"}
@@ -450,7 +516,7 @@ const handleModifyPosition = async () => {
   <input
     type="number"
     value={qty}
-    disabled={location.state?.fromPortfolio}
+    disabled={isModifyMode}
     onChange={(e) => setQty(e.target.value)}
     placeholder="Quantity"
     className={`w-full px-4 py-3 border rounded-lg ${
@@ -478,12 +544,20 @@ const handleModifyPosition = async () => {
           className={`w-full px-4 py-3 border rounded-lg ${
             orderMode === "MARKET" ? "bg-gray-100 cursor-not-allowed" : ""
           }`}
-          disabled={orderMode === "MARKET"}
+          disabled={
+  orderMode === "MARKET" ||
+  isAddMode ||
+  isModifyMode ||
+  !marketOpen
+}
+
+
         />
 
         <div className="flex justify-between">
           <button
-            onClick={() => setSegment("intraday")}
+            onClick={() => {if (isAddMode || isModifyMode) return;
+              setSegment("intraday");}}
             className={`w-1/2 py-2 rounded-l-lg ${
               segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
@@ -491,7 +565,8 @@ const handleModifyPosition = async () => {
             Intraday
           </button>
           <button
-            onClick={() => setSegment("delivery")}
+          onClick={() => {if (isAddMode || isModifyMode) return;
+              setSegment("delivery");}}
             className={`w-1/2 py-2 rounded-r-lg ${
               segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
@@ -502,7 +577,11 @@ const handleModifyPosition = async () => {
 
         <div className="flex justify-between">
           <button
-            onClick={() => setExchange("NSE")}
+            onClick={() => {
+  if (isAddMode || isModifyMode) return;
+  setExchange("NSE");
+}}
+
             className={`w-1/2 py-2 rounded-l-lg ${
               exchange === "NSE" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
@@ -510,7 +589,11 @@ const handleModifyPosition = async () => {
             NSE
           </button>
           <button
-            onClick={() => setExchange("BSE")}
+            onClick={() => {
+  if (isAddMode || isModifyMode) return;
+  setExchange("BSE");
+}}
+
             className={`w-1/2 py-2 rounded-r-lg ${
               exchange === "BSE" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
