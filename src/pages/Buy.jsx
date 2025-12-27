@@ -8,7 +8,7 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
   const OPEN = 3 * 60 + 45;
-  const CLOSE = 12 * 60 + 0;
+  const CLOSE = 12 * 60 + 50;
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
@@ -46,6 +46,9 @@ export default function Buy() {
 
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
+  const isAddMode = isAdd && isPositionModify;
+  const isModifyMode = isModify && isPositionModify;
+
 
   useEffect(() => {
     if (!symbol) return;
@@ -349,9 +352,9 @@ if (!res.ok) {
       <div className="space-y-5">
         <h2 className="text-2xl font-bold text-center text-green-600">
   {isAdd
-    ? `ADD (${symbol})`
+    ? `ADD ${symbol}`
     : isModify
-      ? "MODIFY ORDER"
+      ?`MODIFY ${symbol}`
       : `BUY ${symbol}`}
 </h2>
 
@@ -389,7 +392,10 @@ if (!res.ok) {
       min="1"
       value={qty}
       onChange={(e) => setQty(e.target.value)}
-      className="w-20 px-2 py-1 border rounded text-center"
+      disabled={isPositionModify}
+      className={`w-full px-4 py-3 border rounded-lg ${
++   isPositionModify ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
     />
   </div>
 
@@ -421,23 +427,26 @@ if (!res.ok) {
         <div className="flex justify-center gap-4">
           <label className="flex items-center gap-2">
             <input
-              type="radio"
-              name="ordermode"
-              value="MARKET"
-              checked={orderMode === "MARKET"}
-              onChange={() => setOrderMode("MARKET")}
-            />
+  type="radio"
+  name="ordermode"
+  value="MARKET"
+  checked={orderMode === "MARKET"}
+  disabled={isPositionModify}
+  onChange={() => setOrderMode("MARKET")}
+/>
+
             <span>Market</span>
           </label>
           <label className="flex items-center gap-2">
             <input
-              type="radio"
-              name="ordermode"
-              value="LIMIT"
-              checked={orderMode === "LIMIT"}
-              disabled={!marketOpen}
-              onChange={() => setOrderMode("LIMIT")}
-            />
+  type="radio"
+  name="ordermode"
+  value="LIMIT"
+  checked={orderMode === "LIMIT"}
+  disabled={!marketOpen || isPositionModify}
+  onChange={() => setOrderMode("LIMIT")}
+/>
+
             <span className={!marketOpen ? "text-gray-400" : ""}>
               Limit {!marketOpen && "(Market Closed)"}
             </span>
@@ -450,8 +459,11 @@ if (!res.ok) {
     min="1"
     value={qty}
     onChange={(e) => setQty(e.target.value)}
+    disabled={isPositionModify}
     placeholder="Quantity"
-    className="w-full px-4 py-3 border rounded-lg"
+    className={`w-full px-4 py-3 border rounded-lg ${
+      isPositionModify ? "bg-gray-100 cursor-not-allowed" : ""
+    }`}
   />
 )}
 
@@ -459,22 +471,23 @@ if (!res.ok) {
           type="number"
           value={orderMode === "LIMIT" ? price : ""}
           onChange={handlePriceChange}
-          disabled={orderMode === "MARKET" || !marketOpen}
+          disabled={orderMode === "MARKET" || !marketOpen || isPositionModify}
           placeholder={
             !marketOpen
               ? "Limit orders disabled after market close"
               : "Enter Limit Price"
           }
           className={`w-full px-4 py-3 border rounded-lg ${
-            orderMode === "MARKET" || !marketOpen
-              ? "bg-gray-100 cursor-not-allowed"
-              : ""
-          }`}
+  orderMode === "MARKET" || !marketOpen || isPositionModify
+    ? "bg-gray-100 cursor-not-allowed"
+    : ""
+}`}
+
         />
 
         <div className="flex justify-between">
           <button
-            onClick={() => setSegment("intraday")}
+            onClick={() => { if (!isPositionModify) setSegment("intraday"); }}
             className={`w-1/2 py-2 rounded-l-lg ${
               segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
@@ -482,7 +495,7 @@ if (!res.ok) {
             Intraday
           </button>
           <button
-            onClick={() => setSegment("delivery")}
+            onClick={() => { if (!isPositionModify) setSegment("delivery"); }}
             className={`w-1/2 py-2 rounded-r-lg ${
               segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
@@ -493,7 +506,7 @@ if (!res.ok) {
 
         <div className="flex justify-between">
           <button
-            onClick={() => setExchange("NSE")}
+            onClick={() => { if (!isPositionModify) setExchange("NSE"); }}
             className={`w-1/2 py-2 rounded-l-lg ${
               exchange === "NSE" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
@@ -501,7 +514,7 @@ if (!res.ok) {
             NSE
           </button>
           <button
-            onClick={() => setExchange("BSE")}
+            onClick={() => { if (!isPositionModify) setExchange("BSE"); }}
             className={`w-1/2 py-2 rounded-r-lg ${
               exchange === "BSE" ? "bg-blue-600 text-white" : "bg-gray-200"
             }`}
