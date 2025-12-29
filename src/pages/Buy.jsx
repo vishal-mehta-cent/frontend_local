@@ -4,13 +4,30 @@ import BackButton from "../components/BackButton";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
 
+function parseHHMMToMinutes(val, fallbackMinutes) {
+  try {
+    const s = String(val || "").trim();
+    if (!s) return fallbackMinutes;
+    const [h, m] = s.split(":").map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return fallbackMinutes;
+    if (h < 0 || h > 23 || m < 0 || m > 59) return fallbackMinutes;
+    return h * 60 + m;
+  } catch {
+    return fallbackMinutes;
+  }
+}
+
 function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
-  const OPEN = 3 * 60 + 45;
-  const CLOSE = 12 * 60 + 50;
+
+  // ✅ from Vite env (fallbacks match your current values)
+  const OPEN = parseHHMMToMinutes(import.meta.env.VITE_MARKET_OPEN_TIME_UTC, 3 * 60 + 45);
+  const CLOSE = parseHHMMToMinutes(import.meta.env.VITE_MARKET_CLOSE_TIME_UTC, 12 * 60 + 50);
+
   return minutes >= OPEN && minutes <= CLOSE;
 }
+
 
 export default function Buy() {
   const { symbol } = useParams();
@@ -142,7 +159,7 @@ useEffect(() => {
     // 🚫 BLOCK intraday BUY after market close
 if (!marketOpen && segment === "intraday") {
   setErrorMsg(
-    "❌ Intraday will not buy after market close. Please use Delivery."
+    "❌ Intraday is not applicable when market is close, Please use delivery."
   );
   setSubmitting(false);
   return;
@@ -524,19 +541,27 @@ if (!res.ok) {
         </div>
 
         <input
-          type="number"
-          value={stoploss}
-          onChange={(e) => setStoploss(e.target.value)}
-          placeholder="Stoploss (optional)"
-          className="w-full px-4 py-3 border rounded-lg"
-        />
-        <input
-          type="number"
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-          placeholder="Target (optional)"
-          className="w-full px-4 py-3 border rounded-lg"
-        />
+  type="number"
+  value={stoploss}
+  onChange={(e) => setStoploss(e.target.value)}
+  disabled={isAddMode}   // 🔥 disable in ADD
+  placeholder="Stoploss (optional)"
+  className={`w-full px-4 py-3 border rounded-lg ${
+    isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+/>
+
+<input
+  type="number"
+  value={target}
+  onChange={(e) => setTarget(e.target.value)}
+  disabled={isAddMode}   // 🔥 disable in ADD
+  placeholder="Target (optional)"
+  className={`w-full px-4 py-3 border rounded-lg ${
+    isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+/>
+
       </div>
 
       <button
