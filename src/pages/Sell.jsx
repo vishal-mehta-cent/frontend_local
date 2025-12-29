@@ -5,13 +5,30 @@ import BackButton from "../components/BackButton";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com"; // backend API base
 
+function parseHHMMToMinutes(val, fallbackMinutes) {
+  try {
+    const s = String(val || "").trim();
+    if (!s) return fallbackMinutes;
+    const [h, m] = s.split(":").map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return fallbackMinutes;
+    if (h < 0 || h > 23 || m < 0 || m > 59) return fallbackMinutes;
+    return h * 60 + m;
+  } catch {
+    return fallbackMinutes;
+  }
+}
+
 function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
-  const OPEN = 3 * 60 + 30;
-  const CLOSE = 12 * 60 + 50;
+
+  // ✅ from Vite env (fallbacks match your current Sell.jsx values)
+  const OPEN = parseHHMMToMinutes(import.meta.env.VITE_MARKET_OPEN_TIME_UTC, 3 * 60 + 30);
+  const CLOSE = parseHHMMToMinutes(import.meta.env.VITE_MARKET_CLOSE_TIME_UTC, 12 * 60 + 50);
+
   return minutes >= OPEN && minutes <= CLOSE;
 }
+
 
 export default function Sell() {
   const { symbol } = useParams();
@@ -75,13 +92,11 @@ useEffect(() => {
 
   // ---- Define UTC market hours ----
   // For example: Indian market 09:15–15:30 IST = 03:45–10:00 UTC
-  const MARKET_OPEN_UTC = { h: 3, m: 30 };
-  const MARKET_CLOSE_UTC = { h: 10, m: 30 };
-
-  // Convert to comparable numbers (minutes since midnight)
   const nowMinutes = hours * 60 + minutes;
-  const openMinutes = MARKET_OPEN_UTC.h * 60 + MARKET_OPEN_UTC.m;
-  const closeMinutes = MARKET_CLOSE_UTC.h * 60 + MARKET_CLOSE_UTC.m;
+
+  // ✅ use env (fallbacks should match isMarketOpenUTC() fallbacks)
+  const openMinutes = parseHHMMToMinutes(import.meta.env.VITE_MARKET_OPEN_TIME_UTC, 3 * 60 + 30);
+  const closeMinutes = parseHHMMToMinutes(import.meta.env.VITE_MARKET_CLOSE_TIME_UTC, 12 * 60 + 50);
 
   const isMarketOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
 
@@ -181,6 +196,30 @@ useEffect(() => {
   }, [orderMode]);
   // -------- Submit --------
 const handleSubmit = async () => {
+  // ✅ OPEN ORDER MODIFY: LIMIT → MARKET (SELL)
+if (isModify && prefill.modifyId && orderMode === "MARKET") {
+  const res = await fetch(
+    `${API}/orders/convert-to-market/${prefill.modifyId}`,
+    { method: "POST" }
+  );
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.detail || "Failed to convert to market order");
+  }
+
+  setSuccessText("Order executed at Market price ✅");
+  setSuccessModal(true);
+
+  setTimeout(() => {
+    setSuccessModal(false);
+    nav("/orders", { state: { refresh: true, tab: "positions" } });
+  }, 1200);
+
+  setSubmitting(false);
+  return;
+}
+
   if (submitting) return;
   setErrorMsg("");
 
@@ -603,19 +642,27 @@ const handleModifyPosition = async () => {
         </div>
 
         <input
-          type="number"
-          value={stoploss}
-          onChange={(e) => setStoploss(e.target.value)}
-          placeholder="Stoploss (optional)"
-          className="w-full px-4 py-3 border rounded-lg"
-        />
-        <input
-          type="number"
-          value={target}
-          onChange={(e) => setTarget(e.target.value)}
-          placeholder="Target (optional)"
-          className="w-full px-4 py-3 border rounded-lg"
-        />
+  type="number"
+  value={stoploss}
+  onChange={(e) => setStoploss(e.target.value)}
+  disabled={isAddMode}   // 🔥 disable in ADD
+  placeholder="Stoploss (optional)"
+  className={`w-full px-4 py-3 border rounded-lg ${
+    isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+/>
+
+<input
+  type="number"
+  value={target}
+  onChange={(e) => setTarget(e.target.value)}
+  disabled={isAddMode}   // 🔥 disable in ADD
+  placeholder="Target (optional)"
+  className={`w-full px-4 py-3 border rounded-lg ${
+    isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+/>
+
       </div>
 
       <button
