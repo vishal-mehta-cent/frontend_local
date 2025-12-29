@@ -198,8 +198,12 @@ const load = (ctrl) => {
 const handleAdd = (symbol, position) => {
   navigate(`/buy/${symbol}`, {
     state: {
-      fromPortfolio: true,
+      // 🔥 REQUIRED FLAGS (Buy.jsx depends on these)
       fromAdd: true,
+      fromPosition: true,
+
+      // optional / informational
+      fromPortfolio: true,
 
       qty: position.qty,
       segment: position.segment || "delivery",
@@ -212,6 +216,7 @@ const handleAdd = (symbol, position) => {
     },
   });
 };
+
 
 const handleExit = (symbol, position) => {
   navigate(`/sell/${symbol}`, {
