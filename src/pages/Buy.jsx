@@ -38,6 +38,8 @@ export default function Buy() {
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
   const isPositionModify = Boolean(prefill.fromPosition);
+  
+  const isAddMode = isAdd && isPositionModify;
 
   const [qty, setQty] = useState(prefill.qty || "");
   const [price, setPrice] = useState(prefill.price || "");
@@ -63,7 +65,6 @@ export default function Buy() {
 
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
-  const isAddMode = isAdd && isPositionModify;
   const isModifyMode = isModify && isPositionModify;
 
 
@@ -285,14 +286,26 @@ if (!res.ok) {
 
       setSuccessModal(true);
 
-      setTimeout(() => {
-        setSuccessModal(false);
-        if (data && data.triggered) {
-          nav("/orders", { state: { refresh: true, tab: "positions" } });
-        } else {
-          nav("/orders", { state: { refresh: true, tab: "open" } });
-        }
-      }, 1500);
+      const cameFromPortfolio =
+  prefill.fromAdd === true && prefill.fromPosition === true;
+
+setTimeout(() => {
+  setSuccessModal(false);
+
+  if (cameFromPortfolio) {
+    // ✅ ADD from Portfolio → go back to Portfolio
+    nav("/portfolio", { state: { refresh: true } });
+    return;
+  }
+
+  // Normal behaviour
+  if (data && data.triggered) {
+    nav("/orders", { state: { refresh: true, tab: "positions" } });
+  } else {
+    nav("/orders", { state: { refresh: true, tab: "open" } });
+  }
+}, 1500);
+
     } catch (e) {
       setErrorMsg(e.message || "Server error");
     } finally {
@@ -339,10 +352,17 @@ if (!res.ok) {
       setSuccessText("Position modified successfully!");
       setSuccessModal(true);
 
-      setTimeout(() => {
-        setSuccessModal(false);
-        nav("/orders", { state: { refresh: true, tab: "positions" } });
-      }, 1500);
+      const cameFromPortfolio =
+  prefill.fromAdd === true && prefill.fromPosition === true;
+
+setTimeout(() => {
+  if (cameFromPortfolio) {
+    nav("/portfolio", { state: { refresh: true } });
+  } else {
+    nav("/orders", { state: { refresh: true, tab: "positions" } });
+  }
+}, 1500);
+
     } catch (err) {
   const msg =
     typeof err.message === "string"
@@ -365,7 +385,8 @@ if (!res.ok) {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:max-w-xl md:mx-auto flex flex-col justify-between">
-      <BackButton to="/orders" />
+      <BackButton to={isAddMode ? "/portfolio" : "/orders"} />
+
       <div className="space-y-5">
         <h2 className="text-2xl font-bold text-center text-green-600">
   {isAdd
@@ -544,7 +565,7 @@ if (!res.ok) {
   type="number"
   value={stoploss}
   onChange={(e) => setStoploss(e.target.value)}
-  disabled={isAddMode}   // 🔥 disable in ADD
+  disabled={isAddMode}
   placeholder="Stoploss (optional)"
   className={`w-full px-4 py-3 border rounded-lg ${
     isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
@@ -555,12 +576,13 @@ if (!res.ok) {
   type="number"
   value={target}
   onChange={(e) => setTarget(e.target.value)}
-  disabled={isAddMode}   // 🔥 disable in ADD
+  disabled={isAddMode}
   placeholder="Target (optional)"
   className={`w-full px-4 py-3 border rounded-lg ${
     isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
   }`}
 />
+
 
       </div>
 
