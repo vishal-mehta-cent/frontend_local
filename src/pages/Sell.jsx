@@ -36,6 +36,7 @@ export default function Sell() {
   const location = useLocation();
 const prefill = location.state || {};
 
+
 // ✅ MUST come first
 const [confirmedShort, setConfirmedShort] = useState(false);
 
@@ -50,7 +51,9 @@ const allowShort = Boolean(
   // Mode flags
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
-  const isPositionModify = Boolean(prefill.fromPosition); // 🔥 KEY
+  const isPositionModify = Boolean(prefill.fromPosition);
+  const isAddMode = isAdd && isPositionModify; // 🔥 KEY
+  const isPureModify = isPositionModify && !isAdd;
 
   // Prefill inputs if passed
   const [qty, setQty] = useState(prefill.qty || "");
@@ -78,7 +81,7 @@ const [totalInvestment, setTotalInvestment] = useState(0);
   const username = localStorage.getItem("username");
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
-  const isAddMode = isAdd && isPositionModify;
+  
   const isModifyMode = isModify && isPositionModify;
 
 
@@ -211,10 +214,15 @@ if (isModify && prefill.modifyId && orderMode === "MARKET") {
   setSuccessText("Order executed at Market price ✅");
   setSuccessModal(true);
 
-  setTimeout(() => {
-    setSuccessModal(false);
-    nav("/orders", { state: { refresh: true, tab: "positions" } });
-  }, 1200);
+  const cameFromPortfolio =
+  prefill.fromAdd === true && prefill.fromPosition === true;
+
+if (cameFromPortfolio) {
+  nav("/portfolio", { state: { refresh: true } });
+} else {
+  nav("/orders", { state: { refresh: true, tab: "positions" } });
+}
+
 
   setSubmitting(false);
   return;
@@ -497,12 +505,16 @@ const handleModifyPosition = async () => {
       <div>
         <div className="text-xs text-gray-500">QTY</div>
         <input
-          type="number"
-          min="1"
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          className="w-20 px-2 py-1 border rounded text-center"
-        />
+  type="number"
+  min="1"
+  value={qty}
+  disabled={isPureModify}
+  onChange={(e) => setQty(e.target.value)}
+  className={`w-20 px-2 py-1 border rounded text-center ${
+    isPureModify ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+/>
+
       </div>
 
       <div>
@@ -530,7 +542,7 @@ const handleModifyPosition = async () => {
           <label className="flex items-center gap-2">
             <input
               type="radio"
-              disabled={isAddMode || isModifyMode}
+              disabled={isPureModify}
               name="ordermode"
               value="MARKET"
               checked={orderMode === "MARKET"}
@@ -541,7 +553,7 @@ const handleModifyPosition = async () => {
           <label className="flex items-center gap-2">
             <input
               type="radio"
-              disabled={isAddMode || isModifyMode}
+              disabled={isPureModify}
               name="ordermode"
               value="LIMIT"
               checked={orderMode === "LIMIT"}
@@ -553,17 +565,16 @@ const handleModifyPosition = async () => {
 
 {!isFNO && (
   <input
-    type="number"
-    value={qty}
-    disabled={isModifyMode}
-    onChange={(e) => setQty(e.target.value)}
-    placeholder="Quantity"
-    className={`w-full px-4 py-3 border rounded-lg ${
-      location.state?.fromPortfolio
-        ? "bg-gray-100 cursor-not-allowed"
-        : ""
-    }`}
-  />
+  type="number"
+  value={qty}
+  disabled={isPureModify}   // 🔥 ONLY disable for real modify
+  onChange={(e) => setQty(e.target.value)}
+  placeholder="Quantity"
+  className={`w-full px-4 py-3 border rounded-lg ${
+    isPureModify ? "bg-gray-100 cursor-not-allowed" : ""
+  }`}
+/>
+
 )}
 
 
@@ -585,17 +596,18 @@ const handleModifyPosition = async () => {
           }`}
           disabled={
   orderMode === "MARKET" ||
-  isAddMode ||
-  isModifyMode ||
+  isPureModify ||
   !marketOpen
 }
+
 
 
         />
 
         <div className="flex justify-between">
           <button
-            onClick={() => {if (isAddMode || isModifyMode) return;
+            onClick={() => {if (isPureModify) return;
+
               setSegment("intraday");}}
             className={`w-1/2 py-2 rounded-l-lg ${
               segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
@@ -604,7 +616,8 @@ const handleModifyPosition = async () => {
             Intraday
           </button>
           <button
-          onClick={() => {if (isAddMode || isModifyMode) return;
+          onClick={() => {if (isPureModify) return;
+
               setSegment("delivery");}}
             className={`w-1/2 py-2 rounded-r-lg ${
               segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
