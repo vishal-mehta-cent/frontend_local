@@ -4,32 +4,36 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import BackButton from "../components/BackButton";
 
 export default function Notes() {
-  const { symbol } = useParams();                // from /notes/:symbol
-  const location = useLocation();                // fallback if you ever pass state
+  const { symbol } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
 
   const sym =
     (symbol || location.state?.symbol || "").toString().toUpperCase();
+
   const username = localStorage.getItem("username") || "guest";
   const storageKey = `notes:${username}:${sym}`;
 
+  // ✅ where to go back
+  const from = location.state?.from || "/portfolio";
+
   const [note, setNote] = useState("");
 
-  // Load existing note (if any)
+  // Load existing note
   useEffect(() => {
     if (!sym) return;
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved !== null) setNote(saved);
-    } catch {/* ignore */}
+    } catch {}
   }, [storageKey, sym]);
 
   const handleSave = () => {
     try {
       localStorage.setItem(storageKey, note);
       alert(`Note saved for ${sym}`);
-      navigate("/trade");
-    } catch (e) {
+      navigate(from); // ✅ dynamic return
+    } catch {
       alert("Couldn't save the note locally.");
     }
   };
@@ -39,7 +43,7 @@ export default function Notes() {
     try {
       localStorage.removeItem(storageKey);
       setNote("");
-    } catch {/* ignore */}
+    } catch {}
   };
 
   if (!sym) {
@@ -48,7 +52,7 @@ export default function Notes() {
         <div className="text-center">
           <div className="text-lg font-semibold mb-2">No symbol provided</div>
           <button
-            onClick={() => navigate("/portfolio")}
+            onClick={() => navigate(from)}
             className="bg-gray-700 text-white px-4 py-2 rounded"
           >
             Go back
@@ -60,8 +64,13 @@ export default function Notes() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-center text-xl font-bold text-blue-600">Notes for {sym}</h1>
+      {/* Header */}
+      <div className="flex items-center mb-4">
+        <BackButton />
+        <h1 className="flex-1 text-center text-xl font-bold text-blue-600">
+          Notes for {sym}
+        </h1>
+        <div className="w-10" />
       </div>
 
       <textarea
