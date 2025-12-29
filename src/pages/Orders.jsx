@@ -94,6 +94,22 @@ const SegmentBadge = ({ segment }) => {
   );
 };
 
+const ExchangeBadge = ({ exchange }) => {
+  const ex = (exchange || "NSE").toUpperCase();
+  const isNSE = ex === "NSE";
+
+  return (
+    <span
+      className={`text-[11px] px-2 py-[1px] rounded border font-semibold ${
+        isNSE
+          ? "bg-blue-50 text-blue-700 border-blue-300"
+          : "bg-purple-50 text-purple-700 border-purple-300"
+      }`}
+    >
+      {ex}
+    </span>
+  );
+};
 
 
 export default function Orders({ username }) {
@@ -155,6 +171,7 @@ export default function Orders({ username }) {
       total: Number(o.total) || 0,
       inactive: Boolean(o.inactive),
       segment: o.segment,
+      exchange: (o.exchange || "").toUpperCase(),   // ✅ ADD THIS
       short_first: Boolean(o.short_first || o.is_short || o.isShort),
       // timestamps
       datetime: o.datetime,
@@ -323,8 +340,10 @@ export default function Orders({ username }) {
     const countBySymbol = (list) =>
       (list || []).reduce((acc, o) => {
         const s = (o.script || o.symbol || "").toUpperCase();
+        const ex = (o.exchange || "NSE").toUpperCase();
         if (!s) return acc;
-        acc[s] = (acc[s] || 0) + 1;
+        const key = `${s}_${ex}`;
+        acc[key] = (acc[key] || 0) + 1;
         return acc;
       }, {});
 
@@ -654,32 +673,34 @@ const handleAdd = (pos) => {
                           </span>
                         </span>
 
-                        <span className="text-[11px] text-gray-500 border rounded px-1">
-                          {o.exchange || "NSE"}
-                        </span>
+                        <ExchangeBadge exchange={o.exchange} />
                       </div>
                     </div>
 
                     {/* RIGHT SIDE (TOTAL + per-share + %) */}
-                    <div className="text-right pr-1">
-                      <div className={`text-2xl font-extrabold ${pnlColor}`}>
-                        {arrow} {money(total)}
-                      </div>
-                      <div className={`${pnlColor} text-xs mt-0.5`}>
-                        {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
-                        {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
-                      </div>
-                      {/* ✅ Exit Price shown neatly below P&L */}
-                      {!isOrdersTab && o.exit_price != null && (
-                        <div className="text-xs text-gray-600 mt-1">
-                          Exit Price:{" "}
-                          <span className="font-semibold text-gray-800">
-                            {money(o.exit_price)}
-                          </span>
-                        </div>
-                      )}
+                  {/* RIGHT SIDE P&L — ONLY FOR POSITIONS */}
+{!isOrdersTab && (
+  <div className="text-right pr-1">
+    <div className={`text-2xl font-extrabold ${pnlColor}`}>
+      {arrow} {money(total)}
+    </div>
 
-                    </div>
+    <div className={`${pnlColor} text-xs mt-0.5`}>
+      {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
+      {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
+    </div>
+
+    {o.exit_price != null && (
+      <div className="text-xs text-gray-600 mt-1">
+        Exit Price:{" "}
+        <span className="font-semibold text-gray-800">
+          {money(o.exit_price)}
+        </span>
+      </div>
+    )}
+  </div>
+)}
+
 
                   </div>
 
@@ -693,7 +714,7 @@ const handleAdd = (pos) => {
                   {/* footer line */}
                   <div className="flex justify-between text-xs mt-2">
                     <span className="text-gray-500 dark:text-gray-400">
-                      NSE | Total Investment={money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
+                      {o.exchange || "NSE"}={money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
                     </span>
                     {o.status_msg && (
                       <span className="text-[11px] text-gray-500">{o.status_msg}</span>
