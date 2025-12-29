@@ -236,7 +236,10 @@ const handleExit = (symbol, position) => {
 
   const handleCloseModal = () => setSelected(null);
   const handleNoteIn = (symbol) =>
-    navigate(`/notes/${encodeURIComponent((symbol || "").toUpperCase())}`);
+  navigate(`/notes/${encodeURIComponent((symbol || "").toUpperCase())}`, {
+    state: { from: "/portfolio" }
+  });
+
 
   const handleUploadClick = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
