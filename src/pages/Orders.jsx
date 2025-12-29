@@ -367,22 +367,35 @@ export default function Orders({ username }) {
     }
   };
 
-  const handleModify = (order) => {
-    navigate(`/buy/${order.script}`, {
+const handleModify = (order) => {
+  const side = order.type || order.order_type; // BUY / SELL
+
+  navigate(
+    side === "SELL"
+      ? `/sell/${order.script}`
+      : `/buy/${order.script}`,
+    {
       state: {
         modifyId: order.id,
+
+        // 🔑 PREFILL
         qty: order.qty,
         price: order.price,
-        exchange: order.exchange,
-        segment: order.segment,
+        exchange: order.exchange || "NSE",
+        segment: order.segment || "intraday",
         stoploss: order.stoploss,
         target: order.target,
+
+        // 🔒 MODE FLAGS
         orderMode: order.price ? "LIMIT" : "MARKET",
         fromModify: true,
       },
-    });
-    setShowActions(false);
-  };
+    }
+  );
+
+  setShowActions(false);
+};
+
 
   const handleExit = (pos) => {
     if (!pos) return;
