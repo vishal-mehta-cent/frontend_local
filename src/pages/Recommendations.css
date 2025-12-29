@@ -44,8 +44,10 @@
 .filter-item label {
   font-weight: 500;
   margin-bottom: 4px;
-  color: #222;
+  color: inherit;
+  /* ✅ let theme decide */
 }
+
 
 .filter-item input,
 .filter-item select {
@@ -210,21 +212,14 @@
 .legend-box {
   background-color: #f8faff;
   border: 1.5px solid #e0e6f0;
-  border-radius: 10px;
-
-  /* FIXED — reduce padding so it NEVER overlaps */
-  padding: 18px 18px;
-  /* was 100px 18px */
-
-  min-width: 220px;
-  height: auto;
-  /* was fixed — now auto to avoid overflow */
+  border-radius: 12px;
+  padding: 16px 18px;
+  width: 260px;
+  max-width: 90%;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 8px;
-  width: 240px;
 }
 
 .legend-box h4 {
@@ -464,28 +459,42 @@
   width: 100%;
   display: flex;
   justify-content: center;
-  margin: 10px 0 20px 0;
+  /* default center */
+  align-items: center;
+  margin: 15px 0 25px;
   padding: 0;
 }
 
+
+/* Desktop: keep legend on right but IN FLOW */
+@media (min-width: 1200px) {
+  .legend-row {
+    justify-content: flex-end;
+    padding-right: 40px;
+    /* small, safe spacing */
+  }
+}
+
 /* small fixed size legend card */
+@media (max-width: 768px) {
+  .legend-row {
+    justify-content: center !important;
+    margin: 20px 0 !important;
+    padding: 0 !important;
+  }
+
+  .legend-box {
+    width: 100% !important;
+    max-width: 360px !important;
+  }
+}
 
 
 /* ---------------------------
    DESKTOP ONLY (≥ 1024px)
    Move legend RIGHT and UP
 ---------------------------- */
-@media (min-width: 1024px) {
-  .legend-row {
-    justify-content: flex-end;
-    /* move to right */
-    padding-right: 250px;
-    /* adjust distance from right */
-    margin-top: -200px;
-    /* move UP */
-    margin-bottom: 10px;
-  }
-}
+
 
 .signals-columns {
   display: flex;
@@ -643,8 +652,8 @@
 .filters-row-legend {
   display: flex;
   justify-content: center;
-  align-items: center;
-  flex-wrap: nowrap;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 25px;
   width: 100%;
   position: relative;
@@ -675,13 +684,7 @@
 }
 
 /* Move legend slightly right and shift up */
-.legend-shift {
-  margin-left: 100px !important;
-  /* push right */
-  position: relative;
-  top: -10px;
-  /* move UP */
-}
+
 
 .date-row-centered {
   display: flex;
@@ -930,18 +933,18 @@
    FIX FOR 1030px → 1650px SCREENS (prevent overlapping)
    Legend stays centered below filters
    ============================================================ */
-@media (min-width: 1030px) and (max-width: 1650px) {
-  .legend-row {
-    justify-content: center !important;
-    padding-right: 0 !important;
-    margin-top: 20px !important;
-    margin-bottom: 10px !important;
-  }
-
-  .legend-box {
-    margin: 0 auto !important;
-  }
+/* ===============================
+   LEGEND ROW (NO OVERLAP)
+   =============================== */
+.legend-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 15px 0 25px;
+  padding: 0;
 }
+
 
 /* ============================================
    MOBILE FIX — Force each filter into its own row
@@ -972,9 +975,107 @@
   }
 
   /* Fix legend on mobile – centered */
+  /* ===============================
+   LEGEND ROW (NO OVERLAP)
+   =============================== */
   .legend-row {
-    justify-content: center !important;
-    margin: 20px 0 !important;
-    padding: 0 !important;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0 25px;
+    padding: 0;
   }
+
+}
+
+/* =====================================================
+   FINAL THEME CONTROL — ONLY SOURCE OF TRUTH
+   ===================================================== */
+
+/* ---------- LIGHT THEME ---------- */
+.theme-light .filter-item label {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+
+.theme-light .filter-item input,
+.theme-light .filter-item select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.theme-light .filter-item input::placeholder {
+  color: #6b7280 !important;
+}
+
+.theme-light .filter-item select option {
+  color: #0f172a !important;
+}
+
+/* ---------- DARK THEME ---------- */
+/* ---------- DARK THEME INPUT FIX ---------- */
+.theme-dark .filter-item input,
+.theme-dark .filter-item select {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.theme-dark .filter-item input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Dropdown options stay readable */
+.theme-dark .filter-item select option {
+  color: #000 !important;
+}
+
+/* ---------- ACRONYMS BOX ---------- */
+.legend-box {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.legend-box h4 {
+  color: #2563eb !important;
+}
+
+.legend-box p,
+.legend-box strong {
+  color: inherit !important;
+}
+
+.theme-light label {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+
+/* =====================================================
+   FIX: Alert Description Text Not Visible (Dark Theme)
+   ===================================================== */
+
+/* =====================================================
+   🔥 FINAL HARD OVERRIDE — ALERT TEXT VISIBILITY
+   ===================================================== */
+
+/* Force color on the box */
+.theme-dark .alert-description-box {
+  background: rgba(253, 230, 138, 0.18) !important;
+  color: #ffffff !important;
+}
+
+/* Force color on ALL children */
+.theme-dark .alert-description-box *,
+.theme-dark .alert-description-box p,
+.theme-dark .alert-description-box span,
+.theme-dark .alert-description-box div {
+  color: #070707 !important;
+  opacity: 1 !important;
+}
+
+/* Highlight word "Alert" */
+.theme-dark .alert-description-box strong {
+  color: #0e0d0d !important;
 }
