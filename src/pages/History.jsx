@@ -212,7 +212,10 @@ export default function History({ username }) {
 
   const navigate = useNavigate();
   const goNotes = (s) =>
-    navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`);
+  navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`, {
+    state: { from: "/history" }
+  });
+
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
