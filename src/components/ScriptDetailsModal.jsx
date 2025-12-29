@@ -64,8 +64,14 @@ export default function ScriptDetailsModal({
   // ADD NOTES
   // =============================
   const handleAddNotes = () => {
-    navigate(`/notes/${sym}`, { state: { symbol: sym } });
-  };
+  navigate(`/notes/${sym}`, {
+    state: {
+      symbol: sym,
+      from: "/trade"
+    }
+  });
+};
+
 const fetchPortfolioPosition = async (symbol) => {
   const username =
     localStorage.getItem("username") ||
