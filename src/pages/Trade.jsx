@@ -1,17 +1,20 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search, ClipboardList, User, Briefcase, Clock, Lightbulb } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+
+import { Search, ClipboardList, User, Briefcase, Clock, Lightbulb, Moon, Sun, Sparkles, ArrowLeft, RefreshCw, Activity } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
 import { moneyINR } from "../utils/format";
 import ChartLauncher from "../components/ChartLauncher";
 import { FaWhatsapp } from "react-icons/fa";
+import SwipeNav from "../components/SwipeNav";
 
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
   "https://paper-trading-backend.onrender.com";
 
 export default function Trade({ username }) {
+  const [isDark, setIsDark] = useState(true);
   const [tab, setTab] = useState("mylist");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -30,47 +33,52 @@ export default function Trade({ username }) {
   const [sellSymbol, setSellSymbol] = useState(null);
   const [portfolioMap, setPortfolioMap] = useState({});
 
-
-  // ⭐ NEW — WhatsApp alert list
   const [whatsappList, setWhatsappList] = useState([]);
 
   const intervalRef = useRef(null);
   const modalPollRef = useRef(null);
   const nav = useNavigate();
+  const location = useLocation();
+
   const sellPreviewGuardRef = useRef({});
   const who = username || localStorage.getItem("username") || "";
 
-  // ---------------------------
-  // INITIAL LOAD
-  // ---------------------------
-useEffect(() => {
-  if (!who) return;
+  const bgClass = isDark
+    ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
+    : 'bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100';
+  const glassClass = isDark
+    ? 'bg-white/5 backdrop-blur-xl border border-white/10'
+    : 'bg-white/60 backdrop-blur-xl border border-white/40';
+  const textClass = isDark ? 'text-white' : 'text-slate-900';
+  const textSecondaryClass = isDark ? 'text-slate-300' : 'text-slate-600';
+  const cardHoverClass = isDark ? 'hover:bg-white/10' : 'hover:bg-white/80';
+  const activeNavClass =
+    "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg";
 
-  fetch(`${API}/portfolio/${who}`)
-    .then(res => res.json())
-    .then(data => {
-      const map = {};
-      (data?.open || []).forEach(p => {
-  if (Number(p.qty) > 0) {
-    map[p.symbol.toUpperCase()] = true;
-  }
-});
+  useEffect(() => {
+    if (!who) return;
 
-      setPortfolioMap(map);
-    })
-    .catch(() => setPortfolioMap({}));
-}, [who]);
+    fetch(`${API}/portfolio/${who}`)
+      .then(res => res.json())
+      .then(data => {
+        const map = {};
+        (data?.open || []).forEach(p => {
+          if (Number(p.qty) > 0) {
+            map[p.symbol.toUpperCase()] = true;
+          }
+        });
+        setPortfolioMap(map);
+      })
+      .catch(() => setPortfolioMap({}));
+  }, [who]);
 
-useEffect(() => {
-  if (!who) return;
+  useEffect(() => {
+    if (!who) return;
+    fetchWatchlist();
+    fetchFunds();
+    preloadScripts();
+  }, [who]);
 
-  fetchWatchlist();
-  fetchFunds();
-  preloadScripts();
-}, [who]);
-
-
-  // ⭐ Load WhatsApp Alerts only once
   useEffect(() => {
     fetch(`${API}/whatsapp/list`)
       .then((r) => r.json())
@@ -80,7 +88,6 @@ useEffect(() => {
         else setWhatsappList([]);
       })
       .catch(() => setWhatsappList([]));
-
   }, []);
 
   function preloadScripts() {
@@ -93,21 +100,12 @@ useEffect(() => {
       .catch(() => setAllScripts([]));
   }
 
-function fetchWatchlist() {
-  fetch(`${API}/watchlist/${who}`)
-    .then((r) => r.json())
-    .then((data) => {
-      if (Array.isArray(data)) {
-        setWatchlist(data);
-      } else if (Array.isArray(data.list)) {
-        setWatchlist(data.list);
-      } else {
-        console.error("Invalid watchlist response:", data);
-        setWatchlist([]);
-      }
-    })
-    .catch(() => setWatchlist([]));
-}
+  function fetchWatchlist() {
+    fetch(`${API}/watchlist/${who}`)
+      .then((r) => r.json())
+      .then(setWatchlist)
+      .catch(() => setWatchlist([]));
+  }
 
   function fetchFunds() {
     fetch(`${API}/funds/available/${who}`)
@@ -133,9 +131,6 @@ function fetchWatchlist() {
     }).then(() => fetchWatchlist());
   }
 
-  // ------------------------------
-  // WATCHLIST QUOTES REFRESH
-  // ------------------------------
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     if (!watchlist.length) return;
@@ -157,9 +152,6 @@ function fetchWatchlist() {
     return () => clearInterval(intervalRef.current);
   }, [watchlist]);
 
-  // --------------------------------------------------------------
-  // SEARCH / OPTIONS parsing (unchanged)
-  // --------------------------------------------------------------
   const MONTHS = [
     "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
     "JUL", "AUG", "SEP", "SEPT", "OCT", "NOV", "DEC"
@@ -236,16 +228,14 @@ function fetchWatchlist() {
     ["NSE", "NFO", "BSE"].includes(String(s?.exchange || "").toUpperCase());
 
   function isPlainEquityQuery(q) {
-  const Q = String(q || "").toUpperCase().trim();
-  if (!Q) return false;
+    const Q = String(q || "").toUpperCase().trim();
+    if (!Q) return false;
 
-  // contains only letters/numbers, no option keywords
-  const hasDeriv = /(CE|PE|FUT)$/i.test(Q);
-  const hasMonth = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)/i.test(Q);
+    const hasDeriv = /(CE|PE|FUT)$/i.test(Q);
+    const hasMonth = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)/i.test(Q);
 
-  return !hasDeriv && !hasMonth;
-}
-
+    return !hasDeriv && !hasMonth;
+  }
 
   async function backendSearchSmart(parts) {
     const { underlying, month, strike, deriv } = parts;
@@ -300,78 +290,68 @@ function fetchWatchlist() {
     return filtered.slice(0, 50);
   }
 
-  // ---------------------------------------------
-  // SEARCH LISTENER
-  // ---------------------------------------------
   const debouncedQuery = useMemo(() => query.trim(), [query]);
 
   useEffect(() => {
-  if (!debouncedQuery) {
-    setSuggestions([]);
-    return;
-  }
-
-  const timer = setTimeout(async () => {
-    try {
-      // ✅ STEP A — PLAIN EQUITY SEARCH (360ONE FIX)
-      if (isPlainEquityQuery(debouncedQuery)) {
-        const res = await fetch(
-          `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
-        );
-        const data = await res.json();
-        setSuggestions(Array.isArray(data) ? data.slice(0, 50) : []);
-        return;
-      }
-
-      // ✅ STEP B — OPTIONS / FUTURES LOGIC (UNCHANGED)
-      const parts = parseOptionish(debouncedQuery);
-      let finalList = await backendSearchSmart(parts);
-
-      // fallback to preloaded list
-      if (
-        (!finalList || finalList.length === 0) &&
-        Array.isArray(allScripts) &&
-        allScripts.length
-      ) {
-        const { raw, underlying, month, strike, deriv } = parts;
-
-        finalList = allScripts
-          .filter(allowedExchange)
-          .filter((s) => {
-            const sym = symbolField(s);
-            const nm = String(s.name || "").toUpperCase();
-
-            if (deriv && !sym.endsWith(deriv)) return false;
-            if (underlying && !(sym.includes(underlying) || nm.includes(underlying)))
-              return false;
-            if (month && !sym.includes(month)) return false;
-            if (strike) {
-              const m = sym.match(/(\d+)(CE|PE)$/);
-              return m ? m[1].startsWith(strike) : sym.includes(strike);
-            }
-            return true;
-          })
-          .sort((a, b) => symbolField(a).localeCompare(symbolField(b)))
-          .slice(0, 50);
-      }
-
-      setSuggestions(Array.isArray(finalList) ? finalList : []);
-    } catch {
+    if (!debouncedQuery) {
       setSuggestions([]);
+      return;
     }
-  }, 200);
 
-  return () => clearTimeout(timer);
-}, [debouncedQuery, allScripts]);
+    const timer = setTimeout(async () => {
+      try {
+        if (isPlainEquityQuery(debouncedQuery)) {
+          const res = await fetch(
+            `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
+          );
+          const data = await res.json();
+          setSuggestions(Array.isArray(data) ? data.slice(0, 50) : []);
+          return;
+        }
 
+        const parts = parseOptionish(debouncedQuery);
+        let finalList = await backendSearchSmart(parts);
+
+        if (
+          (!finalList || finalList.length === 0) &&
+          Array.isArray(allScripts) &&
+          allScripts.length
+        ) {
+          const { raw, underlying, month, strike, deriv } = parts;
+
+          finalList = allScripts
+            .filter(allowedExchange)
+            .filter((s) => {
+              const sym = symbolField(s);
+              const nm = String(s.name || "").toUpperCase();
+
+              if (deriv && !sym.endsWith(deriv)) return false;
+              if (underlying && !(sym.includes(underlying) || nm.includes(underlying)))
+                return false;
+              if (month && !sym.includes(month)) return false;
+              if (strike) {
+                const m = sym.match(/(\d+)(CE|PE)$/);
+                return m ? m[1].startsWith(strike) : sym.includes(strike);
+              }
+              return true;
+            })
+            .sort((a, b) => symbolField(a).localeCompare(symbolField(b)))
+            .slice(0, 50);
+        }
+
+        setSuggestions(Array.isArray(finalList) ? finalList : []);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [debouncedQuery, allScripts]);
 
   function handleSearch(e) {
     setQuery(e.target.value);
   }
 
-  // ------------------------------
-  // OPEN MODAL + POLLING
-  // ------------------------------
   function goDetail(sym) {
     const s = String(sym || "").trim();
     if (!s) return;
@@ -460,16 +440,15 @@ function fetchWatchlist() {
       const data = await res.json().catch(() => ({}));
       const needsConfirm = data?.needs_confirmation === true;
 
-if (!needsConfirm) {
-  nav(`/sell/${sym}`, {
-    state: {
-      preview: data,
-      allow_short: false
-    }
-  });
-  return;
-}
-
+      if (!needsConfirm) {
+        nav(`/sell/${sym}`, {
+          state: {
+            preview: data,
+            allow_short: false
+          }
+        });
+        return;
+      }
 
       if (res.ok && !needsConfirm) {
         nav(`/sell/${sym}`, {
@@ -507,7 +486,7 @@ if (!needsConfirm) {
     const regex = new RegExp(`(${q})`, "ig");
     return str.split(regex).map((part, i) =>
       regex.test(part) ? (
-        <span key={i} className="font-bold text-blue-600">
+        <span key={i} className="font-bold text-cyan-400">
           {part}
         </span>
       ) : (
@@ -515,159 +494,184 @@ if (!needsConfirm) {
       )
     );
   }
-  if (!Array.isArray(watchlist)) {
-    return (
-      <div className="p-6 text-red-500">
-        Failed to load watchlist
-      </div>
-    );
-  }
-  // -------------------------------------
-  // UI RETURN
-  // -------------------------------------
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-700">
+    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}>
       <ChartLauncher />
 
+      {/* BACKGROUND BLUR EFFECTS */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
+      </div>
+
       {/* HEADER */}
-      <div className="sticky top-0 z-50 p-4 bg-white rounded-b-2xl shadow relative">
-        <BackButton to="/menu" />
+      <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          {/* Top Row: Logo, Title, Theme Toggle, Profile */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 via-cyan-400 to-blue-500 rounded-2xl shadow-lg shadow-blue-500/50"></div>
+                <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">TradeHub</div>
+                <div className={`text-xs ${textSecondaryClass}`}>Next-Gen Trading</div>
+              </div>
+            </div>
 
-        <div className="mt-2 mb-1 w-full flex justify-center">
-          <div className="w-fit max-w-[90%] inline-flex items-center gap-2 rounded bg-gray-700 text-gray-100 px-4 py-1.5 text-sm font-medium shadow whitespace-nowrap">
-            <span>Total Funds: {moneyINR(totalFunds, { decimals: 0 })}</span>
-            <span>|</span>
-            <span>Available: {moneyINR(availableFunds, { decimals: 0 })}</span>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsDark(!isDark)}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+              >
+                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              <button
+                onClick={() => nav("/profile")}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+              >
+                <User className="w-5 h-5" />
+              </button>
+            </div>
           </div>
-        </div>
+          {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
+          <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
 
-        <div className="flex flex-col items-center">
-          <h1 className="text-2xl font-serif text-gray-800">Watchlist</h1>
-          <div className="flex mt-2 space-x-6 text-sm">
+
+
+          {/* Funds Display */}
+          <div className={`${glassClass} rounded-2xl p-2 mb-4 shadow-lg text-center`}>
+            <div className="flex items-center justify-center gap-3 text-sm font-medium">
+              <span>Total: {moneyINR(totalFunds, { decimals: 0 })}</span>
+              <div className="w-1 h-1 rounded-full bg-cyan-400"></div>
+              <span>Available: {moneyINR(availableFunds, { decimals: 0 })}</span>
+            </div>
+          </div>
+
+          {/* Tabs: My List / Must Watch */}
+          <div className={`flex p-1.5 rounded-2xl ${glassClass} w-fit mx-auto shadow-lg`}>
+
             {["mylist", "mustwatch"].map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`pb-1 ${tab === t
-                  ? "text-blue-500 border-b-2 border-blue-500"
-                  : "text-gray-500"
+                className={`px-6 py-2.5 rounded-xl font-medium transition-all ${tab === t
+                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                  : textSecondaryClass
                   }`}
               >
                 {t === "mylist" ? "My List" : "Must Watch"}
               </button>
-            ))}
-          </div>
-        </div>
 
-        {/* HEADER RIGHT ICONS */}
-        <div className="absolute right-5 top-20 flex items-center space-x-4">
-          <div
-            className="flex flex-col items-center cursor-pointer"
-            onClick={() => nav("/portfolio")}
-          >
-            <Briefcase size={22} className="text-gray-600 hover:text-blue-600" />
-            <span className="text-xs text-gray-500">Portfolio</span>
-          </div>
-          <div
-            className="flex flex-col items-center cursor-pointer"
-            onClick={() => nav("/Recommendations")}
-          >
-            <Lightbulb size={22} className="text-gray-600 hover:text-blue-600" />
-            <span className="text-xs text-gray-500">Reco.</span>
-          </div>
-          <div
-            className="flex flex-col items-center cursor-pointer"
-            onClick={() => nav("/history")}
-          >
-            <Clock size={22} className="text-gray-600 hover:text-blue-600" />
-            <span className="text-xs text-gray-500">History</span>
-          </div>
-          <div
-            className="flex flex-col items-center cursor-pointer"
-            onClick={() => nav("/profile")}
-          >
-            <User size={22} className="text-gray-600 hover:text-blue-600" />
-            <span className="text-xs text-gray-500">Profile</span>
+            ))}
+
           </div>
         </div>
       </div>
 
-      {/* ---------------------------- */}
-      {/* MY LIST TAB */}
-      {/* ---------------------------- */}
-      {tab === "mylist" && (
-        <>
-          {/* Search Bar */}
-          <div className="bg-gray-600 p-4">
+
+
+      {/* MAIN CONTENT */}
+      <div className="max-w-7xl mx-auto px-6 py-6 relative pb-24">
+        {tab === "mylist" && (
+          <div className="space-y-6">
+            {/* Search Bar */}
             <div className="relative">
-              <Search size={16} className="absolute top-3 left-3 text-gray-400" />
               <input
                 type="text"
                 value={query}
                 onChange={handleSearch}
                 placeholder="Search & Add"
-                className="w-full pl-10 pr-4 py-2 rounded-lg text-gray-800"
+                className={`w-full pl-4 pr-4 py-3 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
               />
+
+              {suggestions.length > 0 && (
+                <ul className={`absolute w-full ${glassClass} rounded-2xl shadow-2xl mt-3 max-h-80 overflow-auto z-10`}>
+                  {suggestions.map((s, i) => {
+                    const sym = s?.symbol || s?.tradingsymbol || "";
+                    return (
+                      <li
+                        key={`${sym}-${i}`}
+                        onClick={() => goDetail(sym)}
+                        className={`px-4 py-3 ${cardHoverClass} cursor-pointer transition-all ${i !== suggestions.length - 1 ? `border-b ${isDark ? 'border-white/10' : 'border-white/40'}` : ''
+                          }`}
+                      >
+                        <div className="font-semibold text-lg">
+                          {highlightMatch(sym, query)}
+                        </div>
+                        <div className={`text-sm ${textSecondaryClass}`}>
+                          {highlightMatch(s.name, query)}
+                        </div>
+                        <div className={`text-xs ${textSecondaryClass} mt-1`}>
+                          {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
 
-            {suggestions.length > 0 && (
-              <ul className="bg-white rounded-lg shadow mt-2 max-h-60 overflow-auto">
-                {Array.isArray(suggestions) && suggestions.map((s, i) => {
+            {/* WATCHLIST LIST */}
+            <div className="space-y-4">
+              {watchlist.length === 0 ? (
+                <div className={`text-center ${textSecondaryClass} mt-20 text-lg`}>
+                  No scripts in your watchlist.
+                </div>
+              ) : (
+                watchlist.map((sym) => {
+                  const q = quotes[sym] || {};
+                  const isPos = Number(q.change || 0) >= 0;
 
-                  const sym = s?.symbol || s?.tradingsymbol || "";
                   return (
-                    <li
-                      key={`${sym}-${i}`}
+                    <div
+                      key={sym}
+                      className={`${glassClass} p-5 rounded-3xl ${cardHoverClass} cursor-pointer transition-all duration-300 shadow-xl`}
                       onClick={() => goDetail(sym)}
-                      className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                     >
-                      <div className="font-semibold">
-                        {highlightMatch(sym, query)}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {highlightMatch(s.name, query)}
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <div className="text-2xl font-bold mb-2">{sym}</div>
+                          <div className={`text-sm ${textSecondaryClass} flex items-center space-x-2`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${isDark ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                              }`}>
+                              {q.exchange || "NSE"}
+                            </span>
+                          </div>
+                        </div>
 
-          {/* WATCHLIST LIST */}
-          <div className="flex-1 overflow-auto p-4 space-y-3 bg-gray-100">
-            {watchlist.length === 0 ? (
-              <div className="text-center text-gray-500 mt-10">
-                No scripts in your watchlist.
-              </div>
-            ) : (
-              Array.isArray(watchlist) && watchlist.map((sym) => {
-                const q = quotes[sym] || {};
-                const isPos = Number(q.change || 0) >= 0;
-
-                return (
-                  <div
-                    key={sym}
-                    className="bg-white px-4 py-2 rounded-xl hover:shadow-md cursor-pointer"
-                    onClick={() => goDetail(sym)}
-                  >
-                    {/* FIRST ROW */}
-                    <div className="flex justify-between items-center">
-                      <div className="text-left">
-                        <div className="text-lg font-semibold text-gray-800">{sym}</div>
+                        <div className="text-right">
+                          <div className={`text-3xl font-bold mb-1 ${isPos ? "text-emerald-400" : "text-rose-400"
+                            }`}>
+                            {q.price != null
+                              ? Number(q.price).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              : "--"}
+                          </div>
+                          <div className={`text-sm font-semibold flex items-center justify-end space-x-2 ${isPos ? "text-emerald-400" : "text-rose-400"
+                            }`}>
+                            {q.change != null && (
+                              <>
+                                <span>
+                                  {isPos ? "+" : ""}{Number(q.change).toFixed(2)}
+                                </span>
+                                <span>({Number(q.pct_change || 0).toFixed(2)}%)</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex items-center space-x-2">
-                        <div
-                          className={`text-xl font-medium ${isPos ? "text-green-600" : "text-red-600"
-                            }`}
-                        >
-                          {q.price != null
-                            ? Number(q.price).toLocaleString("en-IN")
-                            : "--"}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {whatsappList.includes(sym) && (
+                            <FaWhatsapp
+                              className="text-green-400 text-xl cursor-default"
+                              title="Added to WhatsApp Alerts"
+                            />
+                          )}
                         </div>
 
                         <button
@@ -675,77 +679,30 @@ if (!needsConfirm) {
                             e.stopPropagation();
                             handleRemoveFromWatchlist(sym);
                           }}
-                          className="text-xs bg-red-100 text-red-600 rounded px-2 py-0.5 hover:bg-red-200"
+                          className={`text-sm px-4 py-2 rounded-xl font-semibold transition-all shadow-lg ${isDark
+                            ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30'
+                            : 'bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200'
+                            }`}
                         >
-                          &minus;
+                          -
                         </button>
                       </div>
                     </div>
-
-                    {/* SECOND ROW  NSE | Change% | WhatsApp */}
-                    <div className="flex justify-between items-center mt-1">
-                      <div className="text-xs text-gray-600">
-                        {q.exchange || "NSE"}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className="text-xs text-gray-600">
-                          {q.change != null
-                            ? `${isPos ? "+" : ""}${Number(q.change).toFixed(2)} (${Number(
-                              q.pct_change || 0
-                            ).toFixed(2)}%)`
-                            : "--"}
-                        </div>
-
-                        {/* ⭐ Show WhatsApp Icon ONLY if script is in WhatsApp alerts */}
-                        {whatsappList.includes(sym) && (
-                          <FaWhatsapp
-                            className="text-green-500 text-lg cursor-default"
-                            title="Added to WhatsApp Alerts"
-                          />
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
-        </>
-      )}
-
-      {/* BOTTOM NAV */}
-      <div className="flex bg-gray-800 p-2 justify-around">
-        <button
-          onClick={() => setTab("mylist")}
-          className="flex flex-col items-center text-blue-400"
-        >
-          <Search size={24} />
-          <span className="text-xs">Watchlist</span>
-        </button>
-
-        <button
-          onClick={() => nav("/orders")}
-          className="flex flex-col items-center text-gray-400"
-        >
-          <ClipboardList size={24} />
-          <span className="text-xs">Orders</span>
-        </button>
-
-        <button
-          onClick={() => nav("/whatsapp")}
-          className="flex flex-col items-center text-gray-400"
-        >
-          <FaWhatsapp size={24} />
-          <span className="text-xs">WhatsApp</span>
-        </button>
+        )}
       </div>
+
+
 
       {/* SCRIPT DETAILS MODAL */}
       <ScriptDetailsModal
         symbol={selectedSymbol}
         quote={selectedQuote}
-        hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}  // ✅ FIX
+        hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}
         onClose={() => {
           setSelectedSymbol(null);
           if (modalPollRef.current) {
@@ -768,21 +725,27 @@ if (!needsConfirm) {
 
       {/* SELL CONFIRMATION MODAL */}
       {sellConfirmOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl text-center max-w-sm w-full">
-            <p className="mb-4 text-gray-800 font-semibold">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`${glassClass} p-8 rounded-3xl shadow-2xl text-center max-w-md w-full`}>
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/50">
+              <Sparkles className="w-8 h-8 text-white" />
+            </div>
+            <p className={`mb-6 ${textClass} font-semibold text-lg`}>
               {sellConfirmMsg ||
                 `You have 0 qty of ${sellSymbol}. Do you still want to sell first?`}
             </p>
             <div className="flex justify-center gap-4">
               <button
-                className="bg-gray-400 text-white px-4 py-2 rounded"
+                className={`px-6 py-3 rounded-xl font-semibold transition-all shadow-lg ${isDark
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-slate-200 hover:bg-slate-300 text-slate-900'
+                  }`}
                 onClick={() => setSellConfirmOpen(false)}
               >
                 NO
               </button>
               <button
-                className="bg-red-600 text-white px-4 py-2 rounded"
+                className="px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-xl font-semibold hover:shadow-xl hover:shadow-rose-500/50 transition-all"
                 onClick={() => {
                   setSellConfirmOpen(false);
                   nav(`/sell/${sellSymbol}`, {
