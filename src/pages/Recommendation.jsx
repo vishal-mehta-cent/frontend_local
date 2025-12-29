@@ -3,6 +3,9 @@ import React, { useState, useEffect, useMemo, useRef, startTransition } from "re
 import "./Recommendations.css";
 import SignalCard from "../components/SignalCard";
 import BackButton from "../components/BackButton";
+import SwipeNav from "../components/SwipeNav";
+import { Moon, Sun, Sparkles, User } from "lucide-react";
+
 
 
 
@@ -99,6 +102,21 @@ export default function Recommendations() {
   const [subIntraday, setSubIntraday] = useState("All");
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
   const [priceCloseList, setPriceCloseList] = useState(["All"]);
+
+  const [isDark, setIsDark] = useState(true);
+
+  const bgClass = isDark
+    ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
+    : 'bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100';
+
+  const glassClass = isDark
+    ? 'bg-white/5 backdrop-blur-xl border border-white/10'
+    : 'bg-white/60 backdrop-blur-xl border border-white/40';
+
+  const textClass = isDark ? 'text-white' : 'text-slate-900';
+  const textSecondaryClass = isDark ? 'text-slate-300' : 'text-slate-600';
+  const cardHoverClass = isDark ? 'hover:bg-white/10' : 'hover:bg-white/80';
+
 
 
   const [closedPriceMap, setClosedPriceMap] = useState({});
@@ -914,31 +932,95 @@ export default function Recommendations() {
   // MAIN PAGE RETURN
   // -------------------------------------------------------
   return (
-    <div className="recommendations-container">
-      <BackButton to="/menu" />
+    <div
+      className={`min-h-screen ${isDark ? "theme-dark" : "theme-light"} ${bgClass} ${textClass} relative transition-colors duration-300`}
+    >
 
-      <h2 className="text-center text-xl font-bold text-blue-600">
-        RECOMMENDATIONS
-      </h2>
-
-      {/* MAIN CATEGORY BUTTONS */}
-      <div className="recommendation-buttons">
-        {["Intraday", "BTST", "Short-term"].map((type) => (
-          <button
-            key={type}
-            className={`rec-btn ${activeType === type ? "active" : ""}`}
-            onClick={() => {
-              setActiveType(type);
-              setSubIntraday("All");
-            }}
-          >
-            {type}
-          </button>
-        ))}
+      {/* ===== BACKGROUND BLOBS (same as History) ===== */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* MAIN CONTENT */}
-      <div className="recommendation-content">{renderSignalLayout()}</div>
+      {/* ===== STICKY HEADER (STEP 4) ===== */}
+      <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
+
+          {/* BRAND ROW */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 via-cyan-400 to-blue-500 rounded-2xl shadow-lg"></div>
+                <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="text-xl font-bold">Neurocrest</div>
+                <div className={`text-xs ${textSecondaryClass}`}>
+                  Next-Gen Trading
+                </div>
+              </div>
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsDark(!isDark)}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+              >
+                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
+              <button
+                onClick={() => navigate("/profile")}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+              >
+                <User className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* ✅ SAME SWIPE NAV AS HISTORY */}
+          <SwipeNav
+            glassClass={glassClass}
+            cardHoverClass={cardHoverClass}
+          />
+        </div>
+      </div>
+
+      {/* ===== MAIN CONTENT (STEP 5) ===== */}
+      <div className="max-w-7xl mx-auto px-6 py-6 relative pb-24">
+        <div className="mb-6">
+          <h2 className={`text-4xl font-bold ${textClass} mb-2`}>
+            Recommendations
+          </h2>
+          <p className={textSecondaryClass}>
+            Trading signals & analytics
+          </p>
+        </div>
+
+        {/* MAIN CATEGORY BUTTONS (UNCHANGED LOGIC) */}
+        <div className="recommendation-buttons">
+          {["Intraday", "BTST", "Short-term"].map((type) => (
+            <button
+              key={type}
+              className={`rec-btn ${activeType === type ? "active" : ""}`}
+              onClick={() => {
+                setActiveType(type);
+                setSubIntraday("All");
+              }}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+
+        {/* SIGNALS LAYOUT (UNCHANGED) */}
+        <div className="recommendation-content">
+          {renderSignalLayout()}
+        </div>
+      </div>
     </div>
   );
+
 }
