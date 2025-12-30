@@ -7,8 +7,13 @@ export default function BackButton({ inline = true, className = "" }) {
   const navigate = useNavigate();
 
   const base =
-    "flex items-center gap-1 text-gray-700 hover:text-blue-600 text-sm";
-  const pos = inline ? "" : "absolute top-2 left-2";
+    "flex items-center gap-2 text-sm font-medium " +
+    "text-white hover:text-white " +
+    "bg-black/40 hover:bg-black/60 " +
+    "px-3 py-2 rounded-xl " +
+    "border border-white/20 shadow-lg backdrop-blur-md transition";
+
+  const pos = inline ? "" : "absolute top-2 left-2 z-50";
   const cls = `${base} ${pos} ${className}`.trim();
 
   const handleBack = () => {
