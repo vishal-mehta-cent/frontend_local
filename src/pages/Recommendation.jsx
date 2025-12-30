@@ -5,6 +5,7 @@ import SignalCard from "../components/SignalCard";
 import BackButton from "../components/BackButton";
 import SwipeNav from "../components/SwipeNav";
 import { Moon, Sun, Sparkles, User } from "lucide-react";
+import CustomDropdown from "../components/CustomDropdown";
 
 
 
@@ -18,7 +19,13 @@ const AccuracyGauge = ({ value, label }) => {
   const needleY = 80 - 45 * Math.sin((Math.PI / 180) * angle);
 
   return (
-    <svg width="140" height="120" viewBox="0 0 140 120">
+    <svg
+  width="140"
+  height="120"
+  viewBox="0 0 140 120"
+  className="accuracy-gauge"
+>
+
 
       {/* RED zone */}
       <path
@@ -605,102 +612,98 @@ export default function Recommendations() {
     <div className="intraday-section">
 
       {/* ---------------- DATE ROW ---------------- */}
-      <div className="filters-row date-row-centered">
-        <div className="filter-item">
-          <label>Date:</label>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-            />
+      {/* ================= ADVANCED FILTER CONTAINER ================= */}
+<div className="advanced-filter-wrapper">
 
+  {/* ---------------- DATE ROW ---------------- */}
+  <div className="filters-row date-row-centered">
+    <div className="filter-item">
+      <label>Date:</label>
+      <input
+        type="date"
+        value={selectedDate}
+        onChange={(e) => setSelectedDate(e.target.value)}
+      />
+    </div>
 
-          </div>
-
-        </div>
-
-        {activeType === "Intraday" && (
-          <div className="filter-item">
-            <label>Intraday Type:</label>
-            <select
-              value={subIntraday}
-              onChange={(e) => setSubIntraday(e.target.value)}
-            >
-              <option>All</option>
-              <option>Intraday</option>
-              <option>Intraday - Fast Alerts</option>
-            </select>
-          </div>
-        )}
-
-        <div className="filter-item">
-          <label>Segment:</label>
-          <select
-            value={segment}
-            onChange={(e) => setSegment(e.target.value)}
-          >
-            <option>Equity</option>
-            <option>F&O</option>
-          </select>
-        </div>
-      </div>
-
-      {/* ---------------- DROPDOWN FILTERS ---------------- */}
-      <div className="filters-row filters-row-legend">
-        <div className="filter-item">
-          <label>Alert Type:</label>
-          <select
-            value={selectedAlertType}
-            onChange={(e) => setSelectedAlertType(e.target.value)}
-          >
-            {alertTypeList.map((a) => (
-              <option key={a}>{a}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-item">
-          <label>Screener:</label>
-          <select
-            value={selectedScreener}
-            onChange={(e) => setSelectedScreener(e.target.value)}
-          >
-            {screenerList.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-item">
-          <label>Price Close To:</label>
-          <select
-            value={priceCloseFilter}
-            onChange={(e) => setPriceCloseFilter(e.target.value)}
-          >
-            {priceCloseList.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </div>
+    {activeType === "Intraday" && (
+      <div className="filter-item">
+        <label>Intraday Type:</label>
+        <CustomDropdown
+  label=""
+  value={subIntraday}
+  options={[
+    "All",
+    "Intraday",
+    "Intraday - Fast Alerts"
+  ]}
+  onChange={setSubIntraday}
+/>
 
       </div>
+    )}
 
-      {/* ---------------- LEGEND ---------------- */}
-      <div className="legend-row">
-        <div className="legend-box">
-          <h4>Acronyms</h4>
-          <p>
-            <strong>RES</strong> = Resistance | <strong>SUP</strong> = Support
-          </p>
-          <p>
-            <strong>T</strong> = Target | <strong>ST</strong> = Stoploss
-          </p>
-          <p>● = Signal Price</p>
-        </div>
-      </div>
+    <div className="filter-item">
+      <label>Segment:</label>
+      <CustomDropdown
+  label=""
+  value={segment}
+  options={["Equity", "F&O"]}
+  onChange={setSegment}
+/>
+
+    </div>
+  </div>
+
+  {/* ---------------- DROPDOWN FILTERS ---------------- */}
+  <div className="filters-row filters-row-legend">
+    <div className="filter-item">
+      <label>Alert Type:</label>
+      <CustomDropdown
+  label=""
+  value={selectedAlertType}
+  options={alertTypeList}
+  onChange={setSelectedAlertType}
+/>
+
+    </div>
+
+    <div className="filter-item">
+      <label>Screener:</label>
+      <CustomDropdown
+  label=""
+  value={selectedScreener}
+  options={screenerList}
+  onChange={setSelectedScreener}
+/>
+
+    </div>
+
+    <div className="filter-item">
+      <label>Price Close To:</label>
+      <CustomDropdown
+  label=""
+  value={priceCloseFilter}
+  options={priceCloseList}
+  onChange={setPriceCloseFilter}
+/>
+
+    </div>
+  </div>
+
+  {/* ---------------- LEGEND ---------------- */}
+  <div className="legend-row">
+    <div className="legend-box">
+      <h4>Acronyms</h4>
+      <p><strong>RES</strong> = Resistance | <strong>SUP</strong> = Support</p>
+      <p><strong>T</strong> = Target | <strong>ST</strong> = Stoploss</p>
+      <p>● = Signal Price</p>
+    </div>
+  </div>
+
+</div>
+{/* ================= END ADVANCED FILTER CONTAINER ================= */}
+
 
       {/* ---------------- SIGNALS SECTION ---------------- */}
       <div className="signals-section">
@@ -710,7 +713,13 @@ export default function Recommendations() {
                   ACTIVE SIGNALS
               ==================================================== */}
           <div className="signals-column">
-            <h3 className="section-title active-title">Active Signals</h3>
+            <h3 className="section-title active-title">
+  <span className="signal-title-wrap">
+    <span className="signal-dot signal-dot-active"></span>
+    Active Signals
+  </span>
+</h3>
+
 
             {/* BUY / SELL COUNTS */}
 
@@ -782,7 +791,13 @@ export default function Recommendations() {
                   CLOSED SIGNALS
               ==================================================== */}
           <div className="signals-column">
-            <h3 className="section-title closed-title">Closed Signals</h3>
+            <h3 className="section-title closed-title">
+  <span className="signal-title-wrap">
+    <span className="signal-dot signal-dot-closed"></span>
+    Closed Signals
+  </span>
+</h3>
+
 
             {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐ */}
             <div
