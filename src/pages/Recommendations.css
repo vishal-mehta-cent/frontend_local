@@ -1079,3 +1079,354 @@
 .theme-dark .alert-description-box strong {
   color: #0e0d0d !important;
 }
+
+/* =====================================================
+   ADVANCED FILTER CONTAINER (TOP SECTION ONLY)
+   ===================================================== */
+
+/* =====================================================
+   ADVANCED FILTER CONTAINER — PREMIUM (Landing style)
+   ===================================================== */
+
+.advanced-filter-wrapper {
+  margin: 20px auto 30px;
+  padding: 24px 28px;
+  border-radius: 20px;
+  max-width: 1100px;
+  width: 100%;
+
+  backdrop-filter: blur(22px);
+  transition: all 0.35s ease;
+  position: relative;
+}
+
+
+/* ---------------- LIGHT THEME ---------------- */
+.theme-light .advanced-filter-wrapper {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1.5px solid rgba(59, 130, 246, 0.25);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+/* Hover (light) */
+.theme-light .advanced-filter-wrapper:hover {
+  border-color: #3b82f6;
+  box-shadow:
+    0 14px 40px rgba(59, 130, 246, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+/* ---------------- DARK THEME ---------------- */
+.theme-dark .advanced-filter-wrapper {
+  background: linear-gradient(
+    145deg,
+    rgba(2, 6, 23, 0.75),
+    rgba(15, 23, 42, 0.75)
+  );
+  border: 1.5px solid rgba(34, 211, 238, 0.35);
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Hover (dark) */
+.theme-dark .advanced-filter-wrapper:hover {
+  border-color: #22d3ee;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.35),
+    0 0 35px rgba(34, 211, 238, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Mobile safety */
+@media (max-width: 768px) {
+  .advanced-filter-wrapper {
+    padding: 18px 14px;
+    border-radius: 16px;
+  }
+}
+
+
+/* =====================================================
+   FIX: Active/Closed title not visible in DARK theme
+   + Add animated grow-shrink dots
+   ===================================================== */
+
+/* Make heading text visible in dark theme */
+.theme-dark .active-title,
+.theme-dark .closed-title {
+  color: #eaf2ff !important;   /* bright readable */
+}
+
+/* Title row with dot + text */
+.signal-title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Base dot */
+.signal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+
+  /* grow-shrink animation */
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+/* Active = green */
+.signal-dot-active {
+  background: #22c55e;
+  box-shadow: 0 0 0 rgba(34, 197, 94, 0.65);
+}
+
+/* Closed = gray */
+.signal-dot-closed {
+  background: #9ca3af;
+  box-shadow: 0 0 0 rgba(156, 163, 175, 0.55);
+}
+
+/* Grow-shrink */
+@keyframes dotPulse {
+  0% {
+    transform: scale(0.85);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.35);
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.85);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    opacity: 0.75;
+  }
+}
+/* =====================================================
+   FIX: Accuracy Gauge text not visible in DARK theme
+   ===================================================== */
+
+/* Percentage value inside gauge */
+.theme-dark svg text {
+  fill: #e5e7eb !important;   /* light gray / white */
+}
+
+/* BUY / SELL label text under gauge */
+.theme-dark svg text:last-of-type {
+  fill: #93c5fd !important;   /* soft blue */
+}
+
+/* =====================================================
+   PREMIUM DROPDOWN STYLE
+   Inspired by Landing.jsx cards
+   ===================================================== */
+
+.filter-item select,
+.filter-item input {
+  border-radius: 10px !important;
+  padding: 8px 12px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  outline: none;
+}
+
+/* ---------------- LIGHT THEME ---------------- */
+.theme-light .filter-item select,
+.theme-light .filter-item input {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1.5px solid rgba(59, 130, 246, 0.25) !important;
+  color: #0f172a !important;
+}
+
+/* Hover (light) */
+.theme-light .filter-item select:hover,
+.theme-light .filter-item input:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Focus (light) */
+.theme-light .filter-item select:focus,
+.theme-light .filter-item input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
+}
+
+/* ---------------- DARK THEME ---------------- */
+.theme-dark .filter-item select,
+.theme-dark .filter-item input {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border: 1.5px solid rgba(34, 211, 238, 0.35) !important;
+  color: #e5e7eb !important;
+}
+
+/* Hover (dark) */
+.theme-dark .filter-item select:hover,
+.theme-dark .filter-item input:hover {
+  border-color: #22d3ee !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25);
+}
+
+/* Focus (dark) */
+.theme-dark .filter-item select:focus,
+.theme-dark .filter-item input:focus {
+  border-color: #67e8f9 !important;
+  box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.35);
+}
+
+/* Dropdown arrow color fix (dark) */
+.theme-dark select {
+  color-scheme: dark;
+}
+
+/* =====================================================
+   CUSTOM DROPDOWN (Trade.jsx quality)
+   ===================================================== */
+
+.custom-dd-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-dd-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Trigger */
+.custom-dd-trigger {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: transparent;
+}
+
+/* LIGHT THEME */
+.theme-light .custom-dd-trigger {
+  background: #ffffff;
+  border: 1.5px solid #93c5fd;
+  color: #0f172a;
+}
+
+/* DARK THEME */
+.theme-dark .custom-dd-trigger {
+  background: rgba(2, 6, 23, 0.9);
+  border: 1.5px solid rgba(34, 211, 238, 0.5);
+  color: #e5e7eb;
+}
+
+/* Hover */
+.custom-dd-trigger:hover {
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25);
+}
+
+/* Dropdown menu */
+.custom-dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+}
+
+/* LIGHT */
+.theme-light .custom-dd-menu {
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+}
+
+/* DARK */
+.theme-dark .custom-dd-menu {
+  background: linear-gradient(180deg, #020617, #0f172a);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+}
+
+/* Option */
+.custom-dd-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+/* DARK text */
+.theme-dark .custom-dd-option {
+  color: #e5e7eb;
+}
+
+/* LIGHT text */
+.theme-light .custom-dd-option {
+  color: #0f172a;
+}
+
+/* Hover */
+.custom-dd-option:hover {
+  background: rgba(96, 165, 250, 0.35);
+}
+
+/* Selected */
+.custom-dd-option.selected {
+  background: #60a5fa;
+  color: #020617;
+  font-weight: 600;
+}
+
+/* =====================================================
+   FINAL FIX — Date picker icon visibility (Dark theme)
+   ===================================================== */
+
+/* Base date input */
+/* =====================================================
+   FINAL POLISH — Date input icon (Dark theme)
+   ===================================================== */
+
+.filter-item input[type="date"] {
+  position: relative;
+  padding-right: 42px; /* space for icon */
+}
+
+
+/* DARK THEME: make calendar icon visible */
+.theme-dark
+.filter-item input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  opacity: 0.9;
+  cursor: pointer;
+
+  filter: invert(1) brightness(1.3);
+}
+
+
+/* LIGHT THEME: keep default */
+.theme-light .filter-item input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+.theme-dark
+.filter-item input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
