@@ -1,415 +1,563 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import BackButton from "../components/BackButton";
-import { Search, ClipboardList, Trash2 } from "lucide-react";
+import {
+  Search, ClipboardList, Trash2, Plus, Save, Bell, Moon, Sun,
+  CheckCircle, XCircle, Zap, TrendingUp, Package, Sparkles,
+  AlertCircle, Info, Crown
+} from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
 
-
-import { useRef } from "react";
-
 const API =
-    import.meta.env.VITE_BACKEND_BASE_URL ||
-    "https://paper-trading-backend.onrender.com";
+  import.meta.env.VITE_BACKEND_BASE_URL ||
+  "https://paper-trading-backend.onrender.com";
 
 export default function Whatsapp() {
-    const location = useLocation();
-    const chartSymbol = location.state?.symbol || "";
-    const fromChart = Boolean(chartSymbol);
+  const location = useLocation();
+  const chartSymbol = location.state?.symbol || "";
+  const fromChart = Boolean(chartSymbol);
 
-    const [scripts, setScripts] = useState([]);
-    const [newScript, setNewScript] = useState(() => chartSymbol || "");
+  const [scripts, setScripts] = useState([]);
+  const [newScript, setNewScript] = useState(() => chartSymbol || "");
 
-    // ⭐ For adding script
-    const navigate = useNavigate();
-    const [whatsappNumber, setWhatsappNumber] = useState("");
-    const [loadingNumber, setLoadingNumber] = useState(false);
+  const navigate = useNavigate();
+  const [whatsappNumber, setWhatsappNumber] = useState("");
+  const [loadingNumber, setLoadingNumber] = useState(false);
 
-    // ✅ Logged-in user (used for WhatsApp user-wise data)
-    const userId = localStorage.getItem("user_id") || "";
-    const emailId = localStorage.getItem("email_id") || "";
-    const autoAddedRef = useRef(false);
+  const userId = localStorage.getItem("user_id") || "";
+  const emailId = localStorage.getItem("email_id") || "";
+  const autoAddedRef = useRef(false);
 
+  const [isDark, setIsDark] = useState(true);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [saving, setSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
+  const bgClass = isDark
+    ? "bg-gradient-to-br from-slate-900 via-green-900 to-slate-900"
+    : "bg-gradient-to-br from-green-50 via-emerald-50 to-green-100";
 
-    // ---------------------------------------------------------
-    // LOAD FULL SETTINGS (script + fast + intraday)
-    // ---------------------------------------------------------
+  const glassClass = isDark
+    ? "bg-white/5 backdrop-blur-xl border border-white/10"
+    : "bg-white/60 backdrop-blur-xl border border-white/40";
 
-    useEffect(() => {
-        if (!userId) return;
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+  const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
 
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
 
-        fetch(`${API}/whatsapp/user-settings?user_id=${userId}`)
-            .then(res => res.json())   // ✅ THIS LINE WAS MISSING
-            .then(data => {
-                console.log("RAW RESPONSE:", data);
-                console.log("TYPE:", typeof data);
-                console.log("SETTINGS:", data?.settings);
+  useEffect(() => {
+    if (!userId) return;
 
-                setScripts(Array.isArray(data?.settings) ? data.settings : []);
-            })
-            .catch(err => {
-                console.error("USER SETTINGS ERROR:", err);
-                setScripts([]);
-            });
-    }, [userId]);
+    fetch(`${API}/whatsapp/user-settings?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("RAW RESPONSE:", data);
+        console.log("TYPE:", typeof data);
+        console.log("SETTINGS:", data?.settings);
 
+        setScripts(Array.isArray(data?.settings) ? data.settings : []);
+      })
+      .catch(err => {
+        console.error("USER SETTINGS ERROR:", err);
+        setScripts([]);
+      });
+  }, [userId]);
 
+  useEffect(() => {
+    if (!userId) return;
 
-
-    useEffect(() => {
-        // 🚫 Do nothing until userId is available
-        if (!userId) return;
-
-        fetch(`${API}/whatsapp/get-number?user_id=${userId}`)
-            .then(res => res.json())
-            .then(data => {
-                if (data && data.whatsapp_number) {
-                    setWhatsappNumber(data.whatsapp_number);
-                } else {
-                    setWhatsappNumber("");
-                }
-            })
-            .catch(() => {
-                setWhatsappNumber("");
-            });
-
-    }, [userId]);
-
-    // ⭐ AUTO-ADD SCRIPT ONLY ONCE WHEN COMING FROM CHART
-    useEffect(() => {
-        if (!chartSymbol || !userId) return;
-        if (autoAddedRef.current) return;
-
-        const script = chartSymbol.toUpperCase();
-
-        // ✅ Already exists → just fill input, do nothing else
-        const alreadyExists = scripts.some(
-            (s) => s.script?.toUpperCase() === script
-        );
-
-        autoAddedRef.current = true;
-
-        if (alreadyExists) {
-            setNewScript("");
-            return;
+    fetch(`${API}/whatsapp/get-number?user_id=${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.whatsapp_number) {
+          setWhatsappNumber(data.whatsapp_number);
+        } else {
+          setWhatsappNumber("");
         }
+      })
+      .catch(() => {
+        setWhatsappNumber("");
+      });
 
-        // ⏳ ensure scripts are loaded
-        setTimeout(() => {
-            setNewScript(script);
-            addScript();
-        }, 300);
+  }, [userId]);
 
-    }, [chartSymbol, userId, scripts]);
+  useEffect(() => {
+    if (!chartSymbol || !userId) return;
+    if (autoAddedRef.current) return;
 
+    const script = chartSymbol.toUpperCase();
 
+    const alreadyExists = scripts.some(
+      (s) => s.script?.toUpperCase() === script
+    );
 
+    autoAddedRef.current = true;
 
-    // ADD SCRIPT (DUPLICATE CHECK) — FINAL SAFE VERSION
-    // ---------------------------------------------------------
-    const addScript = async () => {
-        const script = newScript.trim().toUpperCase();
-        if (!script) return;
-
-        if (!userId) {
-            alert("User not identified. Please login again.");
-            return;
-        }
-
-        const res = await fetch(`${API}/whatsapp/add-alert`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                script,
-                user_id: userId
-            })
-        });
-
-        const data = await res.json();
-        console.log("ADD-ALERT RESPONSE:", data);
-
-        if (data.status === "exists") {
-            showToast(`${script} already exists in WhatsApp Alerts`);
-            setNewScript("");
-            return;
-        }
-
-        if (data.status === "ok") {
-            showToast(`${script} added to WhatsApp Alerts!`);
-            setNewScript("");
-
-            // ✅ IMPORTANT: reload user-wise settings from backend
-            fetch(`${API}/whatsapp/user-settings?user_id=${userId}`)
-
-                .then(res => res.json())
-                .then(d => {
-                    if (Array.isArray(d.settings)) {
-                        setScripts(d.settings);
-                    } else {
-                        setScripts([]);
-                    }
-                })
-                .catch(() => setScripts([]));
-
-            return;
-        }
-
-        showToast("Unable to add script. Try again.");
-    };
-
-
-
-
-
-
-
-    // ---------------------------------------------------------
-    // UPDATE CHECKBOX FIELD LOCALLY
-    // ---------------------------------------------------------
-    const updateField = (index, field, value) => {
-        setScripts(prev =>
-            prev.map((row, i) =>
-                i === index ? { ...row, [field]: value } : row
-            )
-        );
-    };
-
-    // ---------------------------------------------------------
-    // DELETE SCRIPT
-    // ---------------------------------------------------------
-    const deleteScript = async (script) => {
-        if (!window.confirm(`Delete ${script}?`)) return;
-
-        try {
-            const res = await fetch(`${API}/whatsapp/remove-alert/${script}`, {
-                method: "DELETE",
-            });
-
-
-            const data = await res.json();
-
-            if (data.status === "ok") {
-                setScripts(data.alerts);
-            } else {
-                alert("Delete failed");
-            }
-
-        } catch (err) {
-            alert("Server error");
-        }
+    if (alreadyExists) {
+      setNewScript("");
+      return;
     }
 
+    setTimeout(() => {
+      setNewScript(script);
+      addScript();
+    }, 300);
 
+  }, [chartSymbol, userId, scripts]);
 
+  const addScript = async () => {
+    const script = newScript.trim().toUpperCase();
+    if (!script) return;
 
-    // ---------------------------------------------------------
-    // SAVE SETTINGS TO BACKEND
-    // ---------------------------------------------------------
-    const handleSave = async () => {
-        if (!whatsappNumber.trim()) {
-            alert("Please enter WhatsApp number");
-            return;
-        }
+    if (!userId) {
+      showToast("User not identified. Please login again.", "error");
+      return;
+    }
 
-        const payload = {
-            user_id: userId,
-            email_id: emailId,
-            whatsapp_number: whatsappNumber,
-            settings: scripts
-        };
+    const res = await fetch(`${API}/whatsapp/add-alert`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        script,
+        user_id: userId
+      })
+    });
 
-        const res = await fetch(`${API}/whatsapp/save-user-details`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+    const data = await res.json();
+    console.log("ADD-ALERT RESPONSE:", data);
 
-        const data = await res.json();
+    if (data.status === "exists") {
+      showToast(`${script} already exists in WhatsApp Alerts`, "info");
+      setNewScript("");
+      return;
+    }
 
-        if (data.status === "ok") {
-            alert(`Saved successfully (${data.rows_saved} rows)`);
-        } else {
-            alert("Save failed");
-        }
+    if (data.status === "ok") {
+      showToast(`${script} added to WhatsApp Alerts!`, "success");
+      setNewScript("");
+
+      fetch(`${API}/whatsapp/user-settings?user_id=${userId}`)
+        .then(res => res.json())
+        .then(d => {
+          if (Array.isArray(d.settings)) {
+            setScripts(d.settings);
+          } else {
+            setScripts([]);
+          }
+        })
+        .catch(() => setScripts([]));
+
+      return;
+    }
+
+    showToast("Unable to add script. Try again.", "error");
+  };
+
+  const updateField = (index, field, value) => {
+    setScripts(prev =>
+      prev.map((row, i) =>
+        i === index ? { ...row, [field]: value } : row
+      )
+    );
+  };
+
+  const deleteScript = async (script) => {
+    if (!window.confirm(`Delete ${script}?`)) return;
+
+    try {
+      const res = await fetch(`${API}/whatsapp/remove-alert/${script}?user_id=${userId}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (data.status === "ok") {
+        setScripts(prev =>
+          prev.filter(row => row.script !== script)
+        );
+        showToast(`${script} deleted successfully`, "success");
+      } else {
+        showToast("Delete failed", "error");
+      }
+
+    } catch (err) {
+      showToast("Server error", "error");
+    }
+  };
+
+  const handleSave = async () => {
+    if (!whatsappNumber.trim()) {
+      showToast("Please enter WhatsApp number", "error");
+      return;
+    }
+
+    setSaving(true);
+
+    const payload = {
+      user_id: userId,
+      email_id: emailId,
+      whatsapp_number: whatsappNumber,
+      settings: scripts
     };
 
+    try {
+      const res = await fetch(`${API}/whatsapp/save-user-details`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
+      const data = await res.json();
 
+      if (data.status === "ok") {
+        showToast(`Saved successfully (${data.rows_saved} rows)`, "success");
+      } else {
+        showToast("Save failed", "error");
+      }
+    } catch (err) {
+      showToast("Server error", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
+  const filteredScripts = scripts.filter(script =>
+    script.script?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    return (
-        <div className="min-h-screen bg-gray-100 flex flex-col justify-between p-4">
+  return (
+    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}>
+      {/* Enhanced Background Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-green-400/10 rounded-full blur-3xl"></div>
+      </div>
 
-            <div>
-                <BackButton to="/trade" />
+      {/* Content Container */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-6 min-h-screen">
+        {/* Header */}
+        <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-2xl transform transition-all hover:scale-[1.01]`}>
+          <div className="flex items-center justify-between">
+            <BackButton to="/trade" />
 
-                <h1 className="text-xl font-semibold text-center mt-3 mb-6">
-                    WhatsApp Alerts
+            <div className="flex items-center space-x-3">
+              <div className="relative">
+                <FaWhatsapp className="w-8 h-8 text-green-400 animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                  WhatsApp Alerts
                 </h1>
-
-                {/* WhatsApp Number */}
-                <div className="bg-white rounded-lg shadow p-4 mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        WhatsApp Number
-                    </label>
-
-                    <div className="flex gap-2">
-                        <input
-                            type="tel"
-                            placeholder="e.g. 919876543210"
-                            value={whatsappNumber}
-                            onChange={(e) => setWhatsappNumber(e.target.value)}
-                            className="flex-1 border rounded-md px-3 py-2 text-sm
-                 focus:outline-none focus:ring-2 focus:ring-green-500"
-                        />
-                    </div>
-
-                    <p className="text-xs text-gray-500 mt-1">
-                        Include country code (India → 91)
-                    </p>
-                </div>
-
-
-
-                {/* ⭐ SAVE BUTTON ABOVE TABLE */}
-                <div className="flex justify-end mb-2 pr-2">
-                    <button
-                        onClick={handleSave}
-                        className="bg-green-600 text-white px-5 py-1 rounded-md shadow hover:bg-green-700"
-                    >
-                        Save
-                    </button>
-                </div>
-
-                <div className="bg-white rounded-xl shadow p-4 overflow-auto min-h-[120px]">
-
-                    <table className="min-w-full text-sm">
-                        <thead className="bg-gray-100">
-                            <tr>
-                                <th className="px-4 py-2 text-left text-gray-700">Script</th>
-                                <th className="px-4 py-2 text-center text-gray-700">Intraday Fast Alert(Generate Signals)</th>
-                                <th className="px-4 py-2 text-center text-gray-700">Intraday</th>
-                                <th className="px-4 py-2 text-center text-gray-700">BTST</th>
-                                <th className="px-4 py-2 text-center text-gray-700">Short-Term</th>
-                                <th className="px-4 py-2 text-center text-gray-700">Delete</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {scripts.map((row, i) => (
-                                <tr key={row.script} className="border-b hover:bg-gray-50">
-
-
-                                    <td className="px-4 py-3 font-medium text-gray-800">
-                                        {row.script}
-                                    </td>
-
-                                    {/* ⭐ FAST ALERT CHECKBOX */}
-                                    <td className="text-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={row.fast || false}
-                                            onChange={(e) =>
-                                                updateField(i, "fast", e.target.checked)
-                                            }
-                                            className="w-4 h-4 accent-blue-600"
-                                        />
-                                    </td>
-
-                                    {/* ⭐ INTRADAY CHECKBOX */}
-                                    <td className="text-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={row.intraday || false}
-                                            onChange={(e) =>
-                                                updateField(i, "intraday", e.target.checked)
-                                            }
-                                            className="w-4 h-4 accent-blue-600"
-                                        />
-                                    </td>
-
-                                    {/* BTST STATIC */}
-                                    <td className="text-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={row.btst ?? true}
-                                            onChange={(e) =>
-                                                updateField(i, "btst", e.target.checked)
-                                            }
-                                            className="w-4 h-4 accent-blue-600"
-                                        />
-                                    </td>
-
-
-                                    {/* Short Term STATIC */}
-                                    <td className="text-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={row.shortterm ?? true}
-                                            onChange={(e) =>
-                                                updateField(i, "shortterm", e.target.checked)
-                                            }
-                                            className="w-4 h-4 accent-blue-600"
-                                        />
-                                    </td>
-
-
-                                    {/* DELETE BUTTON */}
-                                    <td className="text-center">
-                                        <button
-                                            onClick={() => deleteScript(row.script)}
-                                            className="text-red-500 hover:text-red-700"
-                                        >
-                                            <Trash2 size={20} />
-                                        </button>
-                                    </td>
-
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <p className="text-xs text-slate-400">Manage your trading notifications</p>
+              </div>
             </div>
 
-            {/* ⭐ SUBSCRIPTION BOX (UNCHANGED) */}
-            <div className="fixed bottom-16 right-4 bg-white shadow-lg p-3 rounded-lg border w-64 text-right">
-                <p className="text-sm font-semibold text-gray-800">
-                    Your Subscription →
-                    <span className="text-blue-600"> Short-Term & BTST</span>
-                </p>
-
-                <p className="text-xs text-gray-500 mt-1">
-                    If you want to access other WhatsApp alerts, please upgrade.
-                </p>
-
-                <button
-                    onClick={() => navigate("/payments")}
-                    className="mt-2 bg-blue-600 text-white py-1 px-4 rounded-md hover:bg-blue-700 w-full text-sm"
-                >
-                    Upgrade Now
-                </button>
-            </div>
-
-            {/* ⭐ BOTTOM NAVIGATION BAR */}
-            <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-2 flex justify-around z-40 border-t border-gray-700">
-                <button onClick={() => navigate("/trade")} className="flex flex-col items-center text-gray-400">
-                    <Search size={24} />
-                    <span className="text-xs">Watchlist</span>
-                </button>
-
-                <button onClick={() => navigate("/orders")} className="flex flex-col items-center text-gray-400">
-                    <ClipboardList size={24} />
-                    <span className="text-xs">Orders</span>
-                </button>
-
-                <button onClick={() => navigate("/whatsapp")} className="flex flex-col items-center text-blue-400">
-                    <FaWhatsapp size={24} />
-                    <span className="text-xs">WhatsApp</span>
-                </button>
-            </div>
-
+            {/* Theme Toggle */}
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all hover:scale-110`}
+            >
+              {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-600" />}
+            </button>
+          </div>
         </div>
-    );
+
+        {/* WhatsApp Number Card */}
+        <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl space-y-4`}>
+          <div className="flex items-center space-x-2 mb-3">
+            <FaWhatsapp className="w-5 h-5 text-green-400" />
+            <label className={`text-sm font-semibold ${textClass}`}>
+              WhatsApp Number
+            </label>
+          </div>
+
+          <div className="relative">
+            <input
+              type="tel"
+              placeholder="e.g. 919876543210"
+              value={whatsappNumber}
+              onChange={(e) => setWhatsappNumber(e.target.value)}
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all`}
+            />
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <Bell className="w-5 h-5 text-green-400" />
+            </div>
+          </div>
+
+          <p className={`text-xs ${textSecondaryClass} flex items-center space-x-1`}>
+            <Info className="w-3 h-3" />
+            <span>Include country code (India → 91)</span>
+          </p>
+        </div>
+
+        {/* Add Script Section */}
+        <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl`}>
+          <div className="flex items-center space-x-2 mb-4">
+            <Plus className="w-5 h-5 text-cyan-400" />
+            <h3 className="text-lg font-semibold text-cyan-400">Add New Script</h3>
+          </div>
+
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Enter script symbol (e.g., TCS)"
+              value={newScript}
+              onChange={(e) => setNewScript(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && addScript()}
+              className={`flex-1 px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all`}
+            />
+            <button
+              onClick={addScript}
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-cyan-500/50 transition-all hover:scale-105 active:scale-95 flex items-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Add</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-xl`}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search scripts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={`w-full pl-11 pr-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all`}
+            />
+          </div>
+        </div>
+
+        {/* Scripts Table */}
+        <div className={`${glassClass} rounded-3xl p-6 shadow-2xl mb-36`}>
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <ClipboardList className="w-5 h-5 text-green-400" />
+              <h3 className="text-lg font-semibold text-green-400">Alert Configurations</h3>
+              <span className={`text-sm ${textSecondaryClass}`}>
+                ({filteredScripts.length} scripts)
+              </span>
+            </div>
+
+            
+
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className={`bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-green-500/50 transition-all hover:scale-105 active:scale-95 flex items-center space-x-2 ${
+                saving ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              {saving ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-5 h-5" />
+                  <span>Save All</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className={`${glassClass} border-b border-white/10`}>
+                  <th className={`px-6 py-4 text-left ${textClass} font-semibold`}>
+                    <div className="flex items-center space-x-2">
+                      <Package className="w-4 h-4" />
+                      <span>Script</span>
+                    </div>
+                  </th>
+                  <th className={`px-6 py-4 text-center ${textClass} font-semibold`}>
+                    <div className="flex flex-col items-center space-y-1">
+                      <Zap className="w-4 h-4 text-yellow-400" />
+                      <span className="text-xs">Fast Alert</span>
+                      <span className="text-xs text-slate-400">(Generate Signals)</span>
+                    </div>
+                  </th>
+                  <th className={`px-6 py-4 text-center ${textClass} font-semibold`}>
+                    <div className="flex flex-col items-center space-y-1">
+                      <TrendingUp className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs">Intraday</span>
+                    </div>
+                  </th>
+                  <th className={`px-6 py-4 text-center ${textClass} font-semibold`}>
+                    <div className="flex flex-col items-center space-y-1">
+                      <Bell className="w-4 h-4 text-green-400" />
+                      <span className="text-xs">BTST</span>
+                    </div>
+                  </th>
+                  <th className={`px-6 py-4 text-center ${textClass} font-semibold`}>
+                    <div className="flex flex-col items-center space-y-1">
+                      <Sparkles className="w-4 h-4 text-purple-400" />
+                      <span className="text-xs">Short-Term</span>
+                    </div>
+                  </th>
+                  <th className={`px-6 py-4 text-center ${textClass} font-semibold`}>
+                    <Trash2 className="w-4 h-4 mx-auto text-red-400" />
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredScripts.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-12">
+                      <div className="flex flex-col items-center space-y-3">
+                        <AlertCircle className={`w-12 h-12 ${textSecondaryClass}`} />
+                        <p className={textSecondaryClass}>No scripts added yet</p>
+                        <p className="text-xs text-slate-400">Add your first script above</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredScripts.map((row, i) => (
+                    <tr
+                      key={row.script}
+                      className={`border-b border-white/5 ${cardHoverClass} transition-all`}
+                    >
+                      <td className="px-6 py-4">
+                        <div className={`${glassClass} rounded-lg px-3 py-2 inline-block`}>
+                          <span className="font-bold text-green-400">{row.script}</span>
+                        </div>
+                      </td>
+
+                      {/* Fast Alert */}
+                      <td className="px-6 py-4 text-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={row.fast || false}
+                            onChange={(e) => updateField(i, "fast", e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-yellow-500 peer-checked:to-orange-500"></div>
+                        </label>
+                      </td>
+
+                      {/* Intraday */}
+                      <td className="px-6 py-4 text-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={row.intraday || false}
+                            onChange={(e) => updateField(i, "intraday", e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-cyan-500"></div>
+                        </label>
+                      </td>
+
+                      {/* BTST */}
+                      <td className="px-6 py-4 text-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={row.btst ?? true}
+                            onChange={(e) => updateField(i, "btst", e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-green-500 peer-checked:to-emerald-500"></div>
+                        </label>
+                      </td>
+
+                      {/* Short-Term */}
+                      <td className="px-6 py-4 text-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={row.shortterm ?? true}
+                            onChange={(e) => updateField(i, "shortterm", e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-500/50 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-pink-500"></div>
+                        </label>
+                      </td>
+
+                      {/* Delete */}
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => deleteScript(row.script)}
+                          className={`${glassClass} p-2 rounded-lg hover:bg-red-500/20 transition-all hover:scale-110`}
+                        >
+                          <Trash2 className="w-5 h-5 text-red-400" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+    {/* Subscription Box - BELOW ALL SCRIPTS */}
+<div className={`${glassClass} rounded-3xl p-6 shadow-2xl border-2 border-blue-500/30 mt-10`}>
+  <div className="flex flex-col gap-4">
+
+    <div className="flex items-center gap-2 text-blue-400 font-semibold text-lg">
+      <span>👑</span>
+      <span>Your Subscription</span>
+    </div>
+
+    <p className="text-green-400 font-medium">
+      Short-Term & BTST
+    </p>
+
+    <p className={`text-sm ${textSecondaryClass}`}>
+      Upgrade to access Intraday and Fast Alert notifications
+    </p>
+
+    <button
+      className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold hover:opacity-90 transition"
+    >
+      ✨ Upgrade Now
+    </button>
+
+  </div>
+</div>
+
+      </div>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-6 right-6 z-50 animate-slideIn">
+          <div
+            className={`${glassClass} rounded-2xl p-4 shadow-2xl flex items-center space-x-3 min-w-[300px] ${
+              toast.type === "success"
+                ? "border-green-500/50"
+                : toast.type === "error"
+                ? "border-red-500/50"
+                : "border-blue-500/50"
+            }`}
+          >
+            {toast.type === "success" && (
+              <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0 animate-pulse" />
+            )}
+            {toast.type === "error" && (
+              <XCircle className="w-6 h-6 text-red-400 flex-shrink-0 animate-pulse" />
+            )}
+            {toast.type === "info" && (
+              <Info className="w-6 h-6 text-blue-400 flex-shrink-0 animate-pulse" />
+            )}
+            <p className={`text-sm ${textClass} flex-1`}>{toast.message}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
