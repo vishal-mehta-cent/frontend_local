@@ -1,14 +1,38 @@
-// frontend/src/pages/ProfileDetail.jsx
 import React, { useEffect, useState } from "react";
+import { User, Mail, Phone, Calendar, Save, X, CheckCircle, AlertCircle, Sun, Moon } from "lucide-react";
 import BackButton from "../components/BackButton";
 
-const API =
-  import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
+const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 const toStr = (v) => (v === undefined || v === null ? "" : String(v).trim());
 
 export default function ProfileDetail() {
-  // Hydrate base identity from localStorage
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    return saved === "dark";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDark]);
+
+  const bgClass = isDark
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-white to-blue-50";
+  const glassClass = isDark
+    ? "bg-white/10 backdrop-blur-xl border border-white/20"
+    : "bg-white/70 backdrop-blur-xl border border-white/30";
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+  const inputClass = isDark
+    ? "bg-white/5 border-white/20 text-white placeholder-slate-400"
+    : "bg-white border-slate-200 text-slate-900 placeholder-slate-400";
+
   let lsUser = {};
   try {
     lsUser = JSON.parse(localStorage.getItem("nc_user") || "{}");
@@ -27,7 +51,6 @@ export default function ProfileDetail() {
   const [err, setErr] = useState("");
   const [ok, setOk] = useState("");
 
-  // Fetch from backend
   useEffect(() => {
     const u = profile.username;
     if (!u) return;
@@ -56,14 +79,13 @@ export default function ProfileDetail() {
       if (!cancelled) setLoading(false);
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [profile.username]);
 
-  // Validation
-  const emailValid = (e) =>
-    !!toStr(e) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toStr(e));
-  const phoneValid = (p) =>
-    !!toStr(p) && /^[0-9+\-() ]{7,20}$/.test(toStr(p)); // accepts +91 etc.
+  const emailValid = (e) => !!toStr(e) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toStr(e));
+  const phoneValid = (p) => !!toStr(p) && /^[0-9+\-() ]{7,20}$/.test(toStr(p));
 
   const handleSave = async () => {
     setErr("");
@@ -90,7 +112,6 @@ export default function ProfileDetail() {
         throw new Error(msg);
       }
 
-      // persist to localStorage
       try {
         localStorage.setItem("email", email);
         localStorage.setItem("phone", phone);
@@ -106,85 +127,142 @@ export default function ProfileDetail() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
-      <BackButton />
-      <h1 className="text-center text-2xl font-bold text-blue-600">Profile Details</h1>
+    <div className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
+      </div>
 
-      {ok && (
-        <div className="mt-4 rounded-md bg-green-50 text-green-700 border border-green-200 px-4 py-2 text-sm">
-          {ok}
+      <div className="relative z-10 max-w-4xl mx-auto p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-6">
+          <BackButton />
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className={`w-10 h-10 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all shadow-lg`}
+            title="Toggle theme"
+          >
+            {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-600" />}
+          </button>
         </div>
-      )}
-      {err && (
-        <div className="mt-4 rounded-md bg-red-50 text-red-700 border border-red-200 px-4 py-2 text-sm">
-          {err}
-        </div>
-      )}
 
-      <div className="mt-6 bg-white rounded-2xl border shadow-sm p-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-gray-200" />
-          <div>
-            <div className="text-xl font-semibold">
-              {profile.full_name || profile.username || "—"}
-            </div>
-            <div className="text-sm text-gray-500">{profile.username || "—"}</div>
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-2">
+            Profile Details
+          </h1>
+          <p className={textSecondaryClass}>Manage your account information</p>
+        </div>
+
+        {ok && (
+          <div className={`mb-6 rounded-2xl ${glassClass} px-4 py-3 flex items-center gap-3 shadow-lg animate-fade-in`}>
+            <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+            <span className="text-green-400 font-medium">{ok}</span>
           </div>
-        </div>
+        )}
 
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="rounded-xl border p-4">
-            <label className="text-xs uppercase text-gray-500 block mb-1">Email</label>
-            <input
-              type="email"
-              className="w-full rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200"
-              value={profile.email}
-              onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
-              placeholder="you@example.com"
-            />
-            {!emailValid(profile.email) && profile.email && (
-              <div className="text-xs text-red-600 mt-1">Invalid email.</div>
+        {err && (
+          <div className={`mb-6 rounded-2xl ${glassClass} px-4 py-3 flex items-center gap-3 shadow-lg animate-fade-in`}>
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+            <span className="text-red-400 font-medium">{err}</span>
+          </div>
+        )}
+
+        <div className={`${glassClass} rounded-3xl shadow-2xl p-6 sm:p-8 transition-all hover:shadow-blue-500/20`}>
+          <div className="flex items-center gap-6 mb-8 pb-6 border-b border-white/10">
+            <div className="relative">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                {(profile.full_name || profile.username || "U")[0].toUpperCase()}
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-white"></div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{profile.full_name || profile.username || "—"}</div>
+              <div className={`text-sm ${textSecondaryClass} flex items-center gap-2 mt-1`}>
+                <User className="w-4 h-4" />
+                {profile.username || "—"}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={`rounded-2xl ${glassClass} p-5 transition-all hover:scale-[1.02]`}>
+              <label className={`text-xs uppercase tracking-wide ${textSecondaryClass} flex items-center gap-2 mb-3`}>
+                <Mail className="w-4 h-4" />
+                Email Address
+              </label>
+              <input
+                type="email"
+                className={`w-full rounded-xl border ${inputClass} px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all`}
+                value={profile.email}
+                onChange={(e) => setProfile((p) => ({ ...p, email: e.target.value }))}
+                placeholder="you@example.com"
+              />
+              {!emailValid(profile.email) && profile.email && (
+                <div className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Invalid email format
+                </div>
+              )}
+            </div>
+
+            <div className={`rounded-2xl ${glassClass} p-5 transition-all hover:scale-[1.02]`}>
+              <label className={`text-xs uppercase tracking-wide ${textSecondaryClass} flex items-center gap-2 mb-3`}>
+                <Phone className="w-4 h-4" />
+                Phone Number
+              </label>
+              <input
+                type="text"
+                className={`w-full rounded-xl border ${inputClass} px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition-all`}
+                value={profile.phone}
+                onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
+                placeholder="+91 98765 43210"
+              />
+              {!phoneValid(profile.phone) && profile.phone && (
+                <div className="text-xs text-red-400 mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Invalid phone format
+                </div>
+              )}
+            </div>
+
+            {profile.created_at && (
+              <div className={`rounded-2xl ${glassClass} p-5 transition-all hover:scale-[1.02]`}>
+                <div className={`text-xs uppercase tracking-wide ${textSecondaryClass} flex items-center gap-2 mb-3`}>
+                  <Calendar className="w-4 h-4" />
+                  Member Since
+                </div>
+                <div className="text-lg font-semibold">{profile.created_at}</div>
+              </div>
             )}
           </div>
 
-          <div className="rounded-xl border p-4">
-            <label className="text-xs uppercase text-gray-500 block mb-1">Phone</label>
-            <input
-              type="text"
-              className="w-full rounded-lg border px-3 py-2 outline-none focus:ring-2 focus:ring-blue-200"
-              value={profile.phone}
-              onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
-              placeholder="+91 98765 43210"
-            />
-            {!phoneValid(profile.phone) && profile.phone && (
-              <div className="text-xs text-red-600 mt-1">Invalid phone number.</div>
-            )}
+          <div className="mt-8 flex flex-col sm:flex-row justify-end gap-3">
+            <button
+              type="button"
+              className={`px-6 py-3 rounded-xl ${glassClass} hover:scale-105 transition-all shadow-lg flex items-center justify-center gap-2 font-semibold`}
+              onClick={() => window.history.back()}
+            >
+              <X className="w-4 h-4" />
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || !emailValid(profile.email) || !phoneValid(profile.phone)}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold disabled:opacity-60 hover:scale-105 transition-all shadow-lg shadow-blue-500/50 flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Changes
+                </>
+              )}
+            </button>
           </div>
-
-          {profile.created_at && (
-            <div className="rounded-xl border p-4">
-              <div className="text-xs uppercase text-gray-500">Joined</div>
-              <div className="font-medium">{profile.created_at}</div>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            type="button"
-            className="px-4 py-2 rounded-lg border bg-gray-50 hover:bg-gray-100"
-            onClick={() => window.history.back()}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !emailValid(profile.email) || !phoneValid(profile.phone)}
-            className="px-5 py-2 rounded-lg bg-blue-600 text-white font-semibold disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
         </div>
       </div>
     </div>
