@@ -1,44 +1,144 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Settings as SettingsIcon, Lock, Mail, Sun, Moon, ChevronRight, Palette } from "lucide-react";
 import BackButton from "../components/BackButton";
 
 export default function Settings() {
   const navigate = useNavigate();
 
-  return (
-    <div className="min-h-screen p-4 max-w-md mx-auto">
-      <BackButton to="/profile" /> 
-      <h2 className="text-2xl font-semibold text-center mb-6">Settings</h2>
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    return saved === "dark";
+  });
 
-      {/* Theme Toggle */}
-      <div className="border rounded p-4 mb-6">
-        <p className="mb-2 font-semibold">Theme</p>
-        <div className="flex space-x-4">
-          <label className="flex items-center">
-            <input type="radio" name="theme" defaultChecked className="mr-2" />
-            Default
-          </label>
-          <label className="flex items-center">
-            <input type="radio" name="theme" className="mr-2" />
-            Dark
-          </label>
-        </div>
+  useEffect(() => {
+    localStorage.setItem("theme", isDark ? "dark" : "light");
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDark]);
+
+  const bgClass = isDark
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-white to-blue-50";
+  const glassClass = isDark
+    ? "bg-white/10 backdrop-blur-xl border border-white/20"
+    : "bg-white/70 backdrop-blur-xl border border-white/30";
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+
+  return (
+    <div className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
       </div>
 
-      {/* Navigation Buttons */}
-      <button
-        onClick={() => navigate("/settings/change-password")}
-        className="w-full bg-gray-100 border rounded p-3 mb-4 text-left flex justify-between items-center"
-      >
-        Password Change <span className="text-gray-500">{">"}</span>
-      </button>
+      <div className="relative z-10 max-w-2xl mx-auto p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-6">
+          <BackButton to="/profile" />
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className={`w-10 h-10 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all shadow-lg`}
+            title="Toggle theme"
+          >
+            {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-600" />}
+          </button>
+        </div>
 
-      <button
-        onClick={() => navigate("/settings/change-email")}
-        className="w-full bg-gray-100 border rounded p-3 text-left flex justify-between items-center"
-      >
-        Email Change <span className="text-gray-500">{">"}</span>
-      </button>
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <SettingsIcon className="w-8 h-8 text-blue-500" />
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+              Settings
+            </h1>
+          </div>
+          <p className={textSecondaryClass}>Customize your experience</p>
+        </div>
+
+        <div className={`${glassClass} rounded-3xl shadow-2xl p-6 sm:p-8 mb-6`}>
+          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
+            <Palette className="w-5 h-5 text-blue-500" />
+            <h3 className="text-xl font-bold">Appearance</h3>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold mb-1">Theme Mode</div>
+                <div className={`text-sm ${textSecondaryClass}`}>Choose your preferred theme</div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsDark(false)}
+                className={`flex-1 py-4 rounded-2xl border-2 transition-all ${
+                  !isDark
+                    ? "border-blue-500 bg-blue-500/20"
+                    : "border-white/20 hover:border-white/40"
+                } flex flex-col items-center gap-2`}
+              >
+                <Sun className="w-6 h-6" />
+                <span className="font-semibold">Light</span>
+              </button>
+
+              <button
+                onClick={() => setIsDark(true)}
+                className={`flex-1 py-4 rounded-2xl border-2 transition-all ${
+                  isDark
+                    ? "border-blue-500 bg-blue-500/20"
+                    : "border-white/20 hover:border-white/40"
+                } flex flex-col items-center gap-2`}
+              >
+                <Moon className="w-6 h-6" />
+                <span className="font-semibold">Dark</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className={`${glassClass} rounded-3xl shadow-2xl p-6 sm:p-8 space-y-4`}>
+          <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/10">
+            <Lock className="w-5 h-5 text-blue-500" />
+            <h3 className="text-xl font-bold">Security</h3>
+          </div>
+
+          <button
+            onClick={() => navigate("/settings/change-password")}
+            className={`w-full ${glassClass} rounded-2xl p-4 flex items-center justify-between hover:scale-[1.02] transition-all shadow-lg group`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                <Lock className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold">Change Password</div>
+                <div className={`text-sm ${textSecondaryClass}`}>Update your account password</div>
+              </div>
+            </div>
+            <ChevronRight className={`w-5 h-5 ${textSecondaryClass} group-hover:translate-x-1 transition-transform`} />
+          </button>
+
+          <button
+            onClick={() => navigate("/settings/change-email")}
+            className={`w-full ${glassClass} rounded-2xl p-4 flex items-center justify-between hover:scale-[1.02] transition-all shadow-lg group`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                <Mail className="w-6 h-6 text-white" />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold">Change Email</div>
+                <div className={`text-sm ${textSecondaryClass}`}>Update your email address</div>
+              </div>
+            </div>
+            <ChevronRight className={`w-5 h-5 ${textSecondaryClass} group-hover:translate-x-1 transition-transform`} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
