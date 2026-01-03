@@ -40,12 +40,9 @@ const prefill = location.state || {};
 // ✅ MUST come first
 const [confirmedShort, setConfirmedShort] = useState(false);
 
-// ✅ SAFE derived value
-const allowShort = Boolean(
-  confirmedShort && !prefill.skipSellFirstCheck
-);
-
-
+// 🔧 FIX #1 — make allowShort immune to prefill / rerender issues
+const allowShort =
+  confirmedShort === true || prefill.allow_short === true;
 
 
   // Mode flags
@@ -260,7 +257,7 @@ if (cameFromPortfolio) {
         price: orderMode === "LIMIT" ? Number(price) : null,
         stoploss: stoploss !== "" ? Number(stoploss) : null,
         target: target !== "" ? Number(target) : null,
-        allow_short: allowShort,          // ✅ allow SELL FIRST
+        allow_short: allowShort === true,          // ✅ allow SELL FIRST
       };
 
       if (orderMode === "LIMIT") {
@@ -351,10 +348,13 @@ if (target !== "") {
       if (!res.ok) {
   const det = data?.detail;
 
-  // ✅ SELL FIRST confirmation
-  if (det?.code === "NEEDS_CONFIRM_SHORT") {
-    setErrorMsg(det.message);
-    setConfirmedShort(true);   // 🔥 THIS IS THE KEY
+  // ✅ SELL FIRST / OVERSHORT confirmation (409 from backend)
+  if (
+    det?.code === "NEEDS_CONFIRM_SHORT" ||
+    det?.code === "NEEDS_CONFIRM_OVERSHORT"
+  ) {
+    setErrorMsg(det.message);       // shows: "You own X... sell extra Y as SELL FIRST?"
+    setConfirmedShort(true);        // next click will send allow_short=true
     setSubmitting(false);
     return;
   }
