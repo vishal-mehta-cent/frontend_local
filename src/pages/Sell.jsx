@@ -2,7 +2,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import BackButton from "../components/BackButton";
-import { TrendingDown, DollarSign, Target, Shield, AlertCircle, CheckCircle2, Layers, Package } from "lucide-react";
+import {
+  TrendingDown,
+  DollarSign,
+  Target,
+  Shield,
+  AlertCircle,
+  CheckCircle2,
+  Layers,
+  Package,
+  Zap,
+  BarChart3,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
+
 import { useTheme } from "../context/ThemeContext";
 
 
@@ -100,6 +114,15 @@ export default function Sell() {
   const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
   const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
 
+  // ✅ Same quick qty presets as Buy.jsx (UI only)
+  const quickPresets = [1, 5, 10, 25, 50, 100];
+
+  // ✅ UI-only live extras (does NOT affect order logic)
+  const [prevPrice, setPrevPrice] = useState(null);
+  const [priceChange, setPriceChange] = useState(0);
+  const [priceChangePercent, setPriceChangePercent] = useState(0);
+  const [dayHigh, setDayHigh] = useState(null);
+  const [dayLow, setDayLow] = useState(null);
 
 
   // -------- Check market time on mount --------
@@ -144,12 +167,25 @@ export default function Sell() {
         if (!cancelled && data && data[0]) {
           const live = Number(data[0].price);
           if (Number.isFinite(live)) {
+            setPrevPrice(livePrice);
             setLivePrice(live);
+
+            // ✅ Read extra fields if backend sends them (same as Buy.jsx)
+            const high = Number(data[0].dayHigh);
+            const low = Number(data[0].dayLow);
+            const change = Number(data[0].change);
+            const changePct = Number(data[0].pct_change);
+
+            if (Number.isFinite(high)) setDayHigh(high);
+            if (Number.isFinite(low)) setDayLow(low);
+            if (Number.isFinite(change)) setPriceChange(change);
+            if (Number.isFinite(changePct)) setPriceChangePercent(changePct);
 
             if (orderMode === "LIMIT" && !price && !userEditedPrice.current) {
               setPrice(live.toFixed(2));
             }
           }
+
         }
       } catch { }
     };
@@ -161,7 +197,7 @@ export default function Sell() {
       clearInterval(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, orderMode]);
+  }, [symbol, orderMode, price]);
   useEffect(() => {
     if (!symbol) return;
 
@@ -479,15 +515,25 @@ export default function Sell() {
     }
   };
 
+  const priceDirection =
+    livePrice && prevPrice
+      ? livePrice > prevPrice
+        ? "up"
+        : livePrice < prevPrice
+          ? "down"
+          : "same"
+      : "same";
+
+  const dayRange =
+    Number.isFinite(dayHigh) &&
+      Number.isFinite(dayLow) &&
+      Number.isFinite(livePrice) &&
+      dayHigh !== dayLow
+      ? ((livePrice - dayLow) / (dayHigh - dayLow)) * 100
+      : 50;
 
   return (
     <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}>
-      <button
-        onClick={() => nav("/orders")}
-        className={`${glassClass} px-3 py-2 rounded-xl ${cardHoverClass}`}
-      >
-        Back
-      </button>
 
       {/* Background Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -571,13 +617,71 @@ export default function Sell() {
               </div>
             </div>
           ) : (
-            <div className={`${glassClass} rounded-2xl p-5 text-center`}>
-              <p className={`text-sm ${textSecondaryClass} mb-1`}>Live Price</p>
-              <p className="text-2xl font-bold text-red-400">
-                {livePrice != null ? `₹${livePrice.toFixed(2)}` : "--"}
-              </p>
+            <div className={`${glassClass} rounded-2xl p-5`}>
+              <div className="text-center space-y-4">
+                <p className={`text-sm ${textSecondaryClass} flex items-center justify-center space-x-2`}>
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Live Price</span>
+                </p>
+
+                <div className="flex items-center justify-center space-x-3">
+                  <div
+                    className={`text-4xl font-bold ${priceDirection === "up"
+                      ? "text-green-400"
+                      : priceDirection === "down"
+                        ? "text-red-400"
+                        : isDark
+                          ? "text-white"
+                          : "text-slate-900"
+                      }`}
+                  >
+                    ₹{livePrice != null ? livePrice.toFixed(2) : "--"}
+                  </div>
+
+                  {priceDirection === "up" && (
+                    <ArrowUpRight className="w-6 h-6 text-green-400 animate-bounce" />
+                  )}
+                  {priceDirection === "down" && (
+                    <ArrowDownRight className="w-6 h-6 text-red-400 animate-bounce" />
+                  )}
+                </div>
+
+                {/* Change badge */}
+                <div className="flex items-center justify-center">
+                  <span
+                    className={`px-3 py-1 rounded-full text-sm font-semibold ${priceChange >= 0
+                      ? "bg-green-500/20 text-green-300"
+                      : "bg-red-500/20 text-red-300"
+                      }`}
+                  >
+                    {priceChange >= 0 ? "+" : ""}
+                    {Number.isFinite(priceChange) ? priceChange.toFixed(2) : "0.00"}{" "}
+                    ({priceChangePercent >= 0 ? "+" : ""}
+                    {Number.isFinite(priceChangePercent) ? priceChangePercent.toFixed(2) : "0.00"}%)
+                  </span>
+                </div>
+
+                {/* Day range line */}
+                {dayHigh != null && dayLow != null && (
+                  <div className="space-y-2">
+                    <div className={`flex justify-between text-xs ${textSecondaryClass}`}>
+                      <span>Day Low: ₹{dayLow}</span>
+                      <span>Day High: ₹{dayHigh}</span>
+                    </div>
+
+                    <div className="relative w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                      <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 opacity-40" />
+                      <div
+                        className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-300"
+                        style={{ left: `${dayRange}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          )
+          }
 
           {/* Order Type Selection */}
           <div className="grid grid-cols-2 gap-3">
@@ -585,21 +689,27 @@ export default function Sell() {
               onClick={() => !isPureModify && setOrderMode("MARKET")}
               disabled={isPureModify}
               className={`py-4 rounded-xl font-semibold transition-all ${orderMode === "MARKET"
-                  ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
-                  : `${glassClass} ${cardHoverClass} ${isPureModify ? "opacity-50 cursor-not-allowed" : ""}`
+                ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
+                : `${glassClass} ${cardHoverClass} ${isPureModify ? "opacity-50 cursor-not-allowed" : ""}`
                 }`}
             >
-              Market
+              <div className="flex items-center justify-center gap-2">
+                <Zap className="w-5 h-5" />
+                <span>Market</span>
+              </div>
             </button>
             <button
               onClick={() => !isPureModify && setOrderMode("LIMIT")}
               disabled={isPureModify}
               className={`py-4 rounded-xl font-semibold transition-all ${orderMode === "LIMIT"
-                  ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
-                  : `${glassClass} ${cardHoverClass} ${isPureModify ? "opacity-50 cursor-not-allowed" : ""}`
+                ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
+                : `${glassClass} ${cardHoverClass} ${isPureModify ? "opacity-50 cursor-not-allowed" : ""}`
                 }`}
             >
-              Limit
+              <div className="flex items-center justify-center gap-2">
+                <Target className="w-5 h-5" />
+                <span>Limit</span>
+              </div>
             </button>
           </div>
 
@@ -619,8 +729,27 @@ export default function Sell() {
                 className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${isPureModify ? "cursor-not-allowed opacity-50" : ""
                   }`}
               />
+              {/* Quick presets */}
+              {!isPureModify && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {quickPresets.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setQty(String(preset))}
+                      className={`px-3 py-1 ${glassClass} rounded-lg text-xs font-semibold ${cardHoverClass} transition-all hover:scale-105 ${Number(qty) === preset ? "ring-2 ring-red-500/70" : ""
+                        }`}
+                    >
+                      {preset}x
+                    </button>
+                  ))}
+                </div>
+              )}
+
             </div>
           )}
+
+
 
           {/* Limit Price Input */}
           <div>
@@ -650,8 +779,8 @@ export default function Sell() {
                 setSegment("intraday");
               }}
               className={`py-4 rounded-xl font-semibold transition-all ${segment === "intraday"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                  : `${glassClass} ${cardHoverClass}`
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : `${glassClass} ${cardHoverClass}`
                 }`}
             >
               Intraday
@@ -662,39 +791,11 @@ export default function Sell() {
                 setSegment("delivery");
               }}
               className={`py-4 rounded-xl font-semibold transition-all ${segment === "delivery"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                  : `${glassClass} ${cardHoverClass}`
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : `${glassClass} ${cardHoverClass}`
                 }`}
             >
               Delivery
-            </button>
-          </div>
-
-          {/* Exchange Selection */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => {
-                if (isAddMode || isModifyMode) return;
-                setExchange("NSE");
-              }}
-              className={`py-4 rounded-xl font-semibold transition-all ${exchange === "NSE"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                  : `${glassClass} ${cardHoverClass}`
-                }`}
-            >
-              NSE
-            </button>
-            <button
-              onClick={() => {
-                if (isAddMode || isModifyMode) return;
-                setExchange("BSE");
-              }}
-              className={`py-4 rounded-xl font-semibold transition-all ${exchange === "BSE"
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                  : `${glassClass} ${cardHoverClass}`
-                }`}
-            >
-              BSE
             </button>
           </div>
 
@@ -738,8 +839,8 @@ export default function Sell() {
           onClick={handleSubmit}
           disabled={submitting}
           className={`w-full py-4 rounded-2xl text-white text-lg font-bold shadow-2xl transition-all ${submitting
-              ? "bg-gradient-to-r from-red-400 to-rose-400 cursor-not-allowed opacity-50"
-              : "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 hover:shadow-red-500/50 hover:scale-[1.02]"
+            ? "bg-gradient-to-r from-red-400 to-rose-400 cursor-not-allowed opacity-50"
+            : "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 hover:shadow-red-500/50 hover:scale-[1.02]"
             }`}
         >
           {submitting ? "Processing…" : isAdd ? "Add to Position" : isModify ? "Save Changes" : "SELL"}
