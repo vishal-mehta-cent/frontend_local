@@ -94,16 +94,14 @@ export default function ScriptDetailsModal({
     }
   };
 
-  const previewSell = async () => {
+  const previewSell = async (allowShort = false) => {
     const username =
       localStorage.getItem("userId") ||
       localStorage.getItem("username");
 
     console.log("SELL PREVIEW USER:", username);
 
-    if (!username) {
-      throw new Error("User not logged in");
-    }
+    if (!username) throw new Error("User not logged in");
 
     const res = await fetch(`${API}/orders/sell/preview`, {
       method: "POST",
@@ -111,19 +109,23 @@ export default function ScriptDetailsModal({
       body: JSON.stringify({
         username,
         script: sym,
+        order_type: "SELL",     // ✅ REQUIRED by backend
         qty: 1,
+        allow_short: allowShort // ✅ helpful for SELL FIRST flow
       }),
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     console.log("SELL PREVIEW RESPONSE:", res.status, data);
 
     if (!res.ok) {
-      return { needs_confirmation: true };
+      // If backend uses structured detail, keep compatibility
+      return { needs_confirmation: true, detail: data?.detail };
     }
 
     return data;
   };
+
 
   const handleSellClick = async () => {
     try {
@@ -149,7 +151,7 @@ export default function ScriptDetailsModal({
         return;
       }
 
-      const preview = await previewSell();
+      const preview = await previewSell(false);
 
       if (preview.needs_confirmation) {
         setShowConfirmSellFirst(true);
@@ -180,16 +182,16 @@ export default function ScriptDetailsModal({
       navigate(`/sell/${sym}`, {
         state: position
           ? {
-              fromPortfolio: true,
-              qty: Math.abs(position.qty),
-              segment: position.segment || "delivery",
-              stoploss: position.stoploss ?? "",
-              target: position.target ?? "",
-              allowShort: true,
-            }
+            fromPortfolio: true,
+            qty: Math.abs(position.qty),
+            segment: position.segment || "delivery",
+            stoploss: position.stoploss ?? "",
+            target: position.target ?? "",
+            allowShort: true,
+          }
           : {
-              allowShort: true,
-            },
+            allowShort: true,
+          },
       });
     }, 0);
   };
@@ -350,3 +352,4 @@ export default function ScriptDetailsModal({
 
   return target ? createPortal(body, target) : body;
 }
+
