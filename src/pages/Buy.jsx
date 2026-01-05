@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import BackButton from "../components/BackButton";
+import { useTheme } from "../context/ThemeContext";
+import {
+  TrendingUp,
+  DollarSign,
+  Target,
+  Shield,
+  AlertCircle,
+  CheckCircle2,
+  Zap,
+  Package,
+  ArrowUpRight,
+  ArrowDownRight,
+  BarChart3,
+  Sparkles,
+} from "lucide-react";
+
+
+
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
 
@@ -21,9 +39,17 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
 
-  // ✅ from Vite env (fallbacks match your current values)
-  const OPEN = parseHHMMToMinutes(import.meta.env.VITE_MARKET_OPEN_TIME_UTC, 3 * 60 + 45);
-  const CLOSE = parseHHMMToMinutes(import.meta.env.VITE_MARKET_CLOSE_TIME_UTC, 12 * 60 + 50);
+  // 09:15 IST = 03:45 UTC
+  const OPEN = parseHHMMToMinutes(
+    import.meta.env.VITE_MARKET_OPEN_TIME_UTC,
+    3 * 60 + 45
+  );
+
+  // 15:30 IST = 10:00 UTC
+  const CLOSE = parseHHMMToMinutes(
+    import.meta.env.VITE_MARKET_CLOSE_TIME_UTC,
+    10 * 60
+  );
 
   return minutes >= OPEN && minutes <= CLOSE;
 }
@@ -38,8 +64,32 @@ export default function Buy() {
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
   const isPositionModify = Boolean(prefill.fromPosition);
-  
+
   const isAddMode = isAdd && isPositionModify;
+
+  const { isDark } = useTheme();
+
+  const bgClass = isDark
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100";
+
+  const glassClass = isDark
+    ? "bg-white/5 backdrop-blur-xl border border-white/10"
+    : "bg-white/60 backdrop-blur-xl border border-white/40";
+
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+  const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
+
+  const quickPresets = [1, 5, 10, 25, 50, 100];
+
+  // UI-only live extras (does NOT affect order logic)
+  const [prevPrice, setPrevPrice] = useState(null);
+  const [priceChange, setPriceChange] = useState(0);
+  const [priceChangePercent, setPriceChangePercent] = useState(0);
+  const [dayHigh, setDayHigh] = useState(null);
+  const [dayLow, setDayLow] = useState(null);
+
 
   const [qty, setQty] = useState(prefill.qty || "");
   const [price, setPrice] = useState(prefill.price || "");
@@ -60,13 +110,13 @@ export default function Buy() {
 
   const [orderMode, setOrderMode] = useState(prefill.orderMode || "MARKET");
   const [submitting, setSubmitting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const username = localStorage.getItem("username");
 
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
   const isModifyMode = isModify && isPositionModify;
-
 
   useEffect(() => {
     if (!symbol) return;
@@ -89,23 +139,21 @@ export default function Buy() {
       });
   }, [symbol]);
 
-useEffect(() => {
-  if (!isFNO || !livePrice || !lotSize) return;
+  useEffect(() => {
+    if (!isFNO || !livePrice || !lotSize) return;
 
-  const enteredQty = Number(qty);
+    const enteredQty = Number(qty);
 
-  // Qty not entered → no investment
-  if (!enteredQty || enteredQty <= 0) {
-    setLotQty(0);
-    setTotalInvestment(0);
-    return;
-  }
+    if (!enteredQty || enteredQty <= 0) {
+      setLotQty(0);
+      setTotalInvestment(0);
+      return;
+    }
 
-  const lots = enteredQty * lotSize;
-  setLotQty(lots);
-  setTotalInvestment(lots * livePrice);
-}, [qty, lotSize, livePrice, isFNO]);
-
+    const lots = enteredQty * lotSize;
+    setLotQty(lots);
+    setTotalInvestment(lots * livePrice);
+  }, [qty, lotSize, livePrice, isFNO]);
 
   useEffect(() => {
     const checkMarket = () => {
@@ -134,7 +182,18 @@ useEffect(() => {
         if (!cancelled && data && data[0]) {
           const live = Number(data[0].price);
           if (Number.isFinite(live)) {
+            setPrevPrice(livePrice);
             setLivePrice(live);
+
+            const high = Number(data[0].dayHigh);
+            const low = Number(data[0].dayLow);
+            const change = Number(data[0].change);
+            const changePct = Number(data[0].pct_change);
+
+            if (Number.isFinite(high)) setDayHigh(high);
+            if (Number.isFinite(low)) setDayLow(low);
+            if (Number.isFinite(change)) setPriceChange(change);
+            if (Number.isFinite(changePct)) setPriceChangePercent(changePct);
 
             if (orderMode === "LIMIT" && !price && !userEditedPrice.current) {
               setPrice(live.toFixed(2));
@@ -150,22 +209,21 @@ useEffect(() => {
       cancelled = true;
       clearInterval(id);
     };
-  }, [symbol, orderMode, price]);
+  }, [symbol, orderMode, price, livePrice]);
 
   const handleSubmit = async () => {
     if (submitting) return;
     setSubmitting(true);
     setErrorMsg("");
     setSuccessText("");
-    // 🚫 BLOCK intraday BUY after market close
-if (!marketOpen && segment === "intraday") {
-  setErrorMsg(
-    "❌ Intraday is not applicable when market is close, Please use delivery."
-  );
-  setSubmitting(false);
-  return;
-}
 
+    if (!marketOpen && segment === "intraday") {
+      setErrorMsg(
+        "❌ Intraday is not applicable when market is close, Please use delivery."
+      );
+      setSubmitting(false);
+      return;
+    }
 
     try {
       if (!marketOpen && orderMode === "LIMIT") {
@@ -194,10 +252,11 @@ if (!marketOpen && segment === "intraday") {
         setSubmitting(false);
         return;
       }
+
       if (!username) {
-  nav("/login");
-  return;
-}
+        nav("/login");
+        return;
+      }
 
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
@@ -229,50 +288,42 @@ if (!marketOpen && segment === "intraday") {
 
       let res, data;
 
-      // ✅ SAFETY GUARD — prevent zero / negative qty on position modify
-if (isPositionModify && Number(qty) <= 0) {
-  setErrorMsg("❌ Quantity must be greater than zero");
-  setSubmitting(false);
-  return;
-}
+      if (isPositionModify && Number(qty) <= 0) {
+        setErrorMsg("❌ Quantity must be greater than zero");
+        setSubmitting(false);
+        return;
+      }
 
-      // ✅ POSITION MODIFY (SL / TARGET)
-// ✅ POSITION MODIFY (ONLY when NOT ADD)
-if (isPositionModify && !isAdd) {
-  await handleModifyPosition();
-  return;
-}
+      if (isPositionModify && !isAdd) {
+        await handleModifyPosition();
+        return;
+      }
 
+      if (isModify && prefill.modifyId) {
+        res = await fetch(`${API}/orders/${prefill.modifyId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(`${API}/orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
 
+      data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof data?.detail === "string"
+            ? data.detail
+            : data?.detail?.message ||
+            data?.message ||
+            "Order failed";
 
-// ✅ OPEN ORDER MODIFY
-if (isModify && prefill.modifyId) {
-  res = await fetch(`${API}/orders/${prefill.modifyId}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-} else {
-  res = await fetch(`${API}/orders`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-}
-
-
-     data = await res.json().catch(() => ({}));
-if (!res.ok) {
-  const msg =
-    typeof data?.detail === "string"
-      ? data.detail
-      : data?.detail?.message ||
-        data?.message ||
-        "Order failed";
-
-  throw new Error(msg);
-}
-
+        throw new Error(msg);
+      }
 
       if (isAdd) {
         setSuccessText("Added to Position ✅");
@@ -287,24 +338,22 @@ if (!res.ok) {
       setSuccessModal(true);
 
       const cameFromPortfolio =
-  prefill.fromAdd === true && prefill.fromPosition === true;
+        prefill.fromAdd === true && prefill.fromPosition === true;
 
-setTimeout(() => {
-  setSuccessModal(false);
+      setTimeout(() => {
+        setSuccessModal(false);
 
-  if (cameFromPortfolio) {
-    // ✅ ADD from Portfolio → go back to Portfolio
-    nav("/portfolio", { state: { refresh: true } });
-    return;
-  }
+        if (cameFromPortfolio) {
+          nav("/portfolio", { state: { refresh: true } });
+          return;
+        }
 
-  // Normal behaviour
-  if (data && data.triggered) {
-    nav("/orders", { state: { refresh: true, tab: "positions" } });
-  } else {
-    nav("/orders", { state: { refresh: true, tab: "open" } });
-  }
-}, 1500);
+        if (data && data.triggered) {
+          nav("/orders", { state: { refresh: true, tab: "positions" } });
+        } else {
+          nav("/orders", { state: { refresh: true, tab: "open" } });
+        }
+      }, 1500);
 
     } catch (e) {
       setErrorMsg(e.message || "Server error");
@@ -323,7 +372,7 @@ setTimeout(() => {
         username,
         script: symbol,
         new_qty: isFNO ? Number(lotQty) : Number(qty),
-        
+
         stoploss: stoploss ? Number(stoploss) : null,
         target: target ? Number(target) : null,
         price_type: orderMode,
@@ -337,43 +386,41 @@ setTimeout(() => {
       });
 
       const data = await res.json();
-     if (!res.ok) {
-  const msg =
-    typeof data?.detail === "string"
-      ? data.detail
-      : data?.detail?.message ||
-        data?.message ||
-        "Error modifying position";
+      if (!res.ok) {
+        const msg =
+          typeof data?.detail === "string"
+            ? data.detail
+            : data?.detail?.message ||
+            data?.message ||
+            "Error modifying position";
 
-  throw new Error(msg);
-}
-
+        throw new Error(msg);
+      }
 
       setSuccessText("Position modified successfully!");
       setSuccessModal(true);
 
       const cameFromPortfolio =
-  prefill.fromAdd === true && prefill.fromPosition === true;
+        prefill.fromAdd === true && prefill.fromPosition === true;
 
-setTimeout(() => {
-  if (cameFromPortfolio) {
-    nav("/portfolio", { state: { refresh: true } });
-  } else {
-    nav("/orders", { state: { refresh: true, tab: "positions" } });
-  }
-}, 1500);
+      setTimeout(() => {
+        if (cameFromPortfolio) {
+          nav("/portfolio", { state: { refresh: true } });
+        } else {
+          nav("/orders", { state: { refresh: true, tab: "positions" } });
+        }
+      }, 1500);
 
     } catch (err) {
-  const msg =
-    typeof err.message === "string"
-      ? err.message
-      : err?.message?.message ||
-        err?.detail?.message ||
-        "Server error";
+      const msg =
+        typeof err.message === "string"
+          ? err.message
+          : err?.message?.message ||
+          err?.detail?.message ||
+          "Server error";
 
-  setErrorMsg(msg);
-}
- finally {
+      setErrorMsg(msg);
+    } finally {
       setSubmitting(false);
     }
   };
@@ -383,240 +430,406 @@ setTimeout(() => {
     userEditedPrice.current = true;
   };
 
+  const getInvestmentBreakdown = () => {
+    const qtyNum = isFNO ? Number(lotQty) : Number(qty);
+    const priceNum = orderMode === "LIMIT" ? Number(price) : livePrice;
+
+    if (!qtyNum || !priceNum) return null;
+
+    const subtotal = qtyNum * priceNum;
+    const brokerage = subtotal * 0.0003;
+    const taxes = subtotal * 0.0018;
+    const total = subtotal + brokerage + taxes;
+
+    return { subtotal, brokerage, taxes, total };
+  };
+
+  const breakdown = getInvestmentBreakdown();
+
+  const getRiskLevel = () => {
+    if (!breakdown) return "low";
+    if (breakdown.total > 100000) return "high";
+    if (breakdown.total > 50000) return "medium";
+    return "low";
+  };
+
+  const riskLevel = getRiskLevel();
+  const riskColor = riskLevel === "high" ? "text-red-400" : riskLevel === "medium" ? "text-yellow-400" : "text-green-400";
+
+  const priceDirection =
+    livePrice && prevPrice
+      ? livePrice > prevPrice
+        ? "up"
+        : livePrice < prevPrice
+          ? "down"
+          : "same"
+      : "same";
+
+  const dayRange =
+    dayHigh && dayLow && livePrice && dayHigh !== dayLow
+      ? ((livePrice - dayLow) / (dayHigh - dayLow)) * 100
+      : 50;
+
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:max-w-xl md:mx-auto flex flex-col justify-between">
-      <BackButton to={isAddMode ? "/portfolio" : "/orders"} />
-
-      <div className="space-y-5">
-        <h2 className="text-2xl font-bold text-center text-green-600">
-  {isAdd
-    ? `ADD ${symbol}`
-    : isModify
-      ?`MODIFY ${symbol}`
-      : `BUY ${symbol}`}
-</h2>
-
-
-        {errorMsg && (
-  <div className="text-red-700 bg-red-100 p-3 rounded text-center">
-    {String(errorMsg)}
-  </div>
-)}
-
-
-        {isFNO ? (
-  <div className="bg-white p-4 rounded-lg shadow text-center space-y-2">
-    <div className="text-sm">
-      <strong>Live Price :</strong>{" "}
-      <span className="text-green-600">
-        ₹{livePrice != null ? livePrice.toFixed(2) : "--"}
-      </span>
-    </div>
-
-    <div className="text-sm">
-      <strong>Total Investment :</strong>{" "}
-      <span className="text-blue-600">
-        {totalInvestment > 0 ? `₹${totalInvestment.toFixed(2)}` : "--"}
-      </span>
-    </div>
-
-    <div className="flex justify-center gap-6 mt-3">
-
-  {/* QTY (Lots) */}
-  <div>
-    <div className="text-xs text-gray-500">QTY</div>
-    <input
-      type="number"
-      min="1"
-      value={qty}
-      onChange={(e) => setQty(e.target.value)}
-      disabled={isPositionModify}
-      className={`w-full px-4 py-3 border rounded-lg ${
-+   isPositionModify ? "bg-gray-100 cursor-not-allowed" : ""
-  }`}
-    />
-  </div>
-
-  {/* LOT (Dynamic = qty × lotSize) */}
-  <div>
-    <div className="text-xs text-gray-500">LOT</div>
-    <input
-      type="number"
-      value={lotQty}
-      disabled
-      className="w-24 px-2 py-1 border rounded text-center bg-gray-100"
-    />
-  </div>
-
-</div>
-
-
-  </div>
-) : (
-  <div className="text-sm text-center text-gray-700 mb-2">
-    Live Price:{" "}
-    <span className="font-semibold text-green-600">
-      {livePrice != null ? `₹${livePrice}` : "--"}
-    </span>
-  </div>
-)}
-
-
-        <div className="flex justify-center gap-4">
-          <label className="flex items-center gap-2">
-            <input
-  type="radio"
-  name="ordermode"
-  value="MARKET"
-  checked={orderMode === "MARKET"}
-  disabled={isPositionModify}
-  onChange={() => setOrderMode("MARKET")}
-/>
-
-            <span>Market</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-  type="radio"
-  name="ordermode"
-  value="LIMIT"
-  checked={orderMode === "LIMIT"}
-  disabled={!marketOpen || isPositionModify}
-  onChange={() => setOrderMode("LIMIT")}
-/>
-
-            <span className={!marketOpen ? "text-gray-400" : ""}>
-              Limit {!marketOpen && "(Market Closed)"}
-            </span>
-          </label>
-        </div>
-{/* ✅ QTY INPUT FOR NON-F&O (ALWAYS SHOW) */}
-{!isFNO && (
-  <input
-    type="number"
-    min="1"
-    value={qty}
-    onChange={(e) => setQty(e.target.value)}
-    disabled={isPositionModify}
-    placeholder="Quantity"
-    className={`w-full px-4 py-3 border rounded-lg ${
-      isPositionModify ? "bg-gray-100 cursor-not-allowed" : ""
-    }`}
-  />
-)}
-
-        <input
-          type="number"
-          value={orderMode === "LIMIT" ? price : ""}
-          onChange={handlePriceChange}
-          disabled={orderMode === "MARKET" || !marketOpen || isPositionModify}
-          placeholder={
-            !marketOpen
-              ? "Limit orders disabled after market close"
-              : "Enter Limit Price"
-          }
-          className={`w-full px-4 py-3 border rounded-lg ${
-  orderMode === "MARKET" || !marketOpen || isPositionModify
-    ? "bg-gray-100 cursor-not-allowed"
-    : ""
-}`}
-
+    <div
+      className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}
+    >
+      {/* soft blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-green-500/15 rounded-full blur-3xl animate-pulse" />
+        <div
+          className="absolute bottom-0 right-1/4 w-96 h-96 bg-emerald-500/15 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "1s" }}
         />
-
-        <div className="flex justify-between">
-          <button
-            onClick={() => { if (!isPositionModify) setSegment("intraday"); }}
-            className={`w-1/2 py-2 rounded-l-lg ${
-              segment === "intraday" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            Intraday
-          </button>
-          <button
-            onClick={() => { if (!isPositionModify) setSegment("delivery"); }}
-            className={`w-1/2 py-2 rounded-r-lg ${
-              segment === "delivery" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            Delivery
-          </button>
-        </div>
-
-        <div className="flex justify-between">
-          <button
-            onClick={() => { if (!isPositionModify) setExchange("NSE"); }}
-            className={`w-1/2 py-2 rounded-l-lg ${
-              exchange === "NSE" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            NSE
-          </button>
-          <button
-            onClick={() => { if (!isPositionModify) setExchange("BSE"); }}
-            className={`w-1/2 py-2 rounded-r-lg ${
-              exchange === "BSE" ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
-          >
-            BSE
-          </button>
-        </div>
-
-        <input
-  type="number"
-  value={stoploss}
-  onChange={(e) => setStoploss(e.target.value)}
-  disabled={isAddMode}
-  placeholder="Stoploss (optional)"
-  className={`w-full px-4 py-3 border rounded-lg ${
-    isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
-  }`}
-/>
-
-<input
-  type="number"
-  value={target}
-  onChange={(e) => setTarget(e.target.value)}
-  disabled={isAddMode}
-  placeholder="Target (optional)"
-  className={`w-full px-4 py-3 border rounded-lg ${
-    isAddMode ? "bg-gray-100 cursor-not-allowed" : ""
-  }`}
-/>
-
-
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
       </div>
 
-      <button
-  onClick={handleSubmit}   // ✅ ALWAYS use handleSubmit
-  disabled={submitting}
-  className={`mt-6 w-full py-3 text-white text-lg font-semibold rounded-lg ${
-    submitting
-      ? "bg-green-400 cursor-not-allowed"
-      : "bg-green-600 hover:bg-green-700"
-  }`}
->
+      <div className="relative z-10 max-w-2xl mx-auto px-4 py-6 min-h-screen flex flex-col">
+        {/* Header */}
+        <div className="sticky top-3 z-40">
+          <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-2xl`}>
+            <div className="flex items-center justify-between">
+              <BackButton to={isAddMode ? "/portfolio" : "/orders"} />
 
-        {submitting
-          ? "Processing…"
-          : isAdd
-            ? "Add to Position"
-            : isModify
-              ? "Save Changes"
-              : "BUY"}
-      </button>
+              <div className="flex items-center space-x-3">
+                <div className="relative">
+                  <TrendingUp className="w-6 h-6 text-green-400 animate-pulse" />
+                  {marketOpen && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="font-bold text-xl bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                    {isAdd
+                      ? `ADD ${symbol}`
+                      : isModify
+                        ? `MODIFY ${symbol}`
+                        : `BUY ${symbol}`}
+                  </h2>
+                  <p className={`text-xs ${textSecondaryClass}`}>
+                    {marketOpen ? "Market Open" : "Market Closed"}
+                  </p>
+                </div>
+              </div>
 
-      {successModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-xl text-center shadow-lg">
-            <div className="mb-3">
-              <div className="animate-bounce text-green-600 text-6xl">✅</div>
+              <div className="w-10" />
             </div>
-            <p className="text-lg font-semibold text-green-700">
-              {successText || "Order saved"}
-            </p>
           </div>
         </div>
-      )}
+
+        {/* Error */}
+        {errorMsg && (
+          <div className={`${glassClass} rounded-2xl p-4 mb-6 border border-red-500/40 shadow-lg`}>
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+              <p className="text-sm text-red-300">{String(errorMsg)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Live Price Card */}
+        <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl`}>
+          <div className="text-center space-y-4">
+            <p className={`text-sm ${textSecondaryClass} flex items-center justify-center space-x-2`}>
+              <BarChart3 className="w-4 h-4" />
+              <span>Live Price</span>
+            </p>
+
+            <div className="flex items-center justify-center space-x-3">
+              <div
+                className={`text-4xl font-bold ${priceDirection === "up"
+                  ? "text-green-400"
+                  : priceDirection === "down"
+                    ? "text-red-400"
+                    : isDark
+                      ? "text-white"
+                      : "text-slate-900"
+                  }`}
+              >
+                ₹{livePrice != null ? livePrice.toFixed(2) : "--"}
+              </div>
+
+              {priceDirection === "up" && <ArrowUpRight className="w-6 h-6 text-green-400 animate-bounce" />}
+              {priceDirection === "down" && <ArrowDownRight className="w-6 h-6 text-red-400 animate-bounce" />}
+            </div>
+
+            {/* Change badge (only if values exist) */}
+            <div className="flex items-center justify-center">
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-semibold ${priceChange >= 0
+                  ? "bg-green-500/20 text-green-300"
+                  : "bg-red-500/20 text-red-300"
+                  }`}
+              >
+                {priceChange >= 0 ? "+" : ""}
+                {Number.isFinite(priceChange) ? priceChange.toFixed(2) : "0.00"}{" "}
+                ({priceChangePercent >= 0 ? "+" : ""}
+                {Number.isFinite(priceChangePercent) ? priceChangePercent.toFixed(2) : "0.00"}%)
+              </span>
+            </div>
+
+            {/* Day range (optional) */}
+            {dayHigh != null && dayLow != null && (
+              <div className="space-y-2">
+                <div className={`flex justify-between text-xs ${textSecondaryClass}`}>
+                  <span>Day Low: ₹{dayLow}</span>
+                  <span>Day High: ₹{dayHigh}</span>
+                </div>
+
+                <div className="relative w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 opacity-40" />
+                  <div
+                    className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-300"
+                    style={{ left: `${dayRange}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* FNO stats */}
+          {isFNO && (
+            <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 gap-4">
+              <div className={`${glassClass} rounded-xl p-3 text-center`}>
+                <p className={`text-xs ${textSecondaryClass} mb-1`}>Lot Size</p>
+                <p className="text-lg font-bold text-cyan-300">{lotSize}</p>
+              </div>
+              <div className={`${glassClass} rounded-xl p-3 text-center`}>
+                <p className={`text-xs ${textSecondaryClass} mb-1`}>Total Investment</p>
+                <p className="text-lg font-bold text-blue-300">
+                  {totalInvestment > 0 ? `₹${totalInvestment.toLocaleString()}` : "--"}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Form Card */}
+        <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl space-y-6 flex-1`}>
+          {/* Order Type */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => !isPositionModify && setOrderMode("MARKET")}
+              disabled={isPositionModify}
+              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${orderMode === "MARKET"
+                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/40"
+                : `${glassClass} ${cardHoverClass} ${isPositionModify ? "opacity-50 cursor-not-allowed" : ""}`
+                }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Zap className="w-5 h-5" />
+                <span>Market</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => !isPositionModify && marketOpen && setOrderMode("LIMIT")}
+              disabled={!marketOpen || isPositionModify}
+              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${orderMode === "LIMIT"
+                ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/40"
+                : `${glassClass} ${cardHoverClass} ${(!marketOpen || isPositionModify) ? "opacity-50 cursor-not-allowed" : ""}`
+                }`}
+            >
+              <div className="flex items-center justify-center space-x-2">
+                <Target className="w-5 h-5" />
+                <span>Limit</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Quantity */}
+          <div>
+            <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+              <Package className="w-4 h-4" />
+              <span>Quantity {isFNO && "(Lots)"}</span>
+            </label>
+
+            <input
+              type="number"
+              min="1"
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              disabled={isPositionModify}
+              placeholder="Enter quantity"
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${isPositionModify ? "cursor-not-allowed opacity-50" : ""
+                }`}
+            />
+
+            {/* Quick presets */}
+            {!isPositionModify && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {quickPresets.map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => setQty(String(preset))}
+                    className={`px-3 py-1 ${glassClass} rounded-lg text-xs font-semibold ${cardHoverClass} transition-all hover:scale-105 ${Number(qty) === preset ? "ring-2 ring-green-500/70" : ""
+                      }`}
+                  >
+                    {preset}x
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* FNO computed qty */}
+            {isFNO && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div className={`${glassClass} rounded-xl p-3 text-center`}>
+                  <p className={`text-xs ${textSecondaryClass}`}>Total Qty</p>
+                  <p className="text-lg font-bold">{lotQty || 0}</p>
+                </div>
+                <div className={`${glassClass} rounded-xl p-3 text-center`}>
+                  <p className={`text-xs ${textSecondaryClass}`}>Lots</p>
+                  <p className="text-lg font-bold">{qty || 0}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Limit Price */}
+          <div>
+            <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+              <DollarSign className="w-4 h-4" />
+              <span>Limit Price</span>
+            </label>
+
+            <input
+              type="number"
+              value={orderMode === "LIMIT" ? price : ""}
+              onChange={handlePriceChange}
+              disabled={orderMode === "MARKET" || !marketOpen || isPositionModify}
+              placeholder={
+                !marketOpen ? "Limit orders disabled after market close" : "Enter limit price"
+              }
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${(orderMode === "MARKET" || !marketOpen || isPositionModify) ? "cursor-not-allowed opacity-50" : ""
+                }`}
+            />
+          </div>
+
+          {/* Segment */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => !isPositionModify && setSegment("intraday")}
+              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${segment === "intraday"
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : `${glassClass} ${cardHoverClass}`
+                }`}
+            >
+              Intraday
+            </button>
+
+            <button
+              onClick={() => !isPositionModify && setSegment("delivery")}
+              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${segment === "delivery"
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : `${glassClass} ${cardHoverClass}`
+                }`}
+            >
+              Delivery
+            </button>
+          </div>
+
+          {/* Exchange */}
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => !isPositionModify && setExchange("NSE")}
+              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${exchange === "NSE"
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : `${glassClass} ${cardHoverClass}`
+                }`}
+            >
+              NSE
+            </button>
+
+            <button
+              onClick={() => !isPositionModify && setExchange("BSE")}
+              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${exchange === "BSE"
+                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                : `${glassClass} ${cardHoverClass}`
+                }`}
+            >
+              BSE
+            </button>
+          </div>
+
+          {/* SL & Target */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+                <Shield className="w-4 h-4" />
+                <span>Stoploss</span>
+              </label>
+              <input
+                type="number"
+                value={stoploss}
+                onChange={(e) => setStoploss(e.target.value)}
+                disabled={isAddMode}
+                placeholder="Optional"
+                className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${isAddMode ? "cursor-not-allowed opacity-50" : ""
+                  }`}
+              />
+            </div>
+
+            <div>
+              <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+                <Target className="w-4 h-4" />
+                <span>Target</span>
+              </label>
+              <input
+                type="number"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                disabled={isAddMode}
+                placeholder="Optional"
+                className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${isAddMode ? "cursor-not-allowed opacity-50" : ""
+                  }`}
+              />
+            </div>
+          </div>
+
+          {/* Submit (IMPORTANT: do NOT disable just because marketOpen=false) */}
+          <button
+            onClick={handleSubmit}
+            disabled={submitting}
+            className={`w-full py-4 rounded-2xl text-white text-lg font-bold shadow-2xl transition-all transform ${submitting
+              ? "bg-gray-600 cursor-not-allowed opacity-60 scale-95"
+              : "bg-gradient-to-r from-green-500 via-emerald-500 to-green-500 hover:from-green-600 hover:to-emerald-600 hover:shadow-green-500/40 hover:scale-[1.02] active:scale-95"
+              }`}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              {submitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Processing…</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  <span>{isAdd ? "Add to Position" : isModify ? "Save Changes" : "BUY"}</span>
+                </>
+              )}
+            </div>
+          </button>
+        </div>
+
+        {/* Success Modal */}
+        {successModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+            <div className={`${glassClass} rounded-3xl p-8 text-center max-w-sm w-full shadow-2xl`}>
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-10 h-10 text-green-400 animate-pulse" />
+              </div>
+
+              <p className="text-xl font-bold text-green-400 mb-2">
+                {successText || "Order saved"}
+              </p>
+
+              <p className={`text-sm ${textSecondaryClass}`}>Redirecting you now...</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
+
 }
