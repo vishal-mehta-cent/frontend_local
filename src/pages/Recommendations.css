@@ -1071,7 +1071,7 @@
 .theme-dark .alert-description-box p,
 .theme-dark .alert-description-box span,
 .theme-dark .alert-description-box div {
-  color: #070707 !important;
+  color: #18181a !important;
   opacity: 1 !important;
 }
 
@@ -1430,3 +1430,47 @@
   opacity: 1;
 }
 
+/* =====================================================
+   DARK THEME — TEXT VISIBILITY ONLY (NO BACKGROUND)
+   ===================================================== */
+
+/* -------- Signal cards text -------- */
+.theme-dark .signal-card-advanced,
+.theme-dark .signal-card,
+.theme-dark .clean-line-layout {
+  color: #0e0e0f !important;
+}
+
+/* Header text */
+.theme-dark .signal-header,
+.theme-dark .signal-header *,
+.theme-dark .signal-script,
+.theme-dark .signal-time,
+.theme-dark .signal-confidence {
+  color: #080808 !important;
+}
+
+/* Footer text */
+.theme-dark .signal-footer,
+.theme-dark .signal-footer *,
+.theme-dark .signal-card-footer,
+.theme-dark .signal-card-footer * {
+  color: #0d0d0e !important;
+}
+
+/* Strong labels */
+.theme-dark strong {
+  color: #93c5fd !important;
+}
+
+/* -------- Indicator labels (SUP / RES / ST / T / prices) -------- */
+.theme-dark .label-top,
+.theme-dark .label-bottom,
+.theme-dark .price-bubble {
+  color: #121313 !important;
+}
+
+/* -------- BUY / SELL / TOTAL counters -------- */
+.theme-dark .signal-count-item {
+  color: #141415 !important;
+}
