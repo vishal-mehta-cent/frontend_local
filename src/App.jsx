@@ -85,12 +85,18 @@ function AuthScreen({ onLoginSuccess }) {
 
 export default function App() {
   const [username, setUsername] = useState(() =>
-    localStorage.getItem("user_id")
+    localStorage.getItem("user_id") || localStorage.getItem("username")
   );
 
   useEffect(() => {
-    if (username) localStorage.setItem("user_id", username);
-    else localStorage.removeItem("user_id");
+    if (username) {
+      // Keep BOTH keys for backward compatibility (some pages still read "username")
+      localStorage.setItem("user_id", username);
+      localStorage.setItem("username", username);
+    } else {
+      localStorage.removeItem("user_id");
+      localStorage.removeItem("username");
+    }
   }, [username]);
 
   const handleLoginSuccess = (user) => {
@@ -99,7 +105,11 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    localStorage.clear();
+    // Don't nuke *everything* (theme/UI prefs etc.) — just auth/session keys
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("username");
+    localStorage.removeItem("session_id");
+    localStorage.removeItem("email_id");
     setUsername(null);
     window.location.replace("/");
   };
@@ -140,7 +150,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   // 🔥 ZERODHA-STYLE SINGLE SESSION WATCHER
   // -------------------------------------------------------
   useEffect(() => {
-    const user = localStorage.getItem("user_id");
+    const user = localStorage.getItem("user_id") || localStorage.getItem("username");
     const session = localStorage.getItem("session_id");
 
     if (!user || !session) return;
