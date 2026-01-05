@@ -143,14 +143,16 @@ export default function Menu({ logout }) {
 
                     {/* Icon Container */}
                     <div
-                      className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300 ${isDisabled
-                        ? (isDark ? "bg-white/10" : "bg-gradient-to-br from-slate-200 to-gray-300")
-                        : `bg-gradient-to-br ${item.color} group-hover:scale-110 group-hover:rotate-3 shadow-lg`
-                        } ${!isDisabled && isHovered ? "shadow-2xl" : ""}`}
+                      className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                        isDisabled
+                          ? (isDark ? "bg-white/10" : "bg-gradient-to-br from-slate-200 to-gray-300")
+                          : `bg-gradient-to-br ${item.color} group-hover:scale-110 group-hover:rotate-3 shadow-lg`
+                      } ${!isDisabled && isHovered ? "shadow-2xl" : ""}`}
                     >
                       <div
-                        className={`${isDisabled ? (isDark ? "text-slate-300" : "text-slate-500") : "text-white"} transition-transform duration-300 ${isHovered && !isDisabled ? "scale-110" : ""
-                          }`}
+                        className={`${isDisabled ? (isDark ? "text-slate-300" : "text-slate-500") : "text-white"} transition-transform duration-300 ${
+                          isHovered && !isDisabled ? "scale-110" : ""
+                        }`}
                       >
                         {item.icon}
                       </div>
@@ -164,10 +166,11 @@ export default function Menu({ logout }) {
                     {/* Label */}
                     <div className="mt-4 text-center relative z-10">
                       <span
-                        className={`text-sm font-bold transition-colors duration-300 ${isDisabled
-                          ? (isDark ? "text-slate-300" : "text-slate-500")
-                          : (isDark ? "text-white group-hover:text-white" : "text-slate-800 group-hover:text-slate-900")
-                          }`}
+                        className={`text-sm font-bold transition-colors duration-300 ${
+                          isDisabled
+                            ? (isDark ? "text-slate-300" : "text-slate-500")
+                            : (isDark ? "text-white group-hover:text-white" : "text-slate-800 group-hover:text-slate-900")
+                        }`}
                       >
                         {item.label}
                       </span>
