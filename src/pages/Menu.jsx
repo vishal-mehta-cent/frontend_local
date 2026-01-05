@@ -127,10 +127,12 @@ export default function Menu({ logout }) {
                       ${borderClass}
                     `}
                   >
-                    {/* Hover Glow Effect */}
+                    {/* ✅ Hover Glow Effect (FIXED: no dynamic opacity class) */}
                     {!isDisabled && isHovered && (
                       <div
-                        className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-${isDark ? "10" : "5"} transition-opacity duration-300`}
+                        className={`absolute inset-0 bg-gradient-to-br ${item.color} ${
+                          isDark ? "opacity-10" : "opacity-5"
+                        } transition-opacity duration-300`}
                       ></div>
                     )}
 
