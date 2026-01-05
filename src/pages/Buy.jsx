@@ -729,28 +729,7 @@ export default function Buy() {
             </button>
           </div>
 
-          {/* Exchange */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => !isPositionModify && setExchange("NSE")}
-              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${exchange === "NSE"
-                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                : `${glassClass} ${cardHoverClass}`
-                }`}
-            >
-              NSE
-            </button>
 
-            <button
-              onClick={() => !isPositionModify && setExchange("BSE")}
-              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${exchange === "BSE"
-                ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                : `${glassClass} ${cardHoverClass}`
-                }`}
-            >
-              BSE
-            </button>
-          </div>
 
           {/* SL & Target */}
           <div className="grid grid-cols-2 gap-3">
