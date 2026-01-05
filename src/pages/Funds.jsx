@@ -58,7 +58,8 @@ export default function Funds({ username }) {
     setLoading(true);
     setErr("");
     setOk("");
-    fetch(`/funds/available/${username}`)
+    fetch(`${API}/funds/available/${username}`)
+
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch funds");
         return r.json();
@@ -97,9 +98,15 @@ export default function Funds({ username }) {
     setOk("");
     const n = Number(uncomma(amountInput));
     if (!Number.isFinite(n) || n <= 0) {
-      setErr("Enter a valid amount.");
-      return;
-    }
+  setErr("Enter a valid amount.");
+  return;
+}
+
+if (n > available) {
+  setErr("Withdraw amount cannot exceed available funds.");
+  return;
+}
+
     try {
       const res = await fetch(`${API}/funds/add`, {
         method: "POST",
@@ -116,29 +123,9 @@ export default function Funds({ username }) {
     }
   };
 
-  const withdrawFunds = async () => {
-    setErr("");
-    setOk("");
-    const n = Number(uncomma(amountInput));
-    if (!Number.isFinite(n) || n <= 0) {
-      setErr("Enter a valid amount.");
-      return;
-    }
-    try {
-      const res = await fetch(`${API}/funds/withdraw`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, amount: n }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.detail || "Withdraw failed");
-      setOk("Funds withdrawn successfully.");
-      setAmountInput("");
-      reload();
-    } catch (e) {
-      setErr(e.message || "Server error");
-    }
-  };
+
+
+
 
   return (
     <div className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}>
@@ -229,21 +216,19 @@ export default function Funds({ username }) {
               />
 
               <div className="grid grid-cols-2 gap-4 mt-6">
-                <button
-                  onClick={addFunds}
-                  className="px-6 py-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:scale-105 transition-all shadow-lg shadow-green-500/50 flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-5 h-5" />
-                  Add Funds
-                </button>
-                <button
-                  onClick={withdrawFunds}
-                  className="px-6 py-4 rounded-2xl bg-gradient-to-r from-red-500 to-rose-500 text-white font-semibold hover:scale-105 transition-all shadow-lg shadow-red-500/50 flex items-center justify-center gap-2"
-                >
-                  <Minus className="w-5 h-5" />
-                  Withdraw
-                </button>
-              </div>
+  <button
+    onClick={addFunds}
+    className="col-span-2 mx-auto px-6 py-4 rounded-2xl 
+               bg-gradient-to-r from-green-500 to-emerald-500 
+               text-white font-semibold hover:scale-105 
+               transition-all shadow-lg shadow-green-500/50 
+               flex items-center justify-center gap-2"
+  >
+    <Plus className="w-5 h-5" />
+    Add Funds
+  </button>
+</div>
+
             </div>
           </>
         )}
