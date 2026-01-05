@@ -6,6 +6,8 @@ import BackButton from "../components/BackButton";
 import SwipeNav from "../components/SwipeNav";
 import { Moon, Sun, Sparkles, User } from "lucide-react";
 import CustomDropdown from "../components/CustomDropdown";
+import { useNavigate } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
 
 
 
@@ -96,6 +98,8 @@ const AccuracyGauge = ({ value, label }) => {
 export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
+  const navigate = useNavigate();
+
 
   const [segment, setSegment] = useState("Equity");
   const [selectedScreener, setSelectedScreener] = useState("All");
@@ -110,7 +114,8 @@ export default function Recommendations() {
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
   const [priceCloseList, setPriceCloseList] = useState(["All"]);
 
-  const [isDark, setIsDark] = useState(true);
+  const { isDark, toggle } = useTheme();
+
 
   const bgClass = isDark
     ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
@@ -746,7 +751,8 @@ export default function Recommendations() {
                   paddingLeft: "8px",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: "#333"
+                  color: isDark ? "#1d1e1fff" : "#333"
+
                 }}>
                   % = Confidence
                   | ▼ = Current Price
@@ -834,7 +840,8 @@ export default function Recommendations() {
                 paddingLeft: "8px",
                 fontSize: "14px",
                 fontWeight: "600",
-                color: "#333"
+                color: isDark ? "rgba(27, 26, 26, 1)" : "#333"
+
               }}>
                 % = Gain
                 | ▼ = Close Price
@@ -965,10 +972,8 @@ export default function Recommendations() {
           {/* BRAND ROW */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 via-cyan-400 to-blue-500 rounded-2xl shadow-lg"></div>
-                <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white" />
-              </div>
+              <BackButton to="/menu" />
+
               <div>
                 <div className="text-xl font-bold">Neurocrest</div>
                 <div className={`text-xs ${textSecondaryClass}`}>
@@ -979,19 +984,14 @@ export default function Recommendations() {
 
             {/* ACTION BUTTONS */}
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
+              
 
-              <button
-                onClick={() => navigate("/profile")}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-              >
-                <User className="w-5 h-5" />
-              </button>
+               <button
+                              onClick={() => navigate("/profile")}
+                              className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+                            >
+                              <User className="w-5 h-5" />
+                            </button>
             </div>
           </div>
 
