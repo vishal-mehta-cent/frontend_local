@@ -2,7 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Wallet, TrendingUp, TrendingDown, Plus, Minus, RefreshCw, Sun, Moon, AlertCircle, CheckCircle } from "lucide-react";
 import BackButton from "../components/BackButton";
 
-const API = "http://localhost:8000";
+const API = (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
+  .trim()
+  .replace(/\/+$/, "");
+
 
 const formatINR = (v, decimals = 0) => {
   const n = Number(v);
@@ -96,16 +99,15 @@ export default function Funds({ username }) {
   const addFunds = async () => {
     setErr("");
     setOk("");
+
     const n = Number(uncomma(amountInput));
     if (!Number.isFinite(n) || n <= 0) {
-  setErr("Enter a valid amount.");
-  return;
-}
+      setErr("Enter a valid amount.");
+      return;
+    }
 
-if (n > available) {
-  setErr("Withdraw amount cannot exceed available funds.");
-  return;
-}
+    // ✅ IMPORTANT: Do NOT compare with available for Add Funds
+    // Available can be 0 initially; adding funds should still work.
 
     try {
       const res = await fetch(`${API}/funds/add`, {
@@ -113,8 +115,10 @@ if (n > available) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, amount: n }),
       });
+
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.detail || "Add funds failed");
+
       setOk("Funds added successfully.");
       setAmountInput("");
       reload();
@@ -122,6 +126,7 @@ if (n > available) {
       setErr(e.message || "Server error");
     }
   };
+
 
 
 
@@ -216,18 +221,18 @@ if (n > available) {
               />
 
               <div className="grid grid-cols-2 gap-4 mt-6">
-  <button
-    onClick={addFunds}
-    className="col-span-2 mx-auto px-6 py-4 rounded-2xl 
+                <button
+                  onClick={addFunds}
+                  className="col-span-2 mx-auto px-6 py-4 rounded-2xl 
                bg-gradient-to-r from-green-500 to-emerald-500 
                text-white font-semibold hover:scale-105 
                transition-all shadow-lg shadow-green-500/50 
                flex items-center justify-center gap-2"
-  >
-    <Plus className="w-5 h-5" />
-    Add Funds
-  </button>
-</div>
+                >
+                  <Plus className="w-5 h-5" />
+                  Add Funds
+                </button>
+              </div>
 
             </div>
           </>
