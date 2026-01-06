@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { FaWhatsapp } from "react-icons/fa";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
+
 
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
@@ -27,8 +29,24 @@ export default function Whatsapp() {
   const userId = localStorage.getItem("user_id") || "";
   const emailId = localStorage.getItem("email_id") || "";
   const autoAddedRef = useRef(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+const [showAddDropdown, setShowAddDropdown] = useState(false);
 
-  const [isDark, setIsDark] = useState(true);
+const [query, setQuery] = useState("");
+const [suggestions, setSuggestions] = useState([]);
+const [allScripts, setAllScripts] = useState([]);
+
+const addDropdownScripts =
+  newScript.trim().length === 0
+    ? []
+    : scripts
+        .filter(s =>
+          s.script?.toLowerCase().includes(newScript.toLowerCase())
+        )
+        .slice(0, 6);
+
+  const { isDark } = useTheme();
+
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [saving, setSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,6 +67,38 @@ export default function Whatsapp() {
     setToast({ show: true, message, type });
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
+
+  useEffect(() => {
+  fetch(`${API}/search/scripts`)
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data)) setAllScripts(data);
+      else setAllScripts([]);
+    })
+    .catch(() => setAllScripts([]));
+}, []);
+
+useEffect(() => {
+  if (!query.trim()) {
+    setSuggestions([]);
+    return;
+  }
+
+  const timer = setTimeout(async () => {
+    try {
+      const res = await fetch(
+        `${API}/search?q=${encodeURIComponent(query)}`
+      );
+      const data = await res.json();
+      setSuggestions(Array.isArray(data) ? data.slice(0, 8) : []);
+    } catch {
+      setSuggestions([]);
+    }
+  }, 200);
+
+  return () => clearTimeout(timer);
+}, [query]);
+
 
   useEffect(() => {
     if (!userId) return;
@@ -85,6 +135,13 @@ export default function Whatsapp() {
       });
 
   }, [userId]);
+
+  useEffect(() => {
+  const close = () => setShowSearchDropdown(false);
+  window.addEventListener("click", close);
+  return () => window.removeEventListener("click", close);
+}, []);
+
 
   useEffect(() => {
     if (!chartSymbol || !userId) return;
@@ -229,6 +286,14 @@ export default function Whatsapp() {
   const filteredScripts = scripts.filter(script =>
     script.script?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+const dropdownScripts =
+  searchQuery.trim().length === 0
+    ? []
+    : scripts
+        .filter(s =>
+          s.script?.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .slice(0, 6); // limit like watchlist
 
   return (
     <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}>
@@ -246,26 +311,28 @@ export default function Whatsapp() {
           <div className="flex items-center justify-between">
             <BackButton to="/trade" />
 
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <FaWhatsapp className="w-8 h-8 text-green-400 animate-pulse" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                  WhatsApp Alerts
-                </h1>
-                <p className="text-xs text-slate-400">Manage your trading notifications</p>
-              </div>
-            </div>
+           {/* CENTER */}
+  <div className="flex items-center space-x-3 mx-auto">
+    <div className="relative">
+      <FaWhatsapp className="w-8 h-8 text-green-400 animate-pulse" />
+      <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></span>
+    </div>
+    <div className="text-center">
+      <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+        WhatsApp Alerts
+      </h1>
+      <p className="text-xs text-slate-400">
+        Manage your trading notifications
+      </p>
+    </div>
+  </div>
+
+  {/* RIGHT PLACEHOLDER (IMPORTANT) */}
+  <div className="w-10 h-10" />
+
 
             {/* Theme Toggle */}
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all hover:scale-110`}
-            >
-              {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-600" />}
-            </button>
+            
           </div>
         </div>
 
@@ -303,13 +370,19 @@ export default function Whatsapp() {
             <Plus className="w-5 h-5 text-cyan-400" />
             <h3 className="text-lg font-semibold text-cyan-400">Add New Script</h3>
           </div>
+          
 
           <div className="flex gap-3">
             <input
               type="text"
               placeholder="Enter script symbol (e.g., TCS)"
-              value={newScript}
-              onChange={(e) => setNewScript(e.target.value)}
+             value={query}
+onChange={(e) => setQuery(e.target.value)}
+onFocus={() => setShowAddDropdown(true)}
+
+
+
+
               onKeyPress={(e) => e.key === "Enter" && addScript()}
               className={`flex-1 px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all`}
             />
@@ -322,24 +395,86 @@ export default function Whatsapp() {
             </button>
           </div>
         </div>
-
-        {/* Search Bar */}
-        <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-xl`}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search scripts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-11 pr-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all`}
-            />
+{showAddDropdown && suggestions.length > 0 && (
+  <div
+    onClick={(e) => e.stopPropagation()}
+    className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-64 overflow-auto`}
+  >
+    {suggestions.map((s, i) => {
+      const sym = s.symbol || s.tradingsymbol;
+      return (
+        <div
+          key={`${sym}-${i}`}
+          onClick={() => {
+            setNewScript(sym.toUpperCase());
+            setQuery(sym.toUpperCase());
+            setShowAddDropdown(false);
+          }}
+          className="px-4 py-3 cursor-pointer hover:bg-green-500/20 transition"
+        >
+          <div className="font-semibold text-green-400">
+            {sym}
+          </div>
+          <div className="text-xs text-slate-400">
+            {s.name} • {s.exchange}
           </div>
         </div>
+      );
+    })}
+  </div>
+)}
+
+       
 
         {/* Scripts Table */}
         <div className={`${glassClass} rounded-3xl p-6 shadow-2xl mb-36`}>
+ {/* Search Bar */}
+       {/* Search Bar */}
+<div className="mb-8">
+  <div className={`${glassClass} rounded-2xl p-4 shadow-xl`}>
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+      <input
+        type="text"
+        placeholder="Search scripts..."
+        value={searchQuery}
+        onChange={(e) => {
+          setSearchQuery(e.target.value);
+          setShowSearchDropdown(true);
+        }}
+        onFocus={() => setShowSearchDropdown(true)}
+        className={`w-full pl-11 pr-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all`}
+      />
 
+      {/* ✅ SEARCH DROPDOWN (CORRECT PLACE) */}
+      {showSearchDropdown && dropdownScripts.length > 0 && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-56 overflow-auto`}
+        >
+          {dropdownScripts.map((item) => (
+            <div
+              key={item.script}
+              onClick={() => {
+                setSearchQuery(item.script);
+                setShowSearchDropdown(false);
+              }}
+              className="px-4 py-2 cursor-pointer text-sm font-medium
+                         hover:bg-green-500/20 transition
+                         text-green-400"
+            >
+              {item.script}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  
+
+
+
+          </div>
+        </div>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <ClipboardList className="w-5 h-5 text-green-400" />
@@ -349,7 +484,8 @@ export default function Whatsapp() {
               </span>
             </div>
 
-            
+  
+
 
             <button
               onClick={handleSave}
