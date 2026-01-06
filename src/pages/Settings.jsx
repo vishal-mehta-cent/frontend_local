@@ -1,53 +1,67 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Settings as SettingsIcon, Lock, Mail, Sun, Moon, ChevronRight, Palette } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  Lock,
+  Mail,
+  Sun,
+  Moon,
+  ChevronRight,
+  Palette,
+} from "lucide-react";
 import BackButton from "../components/BackButton";
+import { useTheme } from "../context/ThemeContext";
 
 export default function Settings() {
   const navigate = useNavigate();
 
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved === "dark";
-  });
-
-  useEffect(() => {
-    localStorage.setItem("theme", isDark ? "dark" : "light");
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [isDark]);
+  // ✅ GLOBAL THEME (from ThemeContext)
+  const { isDark, setDark, setLight, toggle } = useTheme();
 
   const bgClass = isDark
     ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
     : "bg-gradient-to-br from-blue-50 via-white to-blue-50";
+
   const glassClass = isDark
     ? "bg-white/10 backdrop-blur-xl border border-white/20"
     : "bg-white/70 backdrop-blur-xl border border-white/30";
+
   const textClass = isDark ? "text-white" : "text-slate-900";
   const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
 
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}>
+    <div
+      className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}
+    >
+      {/* ===== BACKGROUND BLOBS ===== */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
+        <div
+          className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "1s" }}
+        ></div>
       </div>
 
       <div className="relative z-10 max-w-2xl mx-auto p-4 sm:p-6">
+        {/* ===== TOP BAR ===== */}
         <div className="flex items-center justify-between mb-6">
           <BackButton to="/profile" />
+
+          {/* 🌗 THEME TOGGLE */}
           <button
-            onClick={() => setIsDark(!isDark)}
+            onClick={toggle}
             className={`w-10 h-10 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all shadow-lg`}
             title="Toggle theme"
           >
-            {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-600" />}
+            {isDark ? (
+              <Sun className="w-5 h-5 text-yellow-400" />
+            ) : (
+              <Moon className="w-5 h-5 text-blue-600" />
+            )}
           </button>
         </div>
 
+        {/* ===== HEADER ===== */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-2">
             <SettingsIcon className="w-8 h-8 text-blue-500" />
@@ -58,6 +72,7 @@ export default function Settings() {
           <p className={textSecondaryClass}>Customize your experience</p>
         </div>
 
+        {/* ===== APPEARANCE ===== */}
         <div className={`${glassClass} rounded-3xl shadow-2xl p-6 sm:p-8 mb-6`}>
           <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
             <Palette className="w-5 h-5 text-blue-500" />
@@ -65,16 +80,17 @@ export default function Settings() {
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold mb-1">Theme Mode</div>
-                <div className={`text-sm ${textSecondaryClass}`}>Choose your preferred theme</div>
+            <div>
+              <div className="font-semibold mb-1">Theme Mode</div>
+              <div className={`text-sm ${textSecondaryClass}`}>
+                Choose your preferred theme
               </div>
             </div>
 
             <div className="flex gap-3">
+              {/* ☀️ LIGHT */}
               <button
-                onClick={() => setIsDark(false)}
+                onClick={setLight}
                 className={`flex-1 py-4 rounded-2xl border-2 transition-all ${
                   !isDark
                     ? "border-blue-500 bg-blue-500/20"
@@ -85,8 +101,9 @@ export default function Settings() {
                 <span className="font-semibold">Light</span>
               </button>
 
+              {/* 🌙 DARK */}
               <button
-                onClick={() => setIsDark(true)}
+                onClick={setDark}
                 className={`flex-1 py-4 rounded-2xl border-2 transition-all ${
                   isDark
                     ? "border-blue-500 bg-blue-500/20"
@@ -100,6 +117,7 @@ export default function Settings() {
           </div>
         </div>
 
+        {/* ===== SECURITY ===== */}
         <div className={`${glassClass} rounded-3xl shadow-2xl p-6 sm:p-8 space-y-4`}>
           <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/10">
             <Lock className="w-5 h-5 text-blue-500" />
@@ -116,10 +134,14 @@ export default function Settings() {
               </div>
               <div className="text-left">
                 <div className="font-semibold">Change Password</div>
-                <div className={`text-sm ${textSecondaryClass}`}>Update your account password</div>
+                <div className={`text-sm ${textSecondaryClass}`}>
+                  Update your account password
+                </div>
               </div>
             </div>
-            <ChevronRight className={`w-5 h-5 ${textSecondaryClass} group-hover:translate-x-1 transition-transform`} />
+            <ChevronRight
+              className={`w-5 h-5 ${textSecondaryClass} group-hover:translate-x-1 transition-transform`}
+            />
           </button>
 
           <button
@@ -132,10 +154,14 @@ export default function Settings() {
               </div>
               <div className="text-left">
                 <div className="font-semibold">Change Email</div>
-                <div className={`text-sm ${textSecondaryClass}`}>Update your email address</div>
+                <div className={`text-sm ${textSecondaryClass}`}>
+                  Update your email address
+                </div>
               </div>
             </div>
-            <ChevronRight className={`w-5 h-5 ${textSecondaryClass} group-hover:translate-x-1 transition-transform`} />
+            <ChevronRight
+              className={`w-5 h-5 ${textSecondaryClass} group-hover:translate-x-1 transition-transform`}
+            />
           </button>
         </div>
       </div>
