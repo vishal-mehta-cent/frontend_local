@@ -66,6 +66,8 @@ export default function Buy() {
   const isPositionModify = Boolean(prefill.fromPosition);
 
   const isAddMode = isAdd && isPositionModify;
+  const isPureModify = isPositionModify && !isAdd;
+
 
   const { isDark } = useTheme();
 
@@ -646,17 +648,21 @@ export default function Buy() {
 
             <input
               type="number"
-              min="1"
               value={qty}
+              disabled={isPureModify}
               onChange={(e) => setQty(e.target.value)}
-              disabled={isPositionModify}
-              placeholder="Enter quantity"
-              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${isPositionModify ? "cursor-not-allowed opacity-50" : ""
-                }`}
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl
+    ${textClass}
+    placeholder-slate-400
+    focus:outline-none focus:ring-2 focus:ring-green-500/50
+    ${isPureModify ? "cursor-not-allowed opacity-50" : ""}
+  `}
             />
 
+
+
             {/* Quick presets */}
-            {!isPositionModify && (
+            {!isPureModify && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {quickPresets.map((preset) => (
                   <button
