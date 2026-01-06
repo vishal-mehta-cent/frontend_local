@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton";
 import { Sun, Moon, User, UserCircle, Wallet, CreditCard, Settings, History, LogOut, ChevronRight, TrendingUp, Award, Shield, Sparkles } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -88,7 +89,8 @@ function StripeCheckoutForm({ onSuccess, onError }) {
 export default function Profile({ username, logout }) {
   const nav = useNavigate();
 
-  const [isDark, setIsDark] = useState(true);
+  const { isDark } = useTheme();
+
 
   const bgClass = isDark
     ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
@@ -228,6 +230,51 @@ export default function Profile({ username, logout }) {
     }
   };
 
+  const handleResetAccount = async () => {
+    if (!username) return;
+
+    const ok = window.confirm(
+      "Reset account? This will delete your trades, portfolio, watchlist and funds. Profile/login will remain."
+    );
+    if (!ok) return;
+
+    try {
+      const res = await fetch(
+        `${API}/users/${encodeURIComponent(username)}/reset`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirm: "RESET", delete_files: true }),
+        }
+      );
+
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const j = await res.json();
+          if (j?.detail) msg = j.detail;
+        } catch { }
+        throw new Error(msg);
+      }
+
+      // Frontend cleanup: remove local notes saved for this user
+      try {
+        const prefix = `notes:${username}:`;
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(prefix)) localStorage.removeItem(k);
+        }
+      } catch { }
+
+      alert("✅ Account restored successfully");
+      // go to menu/trade and refresh UI
+      nav("/menu");
+    } catch (e) {
+      alert(e?.message || "Reset failed");
+    }
+  };
+
+
   // ================= UI =================
   return (
     <div
@@ -243,28 +290,45 @@ export default function Profile({ username, logout }) {
       {/* Content Container */}
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
-        <div className={`${glassClass} rounded-2xl p-4 mb-8 flex items-center justify-between shadow-2xl`}>
-          <BackButton
-  to="/menu"
-  className={isDark ? "text-slate-200 hover:text-white" : "text-slate-600"}
-/>
-
-          <div className="flex items-center space-x-2">
-            <Shield className="w-5 h-5 text-blue-400" />
-            <h2 className="font-bold text-lg bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">ACCOUNT</h2>
+        <div className={`${glassClass} rounded-2xl p-4 mb-8 flex items-center shadow-2xl`}>
+          {/* Left: Back */}
+          <div className="flex-1">
+            <BackButton
+              to="/menu"
+              className={isDark ? "text-slate-200 hover:text-white" : "text-slate-600"}
+            />
           </div>
-          <button
-            onClick={() => setIsDark(!isDark)}
-            className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-          >
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+
+          {/* Center: ACCOUNT */}
+          <div className="flex-1 flex items-center justify-center space-x-2">
+            <Shield className="w-5 h-5 text-blue-400" />
+            <h2 className="font-bold text-lg bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              ACCOUNT
+            </h2>
+          </div>
+
+          {/* Right: Reset */}
+          <div className="flex-1 flex justify-end">
+            <button
+              type="button"
+              onClick={handleResetAccount}
+              className="px-4 py-2 rounded-full border border-red-500/20
+                 bg-red-500/10 text-red-500 font-semibold
+                 hover:bg-red-500/20 hover:shadow-lg transition-all"
+            >
+              🔄 Reset
+            </button>
+          </div>
         </div>
 
         {/* Premium Profile Card */}
         <div className={`${glassClass} rounded-3xl p-8 mb-8 shadow-2xl relative overflow-hidden`}>
+          {/* Reset Button (top-right inside profile card) */}
+
+
+
           {/* Decorative Gradient */}
-          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl"></div>
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl pointer-events-none"></div>
 
           {/* Avatar Section */}
           <div className="relative flex flex-col items-center mb-6">
