@@ -1,29 +1,42 @@
-// frontend/src/pages/History.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import BackButton from "../components/BackButton";
 import { moneyINR } from "../utils/format";
-import { NotebookPen, Download } from "lucide-react";
+import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
-import HeaderBackRow from "../components/HeaderBackRow";
+import { FaWhatsapp } from "react-icons/fa";
+import SwipeNav from "../components/SwipeNav";
+import { useTheme } from "../context/ThemeContext";
+import BackButton from "../components/BackButton";
+
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
 
 export default function History({ username }) {
+  const { isDark } = useTheme();
+
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
-  // NEW: date filter state
-  const [startDate, setStartDate] = useState(""); // "YYYY-MM-DD"
-  const [endDate, setEndDate] = useState("");     // "YYYY-MM-DD"
-
-  // Resolve username from prop, route param, or localStorage
   const params = useParams();
+  const navigate = useNavigate();
+
   const who = useMemo(
     () => username || params.username || localStorage.getItem("username") || "",
     [username, params.username]
   );
+
+  const bgClass = isDark
+    ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
+    : 'bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100';
+  const glassClass = isDark
+    ? 'bg-white/5 backdrop-blur-xl border border-white/10'
+    : 'bg-white/60 backdrop-blur-xl border border-white/40';
+  const textClass = isDark ? 'text-white' : 'text-slate-900';
+  const textSecondaryClass = isDark ? 'text-slate-300' : 'text-slate-600';
+  const cardHoverClass = isDark ? 'hover:bg-white/10' : 'hover:bg-white/80';
 
   useEffect(() => {
     if (!who) {
@@ -36,11 +49,9 @@ export default function History({ username }) {
     setError("");
 
     const url = `${API}/orders/history/${encodeURIComponent(who)}`;
-    console.log("Fetching:", url);
 
     fetch(url)
       .then(async (res) => {
-        console.log("Response status:", res.status);
         if (!res.ok) {
           const txt = await res.text();
           throw new Error(
@@ -50,7 +61,6 @@ export default function History({ username }) {
         return res.json();
       })
       .then((data) => {
-        console.log("History payload:", data);
         setHistory(Array.isArray(data) ? data : []);
       })
       .catch((err) => {
@@ -60,7 +70,6 @@ export default function History({ username }) {
       .finally(() => setLoading(false));
   }, [who]);
 
-  // -------- formatters (safe) --------
   const asNum = (v) => {
     const n = Number(v);
     return Number.isFinite(n) ? n : null;
@@ -75,13 +84,11 @@ export default function History({ username }) {
     return d || dt;
   };
 
-  // NEW: helpers to pick a row date and filter by range
   const pickRowDate = (t) => {
-    // Prefer SELL date, else BUY date, else fallback to time (if it contains date)
     const cands = [t.sell_date, t.buy_date, t.time];
     for (const s of cands) {
       if (typeof s === "string" && s.trim()) {
-        const d = s.split(" ")[0]; // take the YYYY-MM-DD part if present
+        const d = s.split(" ")[0];
         if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
       }
     }
@@ -99,7 +106,6 @@ export default function History({ username }) {
     });
   }, [history, startDate, endDate]);
 
-  // NEW: Download (.xls) using filtered rows
   const escapeHTML = (s) =>
     String(s ?? "")
       .replace(/&/g, "&amp;")
@@ -107,7 +113,6 @@ export default function History({ username }) {
       .replace(/>/g, "&gt;");
 
   const buildExcelHtml = () => {
-    // Columns to export
     const headers = [
       "Symbol",
       "Row Date",
@@ -161,7 +166,7 @@ export default function History({ username }) {
               "<tr>" + r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") + "</tr>"
           )
           .join("")
-        : ""; // header-only if no data
+        : "";
 
     return `<!DOCTYPE html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office"
@@ -210,201 +215,214 @@ export default function History({ username }) {
     URL.revokeObjectURL(url);
   };
 
-  const navigate = useNavigate();
   const goNotes = (s) =>
-  navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`, {
-    state: { from: "/history" }
-  });
-
+    navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <HeaderBackRow backTo="/profile" />
-      <h2 className="text-2xl font-bold text-center mb-4">History</h2>
+    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
+      </div>
 
-      {/* NEW: Filter + Download bar */}
-      <div className="max-w-4xl mx-auto mb-3">
-        <div className="flex flex-wrap items-center justify-center gap-3">
+      <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
+        <div className="w-full px-4 md:px-6 py-4">
+
+
+          <div className="relative flex items-center justify-between mb-4">
+            {/* Left: Back button */}
+            <div className="flex items-center space-x-3">
+              <BackButton to="/menu" />
+            </div>
+
+            {/* Center: Neurocrest */}
+            <div className="absolute left-1/2 -translate-x-1/2 text-center">
+              <div className="text-xl font-bold">Neurocrest</div>
+              <div className={`text-xs ${textSecondaryClass}`}>Next-Gen Trading</div>
+            </div>
+
+            {/* Right: Profile button */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate("/profile")}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+              >
+                <User className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+
+          {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
+          <div className="w-full flex justify-center">
+            <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full px-6 py-6 relative pb-24 text-center">
+        <div className="mb-6">
+          <h2 className={`text-4xl font-bold ${textClass} mb-2`}>History</h2>
+          <p className={`${textSecondaryClass}`}>Your trading history and analytics</p>
+        </div>
+
+        <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+
           <div className="flex items-center gap-2">
-            <label htmlFor="startDate" className="text-sm text-gray-700">
-              Start:
-            </label>
             <input
               id="startDate"
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-2 py-1 border rounded-md text-sm bg-white"
+              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500`}
+              placeholder="mm/dd/yyyy"
             />
           </div>
           <div className="flex items-center gap-2">
-            <label htmlFor="endDate" className="text-sm text-gray-700">
-              End:
-            </label>
             <input
               id="endDate"
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-2 py-1 border rounded-md text-sm bg-white"
+              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500`}
+              placeholder="mm/dd/yyyy"
             />
           </div>
-          {(startDate || endDate) && (
-            <button
-              onClick={() => {
-                setStartDate("");
-                setEndDate("");
-              }}
-              className="px-3 py-1.5 rounded-md bg-gray-100 hover:bg-gray-200 text-sm"
-            >
-              Clear
-            </button>
-          )}
           <button
             onClick={handleDownloadExcel}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-xl transition-all shadow-lg font-medium"
             title="Download filtered history (.xls)"
           >
-            <Download size={16} />
-            <span>Download</span>
+            <Download size={18} />
+            <span>Export</span>
           </button>
         </div>
-      </div>
 
-      {loading ? (
-        <div className="text-center text-gray-500">Loading...</div>
-      ) : error ? (
-        <div className="text-center text-red-600 whitespace-pre-wrap">
-          {error}
-        </div>
-      ) : filteredHistory.length === 0 ? (
-        <div className="text-center text-gray-500">No history available.</div>
-      ) : (
-        <div className="bg-white rounded-lg overflow-hidden shadow">
-          {/* Header */}
-          <div className="grid grid-cols-5 bg-blue-700 text-white font-semibold p-3">
-            <div>Time</div>
-            <div>Buy Qty</div>
-            <div>Buy Details</div>
-            <div>P&amp;L</div>
-            <div>Sell Details</div>
+        {loading ? (
+          <div className={`text-center ${textSecondaryClass} mt-20`}>Loading...</div>
+        ) : error ? (
+          <div className="text-center text-red-400 whitespace-pre-wrap mt-20">
+            {error}
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <div className={`text-center ${textSecondaryClass} mt-20`}>No history available.</div>
+        ) : (
+          <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
+            {/* ✅ Horizontal scroll like WhatsApp */}
+            <div className="overflow-x-auto">
+              {/* ✅ Force overflow on small screens so horizontal scroll appears */}
+              <div className="min-w-[1100px]">
+
+                {/* Header stays fixed (inside the scroll area) */}
+                <div className="grid grid-cols-5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
+                  <div>Symbol & Time</div>
+                  <div>Quantity</div>
+                  <div>Buy Details</div>
+                  <div>P&amp;L</div>
+                  <div>Sell Details</div>
+                </div>
+
+                {/* ✅ Vertical scroll (body only) */}
+                <div className="max-h-[60vh] overflow-y-auto">
+                  {filteredHistory.map((t, idx) => {
+                    const buyQty = asNum(t.buy_qty) ?? 0;
+                    const remaining = asNum(t.remaining_qty);
+                    const isClosedOrPartial =
+                      t.is_closed || (remaining !== null ? remaining < buyQty : false);
+
+                    const pnlNum = asNum(t.pnl) ?? 0;
+                    const pnlTone =
+                      pnlNum > 0
+                        ? "text-green-400"
+                        : pnlNum < 0
+                          ? "text-red-400"
+                          : "text-gray-400";
+
+                    const sellQty = asNum(t.sell_qty) ?? 0;
+                    const sellAvg = asNum(t.sell_avg_price);
+                    const investedValue = asNum(t.invested_value);
+
+                    const symbolUpper = (t.symbol || "—").toUpperCase();
+
+                    return (
+                      <div
+                        key={`${t.symbol || "row"}-${t.time || "time"}-${idx}`}
+                        className={`grid grid-cols-5 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
+                          } ${isClosedOrPartial ? "opacity-60" : ""}`}
+                      >
+                        <div className="flex flex-col items-center text-center">
+                          <div className="inline-flex items-center justify-center gap-2">
+                            <span className="font-bold text-lg">{symbolUpper}</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                goNotes(t.symbol || "");
+                              }}
+                              title="Notes"
+                              className={`p-1 rounded-lg ${cardHoverClass} ${textSecondaryClass} transition-all`}
+                            >
+                              <NotebookPen size={14} />
+                            </button>
+                          </div>
+                          <span className={`text-xs ${textSecondaryClass} mt-1`}>
+                            {t.time || ""}
+                          </span>
+                        </div>
+
+                        <div className="font-medium text-center">{buyQty || "—"}</div>
+
+                        <div className="text-sm leading-tight text-center">
+                          {t.buy_date ? (
+                            <>
+                              <div className={textSecondaryClass}>
+                                <span className="font-medium">{dateOnly(t.buy_date)}</span>
+                              </div>
+                              <div className={textClass}>{fmtMoney(t.buy_price)}</div>
+                            </>
+                          ) : (
+                            <span className={textSecondaryClass}>—</span>
+                          )}
+                        </div>
+
+                        <div className={`font-bold text-lg flex items-center justify-center gap-1 ${pnlTone}`}>
+                          <span className="text-xl">{pnlNum >= 0 ? "↗" : "↘"}</span>
+                          <span>{fmtMoney(pnlNum)}</span>
+                        </div>
+
+                        <div className="text-sm leading-tight text-center">
+                          {sellQty > 0 ? (
+                            <>
+                              <div className={textSecondaryClass}>
+                                <span className="font-medium">{dateOnly(t.sell_date)}</span>
+                              </div>
+                              <div className={textClass}>
+                                Qty: <span className="font-medium">{sellQty}</span> • Avg:{" "}
+                                {sellAvg !== null ? fmtMoney(sellAvg) : "—"}
+                              </div>
+                              <div className={textSecondaryClass}>
+                                Invested: {investedValue !== null ? fmtMoney(investedValue) : "—"}
+                              </div>
+                            </>
+                          ) : (
+                            <span className={textSecondaryClass}>—</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+              </div>
+            </div>
           </div>
 
-          {filteredHistory.map((t, idx) => {
-            const buyQty = asNum(t.buy_qty) ?? 0;
-            const remaining = asNum(t.remaining_qty);
-            const isClosedOrPartial =
-              t.is_closed || (remaining !== null ? remaining < buyQty : false);
-            const rowTone = isClosedOrPartial
-              ? "bg-gray-100 text-gray-600"
-              : "bg-white";
+        )}
+      </div>
 
-            const pnlNum = asNum(t.pnl) ?? 0;
-            const pnlTone =
-              pnlNum > 0
-                ? "text-green-600"
-                : pnlNum < 0
-                  ? "text-red-600"
-                  : "text-gray-800";
 
-            const sellQty = asNum(t.sell_qty) ?? 0;
-            const sellAvg = asNum(t.sell_avg_price);
-            const investedValue = asNum(t.invested_value);
 
-            const symbolUpper = (t.symbol || "—").toUpperCase();
-
-            return (
-              <div
-                key={`${t.symbol || "row"}-${t.time || idx}`}
-                className={`grid grid-cols-5 items-center p-3 border-t ${rowTone}`}
-              >
-                {/* Time + Symbol + Notes icon (inline, no new column) */}
-                <div className="flex flex-col">
-                  <div className="inline-flex items-center gap-2">
-                    <span className="font-semibold">{symbolUpper}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        goNotes(t.symbol || "");
-                      }}
-                      title="Notes"
-                      className="p-1 rounded hover:bg-gray-100 text-gray-700"
-                    >
-                      <NotebookPen size={14} />
-                    </button>
-                  </div>
-                  <span className="text-[11px] opacity-60">
-                    {t.time || ""}
-                  </span>
-                </div>
-
-                {/* Buy Qty */}
-                <div>{buyQty || "—"}</div>
-
-                {/* Buy Details (date + price) */}
-                <div className="text-xs leading-tight">
-                  {t.buy_date ? (
-                    <>
-                      <div>
-                        Date:{" "}
-                        <span className="font-medium">
-                          {dateOnly(t.buy_date)}
-                        </span>
-                      </div>
-                      <div>
-                        Price:{" "}
-                        <span className="font-medium">
-                          {fmtMoney(t.buy_price)}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    "—"
-                  )}
-                </div>
-
-                {/* Realized P&L */}
-                <div className={`font-medium ${pnlTone}`}>
-                  {fmtMoney(pnlNum)}
-                </div>
-
-                {/* SELL details */}
-                <div className="text-xs leading-tight">
-                  {sellQty > 0 ? (
-                    <>
-                      <div>
-                        Date:{" "}
-                        <span className="font-medium">
-                          {dateOnly(t.sell_date)}
-                        </span>
-                      </div>
-                      <div>
-                        Qty: <span className="font-medium">{sellQty}</span>
-                      </div>
-                      <div>
-                        Avg:{" "}
-                        <span className="font-medium">
-                          {sellAvg !== null ? fmtMoney(sellAvg) : "—"}
-                        </span>
-                      </div>
-                      <div>
-                        Invested:{" "}
-                        <span className="font-medium">
-                          {investedValue !== null
-                            ? fmtMoney(investedValue)
-                            : "—"}
-                        </span>
-                      </div>
-                    </>
-                  ) : (
-                    <span className="text-gray-500">—</span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
+
   );
 }
