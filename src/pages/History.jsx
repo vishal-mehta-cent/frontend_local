@@ -230,19 +230,22 @@ export default function History({ username }) {
         <div className="w-full px-4 md:px-6 py-4">
 
 
-          <div className="relative flex items-center justify-between mb-4">
-            {/* Left: Back button */}
-            <div className="flex items-center space-x-3">
-              <BackButton to="/menu" />
+          <div className="relative flex items-start justify-between mb-4">
+            {/* Left: Back ABOVE Title */}
+            <div className="flex flex-col items-start">
+              <BackButton />
+
+              <div className="mt-1">
+                <div className="text-xl font-bold">Neurocrest</div>
+                <div className={`text-xs ${textSecondaryClass}`}>
+                  Next-Gen Trading
+                </div>
+              </div>
             </div>
 
-            {/* Center: Neurocrest */}
-            <div className="absolute left-1/2 -translate-x-1/2 text-center">
-              <div className="text-xl font-bold">Neurocrest</div>
-              <div className={`text-xs ${textSecondaryClass}`}>Next-Gen Trading</div>
-            </div>
 
-            {/* Right: Profile button */}
+
+            {/* Right: Profile */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => navigate("/profile")}
@@ -254,22 +257,26 @@ export default function History({ username }) {
           </div>
 
 
+
           {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
-          <div className="w-full flex justify-center">
-            <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
-          </div>
+
+          <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
+
         </div>
       </div>
 
-      <div className="w-full px-6 py-6 relative pb-24 text-center">
-        <div className="mb-6">
-          <h2 className={`text-4xl font-bold ${textClass} mb-2`}>History</h2>
-          <p className={`${textSecondaryClass}`}>Your trading history and analytics</p>
-        </div>
+      <div className="w-full px-6 py-6 relative pb-24">
+        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className={`text-4xl font-bold ${textClass}`}>History</h2>
+            <p className={`${textSecondaryClass}`}>
+              Your trading history and analytics
+            </p>
+          </div>
 
-        <div className="mb-6 flex flex-wrap items-center justify-center gap-3">
+          {/* Right: Date filters + Export */}
+          <div className="flex flex-wrap md:flex-nowrap items-center gap-3">
 
-          <div className="flex items-center gap-2">
             <input
               id="startDate"
               type="date"
@@ -278,8 +285,7 @@ export default function History({ username }) {
               className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500`}
               placeholder="mm/dd/yyyy"
             />
-          </div>
-          <div className="flex items-center gap-2">
+
             <input
               id="endDate"
               type="date"
@@ -288,16 +294,19 @@ export default function History({ username }) {
               className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500`}
               placeholder="mm/dd/yyyy"
             />
+
+            <button
+              onClick={handleDownloadExcel}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-xl transition-all shadow-lg font-medium mx-auto md:mx-0"
+            >
+
+
+              <Download size={18} />
+              <span>Export</span>
+            </button>
           </div>
-          <button
-            onClick={handleDownloadExcel}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-xl transition-all shadow-lg font-medium"
-            title="Download filtered history (.xls)"
-          >
-            <Download size={18} />
-            <span>Export</span>
-          </button>
         </div>
+
 
         {loading ? (
           <div className={`text-center ${textSecondaryClass} mt-20`}>Loading...</div>
