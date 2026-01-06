@@ -7,6 +7,11 @@ import React, {
   useCallback
 } from "react";
 import { FaWhatsapp } from "react-icons/fa";
+import {
+  CandlestickChart,
+  BarChart2,
+  SlidersHorizontal
+} from "lucide-react";
 
 
 
@@ -16,7 +21,9 @@ import {
   Pencil, Info, Move3D, Minus, ArrowRight,
   GripVertical, Crosshair, LineChart,
   PencilRuler, AlignHorizontalJustifyStart, AlignHorizontalSpaceAround,
-  AlignVerticalJustifyStart
+  AlignVerticalJustifyStart, Moon, Sun, Sparkles, TrendingUp, Zap, Bell,
+  ArrowUpRight, ArrowDownRight,
+   Search, X
 } from "lucide-react";
 
 const TF_SECONDS = {
@@ -70,6 +77,65 @@ const API =
 
 const HEADER_H = 56;
 const TF_MIN = { "1m": 1, "2m": 2, "5m": 5, "15m": 15, "1h": 60, "1d": 1440 };
+
+// ✅ PREMIUM ALERT MODAL (Option-1) — inside Chart.jsx (no new file needed)
+function AlertModal({ open, title, message, onClose, isDark, glassClass }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
+      <div
+        className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
+          isDark ? "bg-[#0b1220] border border-white/10" : "bg-white border border-black/10"
+        }`}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div
+  className={`text-[17px] font-semibold tracking-tight ${
+    isDark ? "text-blue-300" : "text-blue-700"
+  }`}
+ style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+
+>
+  {title || "Alert"}
+</div>
+
+            <div
+  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
+    isDark ? "text-slate-300" : "text-slate-600"
+  }`}
+  style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+>
+  {message}
+</div>
+
+          </div>
+
+          <button
+            onClick={onClose}
+            className={`w-9 h-9 rounded-xl grid place-items-center ${
+              isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+            } transition`}
+            title="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 
@@ -574,6 +640,33 @@ export default function ChartPage() {
 
   const [recoMode, setRecoMode] = useState(false);
 
+  const [isDark, setIsDark] = useState(false);
+  // ✅ Premium popup state (replaces alert())
+const [popup, setPopup] = useState({
+  open: false,
+  title: "",
+  message: "",
+});
+
+const showPopup = useCallback((title, message) => {
+  setPopup({ open: true, title: title || "Alert", message: message || "" });
+}, []);
+
+const closePopup = useCallback(() => {
+  setPopup((p) => ({ ...p, open: false }));
+}, []);
+
+  const bgClass = isDark
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-white to-blue-50";
+  const glassClass = isDark
+    ? "bg-white/10 backdrop-blur-xl border border-white/20"
+    : "bg-white/70 backdrop-blur-xl border border-white/30";
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+
+
+  
   // 🔁 auto-follow latest candle
   const [autoFollow, setAutoFollow] = useState(true);
   const autoFollowRef = useRef(true);
@@ -656,6 +749,86 @@ export default function ChartPage() {
 
 
   const [tf, setTf] = useState("1m");
+
+    function openBuyPage() {
+    navigate(`/buy/${symbol}`, {
+      state: { symbol, from: "chart", tf, lastPrice },
+    });
+  }
+
+  function openSellPage() {
+    navigate(`/sell/${symbol}`, {
+      state: { symbol, from: "chart", tf, lastPrice },
+    });
+  }
+
+  // ---------------- SEARCH (instruments.csv via backend /search) ----------------
+  const [openSearch, setOpenSearch] = useState(false);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchItems, setSearchItems] = useState([]);
+  const searchInputRef = useRef(null);
+
+  // Focus input when modal opens
+  useEffect(() => {
+    if (openSearch) {
+      setTimeout(() => searchInputRef.current?.focus?.(), 50);
+    }
+  }, [openSearch]);
+
+  // ESC to close
+  useEffect(() => {
+    if (!openSearch) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpenSearch(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openSearch]);
+
+  // Fetch scripts (debounced)
+  useEffect(() => {
+    if (!openSearch) return;
+
+    const q = (searchQ || "").trim();
+    const ctrl = new AbortController();
+
+    const t = setTimeout(async () => {
+      try {
+        setSearchLoading(true);
+
+        const url = q
+          ? `${API}/search?q=${encodeURIComponent(q)}`
+          : `${API}/search/scripts`; // initial list
+
+        const res = await fetch(url, { signal: ctrl.signal });
+        const js = await res.json();
+
+        setSearchItems(Array.isArray(js) ? js : []);
+      } catch (e) {
+        if (e?.name !== "AbortError") {
+          console.error("Search fetch error:", e);
+          setSearchItems([]);
+        }
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [openSearch, searchQ]);
+
+  const onPickScript = (sym) => {
+    const s = String(sym || "").toUpperCase();
+    if (!s) return;
+    setOpenSearch(false);
+    setSearchQ("");
+    setSearchItems([]);
+    navigate(`/chart/${s}`);
+  };
 
   // ------------------------------------------------------
   // ⭐ FORCE TIMEFRAME BASED ON jumpStrategy
@@ -1967,9 +2140,16 @@ export default function ChartPage() {
     const pickType = (it) => { if (!it.supported) return; setChartType({ type: it.type }); setCtOpen(false); };
     return (
       <div ref={ctWrapRef} className="relative">
-        <button onClick={() => { setCtOpen(o => !o); setTimeout(updateCtPos, 0); }} className="text-xs px-2 py-1 rounded border whitespace-nowrap flex items-center gap-2">
-          <LineChart className="w-4 h-4" /> {currentLabel} <span className="ml-1">▾</span>
-        </button>
+      <button
+  onClick={() => { setCtOpen(o => !o); setTimeout(updateCtPos, 0); }}
+  className={`w-9 h-9 flex items-center justify-center rounded-lg
+              ${glassClass} hover:scale-105 transition-transform`}
+  title={currentLabel}
+>
+  <CandlestickChart className="w-5 h-5" />
+</button>
+
+
         {ctOpen && (
           <div ref={ctMenuRef} style={{ position: "fixed", top: ctPos.top, left: ctPos.left }} className="z-[10000] w-64 bg-white border rounded-lg shadow-lg p-1">
             {CHART_GROUPS.map((grp, gi) => (
@@ -2238,7 +2418,8 @@ export default function ChartPage() {
 
     // ---------- ADX (+DI / −DI / ADX) (OSC) ----------
     if (active.adx) {
-      const { plusDI, minusDI, adx } = getADXRes();
+      const { plusDI, minusDI, adx } = ADX(candles, 14);
+
       const scale = "scale_adx";
 
       const sPlus = addOscLine("#22c55e", 1, scale);
@@ -2595,7 +2776,8 @@ export default function ChartPage() {
         btn.style.borderColor = "";
       }
 
-      alert("Auto generated signals stopped");
+      showPopup("Stopped", "Auto generated signals stopped");
+
       return;
     }
 
@@ -2603,18 +2785,21 @@ export default function ChartPage() {
     // ⭐ 2. VALIDATE TIMEFRAME
     // -------------------------------------
     if (!["2m", "15m"].includes(tf)) {
-      alert("Generate signals only for 2m and 15m");
+      showPopup("Invalid Timeframe", "Generate signals only for 2m and 15m");
+
       return;
     }
 
     // -------------------------------------
     // ⭐ 3. ON MODE (FIRST CLICK)
     // -------------------------------------
-    alert(
-      "• Signal generation started.\n" +
-      "• Displaying signals shortly.\n" +
-      "• Click again for continuous updates stopp."
-    );
+   showPopup(
+  "Signal Generation",
+  "• Signal generation started.\n" +
+  "• Displaying signals shortly.\n" +
+  "• Click again to stop continuous updates."
+);
+
 
     isRunningRef.current = true;
     setGenerateMode(true);
@@ -2710,7 +2895,8 @@ export default function ChartPage() {
     // 🌟 STOP MODE
     // -----------------------
     if (recoModeRef.current === true) {
-      alert("Recommendation auto-refresh stopped");
+      showPopup("Stopped", "Recommendation auto-refresh stopped");
+
 
       recoModeRef.current = false;
       setRecoMode(false);
@@ -2732,19 +2918,22 @@ export default function ChartPage() {
     // 🌟 VALIDATE TF
     // -----------------------
     if (!["15m", "1d"].includes(tf)) {
-      alert("Recommendation signals only available for 15m and 1d");
+      showPopup("Invalid Timeframe", "Recommendation signals only available for 15m and 1d");
+
       return;
     }
 
     // -----------------------
     // 🌟 START MODE
     // -----------------------
-    alert(
-      "• Recommendation Signals Started.\n" +
-      "• Updating every 20 seconds.\n" +
-      "• If no data exists for the script, nothing will show.\n" +
-      "• Click again to stop."
-    );
+    showPopup(
+  "Recommendations",
+  "• Recommendation Signals Started.\n" +
+  "• Updating every 20 seconds.\n" +
+  "• If no data exists for the script, nothing will show.\n" +
+  "• Click again to stop."
+);
+
 
     recoModeRef.current = true;
     setRecoMode(true);
@@ -2827,61 +3016,137 @@ export default function ChartPage() {
 
   /* --------------------------- UI --------------------------- */
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}>
+      {/* Background Gradient Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+      </div>
+
       {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-[9990] flex items-center justify-between px-3 py-2 h-14 bg-white border-b pr-28 md:pr-36" style={{ backdropFilter: "saturate(120%) blur(4px)" }}>
-        <button onClick={() => navigate(-1)} className="text-sm px-3 py-1 rounded border hover:bg-gray-100">← Back</button>
-        <div className="font-semibold text-center truncate mx-2">{symbol} • {tf.toUpperCase()}{lastPrice ? ` • ₹${Number(lastPrice).toLocaleString("en-IN")}` : ""}</div>
+      <div className={`fixed top-0 left-0 right-0 z-[9990] flex items-center justify-between px-3 py-2 h-14 ${glassClass} shadow-xl pr-28 md:pr-36 transition-all`}>
+        <button onClick={() => navigate(-1)} className={`text-sm px-3 py-1 rounded-lg ${glassClass} hover:scale-105 transition-transform`}>
+          ← Back
+        </button>
+
+        <div className="flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-blue-500" />
+          <div className="font-bold text-center truncate bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            {symbol} • {tf.toUpperCase()}
+          </div>
+          {lastPrice && (
+            <div className="text-sm font-semibold px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-lg">
+              ₹{Number(lastPrice).toLocaleString("en-IN")}
+            </div>
+          )}
+        </div>
+       <button
+  onClick={() => setOpenSearch(true)}
+ className={`w-medium pl-5 pr-10 py-2 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
+  title="Search Script"
+>
+  <Search size={16} />
+</button>
+
+
+
         <div className="flex items-center gap-2 flex-wrap justify-center">
           {["1m", "2m", "15m", "1h", "1d"].map((k) => (
             <button
               key={k}
               onClick={() => setTf(k)}
-              className={`text-xs px-2 py-1 rounded border whitespace-nowrap ${tf === k ? "bg-blue-600 text-white border-blue-600" : "hover:bg-gray-100"}`}
+              className={`text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
+                tf === k
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50 scale-105"
+                  : `${glassClass} hover:scale-105`
+              }`}
             >
               {k}
             </button>
           ))}
+
+          
+
           <ChartTypeDropdown />
+
+          
+
+
+         <button
+  onClick={() => setOpenIndModal(true)}
+  className={`flex items-center justify-center w-9 h-9 rounded-lg ${glassClass}
+              hover:scale-105 transition-transform`}
+  title="Indicators"
+>
+  <SlidersHorizontal size={18} />
+</button>
+          {/* BUY / SELL buttons */}
           <button
-            onClick={() => setOpenIndModal(true)}
-            className="text-xs px-2 py-1 rounded border hover:bg-gray-100 whitespace-nowrap"
+            onClick={openBuyPage}
+            className="text-xs px-3 py-1.5 rounded-lg font-bold text-white
+                       bg-gradient-to-r from-green-500 to-emerald-500
+                       shadow-lg hover:shadow-green-500/40 hover:scale-105 transition-all
+                       flex items-center gap-1 whitespace-nowrap"
+            title={`Buy ${symbol}`}
           >
-            Indicators
+            <ArrowUpRight className="w-3 h-3" />
+            BUY
           </button>
 
-          {/* App buttons */}
           <button
-            id="genBtn"
-            onClick={generateSignal}
-            className="text-xs px-2 py-1 rounded border hover:bg-green-100 whitespace-nowrap text-green-600 border-green-500"
+            onClick={openSellPage}
+            className="text-xs px-3 py-1.5 rounded-lg font-bold text-white
+                       bg-gradient-to-r from-red-500 to-rose-500
+                       shadow-lg hover:shadow-red-500/40 hover:scale-105 transition-all
+                       flex items-center gap-1 whitespace-nowrap"
+            title={`Sell ${symbol}`}
           >
+            <ArrowDownRight className="w-3 h-3" />
+            SELL
+          </button>
+
+          <button
+  id="genBtn"
+  onClick={generateSignal}
+  className={`text-xs px-3 py-1.5 rounded-lg 
+    ${glassClass} 
+    font-semibold whitespace-nowrap
+    hover:scale-105 transition-all
+    flex items-center gap-1`}
+>
+
+            <Zap className="w-3 h-3" />
             Generate Signal
           </button>
 
-
-
-
           <button
-            id="recoBtn"
-            onClick={openRecommendations}
-            className="text-xs px-2 py-1 rounded border hover:bg-blue-100 whitespace-nowrap text-blue-600 border-blue-500"
-          >
+  id="recoBtn"
+  onClick={openRecommendations}
+  className={`text-xs px-3 py-1.5 rounded-lg 
+    ${glassClass}
+    font-semibold whitespace-nowrap
+    hover:scale-105 transition-all
+    flex items-center gap-1`}
+>
+
+            <Sparkles className="w-3 h-3" />
             Recommendation
           </button>
 
           <button
             onClick={openWhatsappPage}
             title="Open WhatsApp Alerts"
-            className="
-    w-6 h-6 flex items-center justify-center
-    rounded-full border border-green-500
-    text-green-600
-    hover:bg-green-100
-    transition
-  "
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 hover:scale-110 transition-all"
           >
             <FaWhatsapp className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className={`w-8 h-8 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all`}
+            title="Toggle theme"
+          >
+            {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
           </button>
 
 
@@ -2897,6 +3162,80 @@ export default function ChartPage() {
 
       <div style={{ height: HEADER_H }} />
 
+      {/* Search Modal */}
+      {openSearch && (
+        <div
+          className="fixed inset-0 z-[10060] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-20 px-3"
+          onMouseDown={() => setOpenSearch(false)}
+        >
+          <div
+            className={`w-full max-w-xl rounded-2xl shadow-2xl p-4 ${glassClass}`}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-60" />
+                <input
+                  ref={searchInputRef}
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                  placeholder="Search script (e.g. TCS, INFY, BANKNIFTY...)"
+                  className={`w-full pl-9 pr-3 py-2 rounded-xl outline-none ${
+                    isDark
+                      ? "bg-black/30 text-white placeholder:text-white/50"
+                      : "bg-white/70 text-slate-900 placeholder:text-slate-500"
+                  }`}
+                />
+              </div>
+
+              <button
+                onClick={() => setOpenSearch(false)}
+                className={`w-10 h-10 rounded-xl grid place-items-center ${glassClass}
+                            hover:scale-105 transition-transform`}
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-3 max-h-[360px] overflow-auto rounded-xl">
+              {searchLoading ? (
+                <div className={`p-4 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                  Loading...
+                </div>
+              ) : searchItems.length === 0 ? (
+                <div className={`p-4 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                  No results
+                </div>
+              ) : (
+                <div className="divide-y divide-white/10">
+                  {searchItems.map((it, idx) => (
+                    <button
+                      key={`${it.symbol}-${idx}`}
+                      onClick={() => onPickScript(it.symbol)}
+                      className={`w-full text-left px-4 py-3 hover:opacity-90 transition ${
+                        isDark ? "hover:bg-white/10" : "hover:bg-black/5"
+                      }`}
+                    >
+                      <div className="font-semibold">
+                        {it.symbol}
+                        <span className={`ml-2 text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                          {it.exchange ? `(${it.exchange})` : ""}
+                        </span>
+                      </div>
+                      {it.display_name && (
+                        <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                          {it.display_name}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* Left toolbar */}
@@ -2907,36 +3246,35 @@ export default function ChartPage() {
         <div ref={mainRef} style={{ width: "100%" }} />
         {/* Floating Zoom Buttons */}
 
-        {/* Floating Centered Zoom Buttons (horizontal, no dark background) */}
+        {/* Floating Centered Zoom Buttons */}
         <div
-          className="absolute z-[9999] flex flex-row gap-2"
+          className={`absolute z-[9999] flex flex-row gap-2 ${glassClass} rounded-full px-2 py-1 shadow-xl`}
           style={{
             top: "85%",
             left: "50%",
             transform: "translate(-50%, -50%)",
           }}
         >
-          {/* Zoom In */}
           <button
             onClick={zoomIn}
-            className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
-               bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+            className={`w-8 h-8 rounded-full ${glassClass} hover:scale-110 transition-all flex items-center justify-center font-bold text-blue-500`}
+            title="Zoom In"
           >
             +
           </button>
 
-          {/* Zoom Out */}
           <button
             onClick={zoomOut}
-            className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
-               bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+            className={`w-8 h-8 rounded-full ${glassClass} hover:scale-110 transition-all flex items-center justify-center font-bold text-blue-500`}
+            title="Zoom Out"
           >
             –
           </button>
+
           <button
             onClick={resumeAutoFollow}
-            className="w-6 h-6 rounded-md border border-gray-100 text-gray-700
-               bg-white/80 backdrop-blur-sm shadow-sm hover:bg-white"
+            className={`w-8 h-8 rounded-full ${glassClass} hover:scale-110 transition-all flex items-center justify-center font-bold text-green-500`}
+            title="Go Live"
           >
             &gt;&gt;
           </button>
@@ -2979,77 +3317,84 @@ export default function ChartPage() {
       </div>
 
       {/* Volume pane (separate, time-synced) */}
-      <div className="mt-2 border-t pb-2">
+      <div className="mt-0 border-t pb-">
         <div ref={volumeRef} style={{ width: "100%" }} />
       </div>
 
       {/* Alert Description Section */}
-      <div className="mt-4 px-4 pb-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">
-          Alerts & Recommendations Details
-        </h3>
+      <div className="mt-4 px-4 pb-4 relative z-10">
+        <div className="flex items-center gap-3 mb-4">
+          <Bell className="w-5 h-5 text-blue-500 animate-pulse" />
+          <h3 className={`text-lg font-bold ${textClass}`}>
+            Alerts & Recommendations Details
+          </h3>
+        </div>
 
-        <div
-          style={{
-            background: "#ffffff",
-            borderRadius: "8px",
-            padding: "14px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
-            fontFamily: "Inter, sans-serif",
-            fontSize: "14px",
-            lineHeight: "20px",
-            minHeight: "80px",
-          }}
-        >
+        <div className={`${glassClass} rounded-3xl p-6 shadow-2xl min-h-[80px]`}>
 
           {/* ================= RECOMMENDATIONS ================= */}
           {recoMode && (
             <>
-              <div className="mb-3 text-xs font-semibold text-blue-600">
-                📘 Latest 4 Recommendation Signals
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/20">
+                <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
+                <div className="text-sm font-bold text-blue-400">
+                  📘 Latest 4 Recommendation Signals
+                </div>
               </div>
 
               {latestRecoDesc.length > 0 ? (
-                latestRecoDesc.slice(0, 4).map((row, idx) => (
-                  <div
-                    key={`reco-${idx}`}
-                    style={{ borderBottom: "1px solid #eee", padding: "12px 0" }}
-                  >
+                <div className="space-y-4">
+                  {latestRecoDesc.slice(0, 4).map((row, idx) => (
                     <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontWeight: "600",
-                      }}
+                      key={`reco-${idx}`}
+                      className={`${glassClass} rounded-2xl p-4 hover:scale-[1.02] transition-transform shadow-lg border-l-4 ${
+                        row.signal_type === "BUY" ? "border-green-500" : "border-red-500"
+                      }`}
                     >
-                      <span>{formatRecoDate(row.Date)}</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className={`w-4 h-4 ${row.signal_type === "BUY" ? "text-green-400" : "text-red-400"}`} />
+                          <span className={`text-xs font-semibold ${textSecondaryClass}`}>
+                            {formatRecoDate(row.Date)}
+                          </span>
+                        </div>
 
-                      <span
-                        className={
-                          row.signal_type === "BUY"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
-                        {[row.Strategy, row.signal_type, row.close_price]
-                          .filter(v => v !== undefined && v !== null && v !== "")
-                          .map((v, i) =>
-                            typeof v === "number" ? v.toFixed(2) : v
-                          )
-                          .join(" | ")}
-                      </span>
+                        <div
+                          className={`px-3 py-1 rounded-lg font-bold text-sm ${
+                            row.signal_type === "BUY"
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                              : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+                          } shadow-lg`}
+                        >
+                          {[row.Strategy, row.signal_type, row.close_price]
+                            .filter(v => v !== undefined && v !== null && v !== "")
+                            .map((v, i) => (typeof v === "number" ? v.toFixed(2) : v))
+                            .join(" | ")}
+                        </div>
+                      </div>
 
+                      <div className={`text-sm space-y-2 ${textSecondaryClass}`}>
+                        <div className="flex gap-2">
+                          <span className="font-semibold min-w-[120px]">Alert Details:</span>
+                          <span>{row.Alert_details || "--"}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-semibold min-w-[120px]">Screener:</span>
+                          <span>{row.screener || "--"}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-semibold min-w-[120px]">User Action:</span>
+                          <span>{row.user_actions || "--"}</span>
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="mt-1">
-                      <strong>Alert Details:</strong> {row.Alert_details || "--"} <br />
-                      <strong>Screener:</strong> {row.screener || "--"} <br />
-                      <strong>User Action:</strong> {row.user_actions || "--"}
-                    </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <div className="text-gray-500">No recommendations found</div>
+                <div className={`text-center py-8 ${textSecondaryClass}`}>
+                  <Sparkles className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No recommendations found</p>
+                </div>
               )}
             </>
           )}
@@ -3057,56 +3402,63 @@ export default function ChartPage() {
           {/* ================= GENERATED SIGNALS ================= */}
           {generateMode && (
             <>
-              <div className="mt-4 mb-3 text-xs font-semibold text-green-600">
-                ⚡ Latest 4 Generated Signals
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b border-white/20 mt-6">
+                <Zap className="w-5 h-5 text-green-400 animate-pulse" />
+                <div className="text-sm font-bold text-green-400">
+                  ⚡ Latest 4 Generated Signals
+                </div>
               </div>
 
               {latestSignals.length === 0 ? (
-                <div>Signals Displaying in few seconds</div>
+                <div className={`text-center py-8 ${textSecondaryClass}`}>
+                  <div className="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full mx-auto mb-2"></div>
+                  <p>Signals Displaying in few seconds</p>
+                </div>
               ) : (
-                latestSignals.map((sig, idx) => (
-                  <div
-                    key={`gen-${idx}`}
-                    style={{
-                      paddingBottom: "10px",
-                      borderBottom: "1px solid #eee",
-                      marginBottom: "10px",
-                    }}
-                  >
+                <div className="space-y-4">
+                  {latestSignals.map((sig, idx) => (
                     <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontWeight: "600",
-                      }}
+                      key={`gen-${idx}`}
+                      className={`${glassClass} rounded-2xl p-4 hover:scale-[1.02] transition-transform shadow-lg border-l-4 ${
+                        sig.signal === "BUY" ? "border-green-500" : "border-red-500"
+                      }`}
                     >
-                      <span>
-                        {new Date(sig.timestamp * 1000).toLocaleString("en-US")}
-                      </span>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Zap className={`w-4 h-4 ${sig.signal === "BUY" ? "text-green-400" : "text-red-400"}`} />
+                          <span className={`text-xs font-semibold ${textSecondaryClass}`}>
+                            {new Date(sig.timestamp * 1000).toLocaleString("en-US")}
+                          </span>
+                        </div>
 
-                      <span
-                        className={
-                          sig.signal === "BUY"
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }
-                      >
-                        {sig.signal} | {sig.tf} |{" "}
-                        {Number(sig.close_price).toFixed(2)}
-                      </span>
-                    </div>
+                        <div
+                          className={`px-3 py-1 rounded-lg font-bold text-sm ${
+                            sig.signal === "BUY"
+                              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                              : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+                          } shadow-lg`}
+                        >
+                          {sig.signal} | {sig.tf} | {Number(sig.close_price).toFixed(2)}
+                        </div>
+                      </div>
 
-                    <div style={{ marginTop: "5px" }}>
-                      <strong>Alert Details:</strong>{" "}
-                      {sig.alert_details || "--"}
-                      <br />
-                      <strong>Screener:</strong> {sig.screener || "--"}
-                      <br />
-                      <strong>User Action:</strong>{" "}
-                      {sig.user_action || "--"}
+                      <div className={`text-sm space-y-2 ${textSecondaryClass}`}>
+                        <div className="flex gap-2">
+                          <span className="font-semibold min-w-[120px]">Alert Details:</span>
+                          <span>{sig.alert_details || "--"}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-semibold min-w-[120px]">Screener:</span>
+                          <span>{sig.screener || "--"}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-semibold min-w-[120px]">User Action:</span>
+                          <span>{sig.user_action || "--"}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </>
           )}
@@ -3130,6 +3482,17 @@ export default function ChartPage() {
       {/* floating toolbars */}
       <SelectedToolbar />
       <IndicatorToolbar />
+
+      {/* ✅ Premium Popup Modal (replaces alert()) */}
+<AlertModal
+  open={popup.open}
+  title={popup.title}
+  message={popup.message}
+  onClose={closePopup}
+  isDark={isDark}
+  glassClass={glassClass}
+/>
+
 
       {/* ---------------- RECOMMENDATION MODAL ---------------- */}
       {showRecoModal && (
