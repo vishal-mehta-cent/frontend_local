@@ -48,29 +48,7 @@ const API =
   import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
-function RouteAwareTopRightLogo() {
-  const { pathname } = useLocation();
-  const hide =
-    pathname === "/" ||
-    pathname === "/loginregister" ||
-    pathname.startsWith("/auth");
 
-  if (hide) return null;
-
-  return createPortal(
-    <div className="fixed top-1 right-3 z-[99999] pointer-events-none">
-      <a href="/menu" aria-label="Home" className="pointer-events-auto">
-        <img
-          src="/logo1.png"
-          alt="App Logo"
-          className="h-10 w-auto md:h-12 drop-shadow-lg select-none"
-          draggable={false}
-        />
-      </a>
-    </div>,
-    document.body
-  );
-}
 
 /** Auth screen */
 function AuthScreen({ onLoginSuccess }) {
@@ -116,7 +94,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <RouteAwareTopRightLogo />
+
       <ToastContainer position="top-center" autoClose={2000} />
 
       <AnimatedRoutes
