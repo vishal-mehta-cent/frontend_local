@@ -30,6 +30,13 @@ const items = [
   { label: "IPO Tracking", comingSoon: true, icon: <Eye size={28} />, color: "from-slate-400 to-gray-500" },
 
   { label: "Profile", path: "/Profile", icon: <User size={28} />, color: "from-rose-400 to-pink-500" },
+  {
+    label: "Feedback / Contact Us",
+    path: "/feedback",
+    icon: <MessageCircle size={28} />,
+    color: "from-indigo-400 to-purple-500",
+  },
+
 ];
 
 export default function Menu({ logout }) {
@@ -130,9 +137,8 @@ export default function Menu({ logout }) {
                     {/* ✅ Hover Glow Effect (FIXED: no dynamic opacity class) */}
                     {!isDisabled && isHovered && (
                       <div
-                        className={`absolute inset-0 bg-gradient-to-br ${item.color} ${
-                          isDark ? "opacity-10" : "opacity-5"
-                        } transition-opacity duration-300`}
+                        className={`absolute inset-0 bg-gradient-to-br ${item.color} ${isDark ? "opacity-10" : "opacity-5"
+                          } transition-opacity duration-300`}
                       ></div>
                     )}
 
@@ -145,16 +151,14 @@ export default function Menu({ logout }) {
 
                     {/* Icon Container */}
                     <div
-                      className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-                        isDisabled
-                          ? (isDark ? "bg-white/10" : "bg-gradient-to-br from-slate-200 to-gray-300")
-                          : `bg-gradient-to-br ${item.color} group-hover:scale-110 group-hover:rotate-3 shadow-lg`
-                      } ${!isDisabled && isHovered ? "shadow-2xl" : ""}`}
+                      className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300 ${isDisabled
+                        ? (isDark ? "bg-white/10" : "bg-gradient-to-br from-slate-200 to-gray-300")
+                        : `bg-gradient-to-br ${item.color} group-hover:scale-110 group-hover:rotate-3 shadow-lg`
+                        } ${!isDisabled && isHovered ? "shadow-2xl" : ""}`}
                     >
                       <div
-                        className={`${isDisabled ? (isDark ? "text-slate-300" : "text-slate-500") : "text-white"} transition-transform duration-300 ${
-                          isHovered && !isDisabled ? "scale-110" : ""
-                        }`}
+                        className={`${isDisabled ? (isDark ? "text-slate-300" : "text-slate-500") : "text-white"} transition-transform duration-300 ${isHovered && !isDisabled ? "scale-110" : ""
+                          }`}
                       >
                         {item.icon}
                       </div>
@@ -168,11 +172,10 @@ export default function Menu({ logout }) {
                     {/* Label */}
                     <div className="mt-4 text-center relative z-10">
                       <span
-                        className={`text-sm font-bold transition-colors duration-300 ${
-                          isDisabled
-                            ? (isDark ? "text-slate-300" : "text-slate-500")
-                            : (isDark ? "text-white group-hover:text-white" : "text-slate-800 group-hover:text-slate-900")
-                        }`}
+                        className={`text-sm font-bold transition-colors duration-300 ${isDisabled
+                          ? (isDark ? "text-slate-300" : "text-slate-500")
+                          : (isDark ? "text-white group-hover:text-white" : "text-slate-800 group-hover:text-slate-900")
+                          }`}
                       >
                         {item.label}
                       </span>
