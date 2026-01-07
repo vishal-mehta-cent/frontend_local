@@ -29,9 +29,9 @@ const money = (v) => {
   return n === null
     ? "₹0.00"
     : `₹${n.toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 };
 const signed = (n, d = 2) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}`;
 
@@ -41,8 +41,8 @@ const Chip = ({ label, value, tone = "gray" }) => {
     tone === "red"
       ? "bg-red-50 text-red-700 border-red-200"
       : tone === "green"
-      ? "bg-green-50 text-green-700 border-green-200"
-      : "bg-gray-50 text-gray-700 border-gray-200";
+        ? "bg-green-50 text-green-700 border-green-200"
+        : "bg-gray-50 text-gray-700 border-gray-200";
   return (
     <span
       className={`inline-flex items-center text-xs px-2 py-1 rounded-full border ${toneClass}`}
@@ -58,11 +58,10 @@ const SegmentBadge = ({ segment }) => {
   const isIntra = seg === "intraday";
   return (
     <span
-      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${
-        isIntra
+      className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${isIntra
           ? "bg-indigo-50 text-indigo-700 border-indigo-200"
           : "bg-amber-50 text-amber-700 border-amber-200"
-      }`}
+        }`}
       title="Segment"
     >
       {isIntra ? "intraday" : "delivery"}
@@ -85,49 +84,49 @@ export default function Portfolio({ username }) {
   const hasLoadedOnce = useRef(false);
 
   // ------- load portfolio -------
-const load = (ctrl) => {
-  setLoading(true);
-  setError("");
+  const load = (ctrl) => {
+    setLoading(true);
+    setError("");
 
-  fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, {
-    signal: ctrl.signal,
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        let detail = "";
-        try {
-          const j = await res.json();
-          detail = j?.detail || "";
-        } catch {}
-        throw new Error(detail || `HTTP ${res.status}`);
-      }
-      return res.json();
+    fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, {
+      signal: ctrl.signal,
     })
-    .then((result) => {
-      setData({
-        open: Array.isArray(result?.open) ? result.open : [],
-        closed: Array.isArray(result?.closed) ? result.closed : [],
+      .then(async (res) => {
+        if (!res.ok) {
+          let detail = "";
+          try {
+            const j = await res.json();
+            detail = j?.detail || "";
+          } catch { }
+          throw new Error(detail || `HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((result) => {
+        setData({
+          open: Array.isArray(result?.open) ? result.open : [],
+          closed: Array.isArray(result?.closed) ? result.closed : [],
+        });
+      })
+      .catch((err) => {
+        if (err.name === "AbortError") return;
+        setError(err.message || "Failed to load portfolio");
+        setData({ open: [], closed: [] });
+      })
+      .finally(() => {
+        setLoading(false);
+        hasLoadedOnce.current = true;
       });
-    })
-    .catch((err) => {
-      if (err.name === "AbortError") return;
-      setError(err.message || "Failed to load portfolio");
-      setData({ open: [], closed: [] });
-    })
-    .finally(() => {
-  setLoading(false);
-  hasLoadedOnce.current = true;
-});
 
-};
+  };
 
 
   useEffect(() => {
-  const ctrl = new AbortController();
-  load(ctrl);
+    const ctrl = new AbortController();
+    load(ctrl);
 
-  return () => ctrl.abort();
-}, [username]);
+    return () => ctrl.abort();
+  }, [username]);
 
   const pickDateTime = (o) =>
     o?.datetime || o?.updated_at || o?.created_at || o?.time || o?.date || null;
@@ -187,7 +186,7 @@ const load = (ctrl) => {
           });
           setQuotes(qmap);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchQuotes();
@@ -195,55 +194,60 @@ const load = (ctrl) => {
     return () => clearInterval(pollRef.current);
   }, [filteredOpen]);
 
-const handleAdd = (symbol, position) => {
-  navigate(`/buy/${symbol}`, {
-    state: {
-      // 🔥 REQUIRED FLAGS (Buy.jsx depends on these)
-      fromAdd: true,
-      fromPosition: true,
+  const handleAdd = (symbol, position) => {
+    navigate(`/buy/${symbol}`, {
+      state: {
+        // 🔥 REQUIRED FLAGS (Buy.jsx depends on these)
+        fromAdd: true,
+        fromPosition: true,
+        returnTo: "/portfolio",
 
-      // optional / informational
-      fromPortfolio: true,
+        // optional / informational
+        fromPortfolio: true,
 
-      qty: position.qty,
-      segment: position.segment || "delivery",
-      exchange: "NSE",
+        qty: position.qty,
+        segment: position.segment || "delivery",
+        exchange: "NSE",
 
-      stoploss: position.stoploss || "",
-      target: position.target || "",
+        stoploss: position.stoploss || "",
+        target: position.target || "",
 
-      orderMode: "MARKET",
-    },
-  });
-};
+        orderMode: "MARKET",
+      },
+    });
+  };
 
 
-const handleExit = (symbol, position) => {
-  navigate(`/sell/${symbol}`, {
-    state: {
-      fromPortfolio: true,
+  const handleExit = (symbol, position) => {
+    navigate(`/sell/${symbol}`, {
+      state: {
+        fromPortfolio: true,
+        // ✅ ADD THESE:
+        fromExit: true,
+        fromPosition: true,
+        returnTo: "/portfolio",
 
-      qty: position.qty,
-      segment: position.segment || "delivery",
-      exchange: "NSE",
+        qty: position.qty,
+        segment: position.segment || "delivery",
+        exchange: "NSE",
 
-      stoploss: position.stoploss || "",
-      target: position.target || "",
+        stoploss: position.stoploss || "",
+        target: position.target || "",
 
-      orderMode: "MARKET",
+        orderMode: "MARKET",
 
-      // 🔥 IMPORTANT FLAGS
-      skipSellFirstCheck: true,
-      allowShort: false,
-    },
-  });
-};
+        // 🔥 IMPORTANT FLAGS
+        skipSellFirstCheck: true,
+        allowShort: false,
+      },
+    });
+  };
 
   const handleCloseModal = () => setSelected(null);
   const handleNoteIn = (symbol) =>
-  navigate(`/notes/${encodeURIComponent((symbol || "").toUpperCase())}`, {
-    state: { from: "/portfolio" }
-  });
+    navigate(`/notes/${encodeURIComponent((symbol || "").toUpperCase())}`, {
+      state: { from: "/portfolio" }
+    });
 
 
   const handleUploadClick = () => {
@@ -306,36 +310,36 @@ const handleExit = (symbol, position) => {
     const portfolioRows =
       filteredOpen && filteredOpen.length
         ? filteredOpen.map((p) => {
-            const symbol = (p.symbol || p.script || "").toUpperCase();
-            const name = p.name || "";
-            const seg = (p.segment || "delivery").toLowerCase();
-            const qty = toNum(p.qty) ?? 0;
-            const avg = toNum(p.avg_price) ?? 0;
-            const entry = toNum(p.entry_price) ?? avg;
-            const live =
-              toNum(quotes[symbol]?.price) ??
-              toNum(p.current_price) ??
-              avg ??
-              0;
-            const sl = toNum(p.stoploss) ?? 0;
-            const tgt = toNum(p.target) ?? 0;
-            const invest = qty * (avg ?? 0);
-            const dtRaw = pickDateTime(p);
-            const ymd = toLocalYMD(parseDate(dtRaw)) || "";
-            return [
-              symbol,
-              name,
-              seg,
-              qty,
-              avg,
-              entry,
-              sl,
-              tgt,
-              live,
-              invest,
-              ymd,
-            ];
-          })
+          const symbol = (p.symbol || p.script || "").toUpperCase();
+          const name = p.name || "";
+          const seg = (p.segment || "delivery").toLowerCase();
+          const qty = toNum(p.qty) ?? 0;
+          const avg = toNum(p.avg_price) ?? 0;
+          const entry = toNum(p.entry_price) ?? avg;
+          const live =
+            toNum(quotes[symbol]?.price) ??
+            toNum(p.current_price) ??
+            avg ??
+            0;
+          const sl = toNum(p.stoploss) ?? 0;
+          const tgt = toNum(p.target) ?? 0;
+          const invest = qty * (avg ?? 0);
+          const dtRaw = pickDateTime(p);
+          const ymd = toLocalYMD(parseDate(dtRaw)) || "";
+          return [
+            symbol,
+            name,
+            seg,
+            qty,
+            avg,
+            entry,
+            sl,
+            tgt,
+            live,
+            invest,
+            ymd,
+          ];
+        })
         : [];
     const portfolioSheet = XLSX.utils.aoa_to_sheet([
       portfolioHeaders,
@@ -426,11 +430,10 @@ const handleExit = (symbol, position) => {
                 Current Valuation: {money(totalCurrentValuation)}
               </span>
               <span
-                className={`inline-block px-4 py-2 rounded-xl shadow text-sm font-semibold ${
-                  totalPnL >= 0
+                className={`inline-block px-4 py-2 rounded-xl shadow text-sm font-semibold ${totalPnL >= 0
                     ? "bg-emerald-50 text-emerald-700"
                     : "bg-rose-50 text-rose-700"
-                }`}
+                  }`}
               >
                 P&L: {money(totalPnL)} ({signed(totalPnLPct, 2)}%)
               </span>
@@ -466,18 +469,18 @@ const handleExit = (symbol, position) => {
 
           {/* Open Holdings */}
           <h3 className="text-center text-lg font-semibold mt-3">
-  Open Holdings
-</h3>
+            Open Holdings
+          </h3>
 
-{loading ? (
-  <div className="text-center text-sm text-gray-500 mt-2">
-    Loading holdings…
-  </div>
-) : filteredOpen.length === 0 ? (
-  <div className="text-center text-sm text-gray-500 mt-2">
-    No holdings in portfolio
-  </div>
-) : (
+          {loading ? (
+            <div className="text-center text-sm text-gray-500 mt-2">
+              Loading holdings…
+            </div>
+          ) : filteredOpen.length === 0 ? (
+            <div className="text-center text-sm text-gray-500 mt-2">
+              No holdings in portfolio
+            </div>
+          ) : (
             <div className="space-y-3">
               {filteredOpen.map((p, i) => {
                 const symbol = (p.symbol || p.script || "").toUpperCase();
@@ -508,8 +511,8 @@ const handleExit = (symbol, position) => {
                   total > 0
                     ? "text-green-600"
                     : total < 0
-                    ? "text-red-600"
-                    : "text-gray-600";
+                      ? "text-red-600"
+                      : "text-gray-600";
 
                 const invest = qty * entry;
                 const currentVal = qty * live;
@@ -519,8 +522,8 @@ const handleExit = (symbol, position) => {
                   cardPnL > 0
                     ? "text-green-600"
                     : cardPnL < 0
-                    ? "text-red-600"
-                    : "text-gray-600";
+                      ? "text-red-600"
+                      : "text-gray-600";
 
                 return (
                   <div
@@ -536,23 +539,22 @@ const handleExit = (symbol, position) => {
                     }
                   >
                     <div className="flex justify-between text-sm">
-  {qty < 0 ? (
-    <span className="text-orange-600 font-semibold">
-      SELL FIRST • {Math.abs(qty)} Qty
-    </span>
-  ) : (
-    <span
-  className={`font-semibold ${
-    p.side === "BUY"
-      ? "text-green-600"
-      : "text-red-600"
-  }`}
->
-  {p.side} • {qty} Qty
-</span>
+                      {qty < 0 ? (
+                        <span className="text-orange-600 font-semibold">
+                          SELL FIRST • {Math.abs(qty)} Qty
+                        </span>
+                      ) : (
+                        <span
+                          className={`font-semibold ${p.side === "BUY"
+                              ? "text-green-600"
+                              : "text-red-600"
+                            }`}
+                        >
+                          {p.side} • {qty} Qty
+                        </span>
 
-  )}
-</div>
+                      )}
+                    </div>
 
 
                     <div className="mt-1 flex items-start justify-between gap-2">
@@ -658,11 +660,10 @@ const handleExit = (symbol, position) => {
               <div>
                 P&L / Share:{" "}
                 <span
-                  className={`font-semibold ${
-                    (selected.pnlPerShare ?? 0) >= 0
+                  className={`font-semibold ${(selected.pnlPerShare ?? 0) >= 0
                       ? "text-green-600"
                       : "text-red-600"
-                  }`}
+                    }`}
                 >
                   {money(selected.pnlPerShare ?? 0)}
                 </span>
