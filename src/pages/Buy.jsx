@@ -17,10 +17,9 @@ import {
   Sparkles,
 } from "lucide-react";
 
-
-
-
-const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
+const API =
+  import.meta.env.VITE_BACKEND_BASE_URL ||
+  "https://paper-trading-backend.onrender.com";
 
 function parseHHMMToMinutes(val, fallbackMinutes) {
   try {
@@ -54,20 +53,32 @@ function isMarketOpenUTC() {
   return minutes >= OPEN && minutes <= CLOSE;
 }
 
-
 export default function Buy() {
   const { symbol } = useParams();
   const nav = useNavigate();
   const location = useLocation();
   const prefill = location.state || {};
+  // ✅ NEW: where to go back after ADD/EXIT/MODIFY
+  const returnTo = prefill.returnTo || "";      // "/orders" or "/portfolio"
+  const returnTab = prefill.returnTab || "";    // e.g. "positions"
+
 
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
   const isPositionModify = Boolean(prefill.fromPosition);
 
-  const isAddMode = isAdd && isPositionModify;
-  const isPureModify = isPositionModify && !isAdd;
+  // ✅ NEW: EXIT mode (support multiple keys, but you should pass fromExit:true)
+  const isExit = Boolean(
+    prefill.fromExit ||
+    prefill.exit === true ||
+    prefill.action === "EXIT" ||
+    prefill.mode === "EXIT"
+  );
 
+  const isAddMode = isAdd && isPositionModify;
+
+  // ✅ IMPORTANT: qty must be editable on EXIT, so exclude exit from "pure modify"
+  const isPureModify = isPositionModify && !isAdd && !isExit;
 
   const { isDark } = useTheme();
 
@@ -91,7 +102,6 @@ export default function Buy() {
   const [priceChangePercent, setPriceChangePercent] = useState(0);
   const [dayHigh, setDayHigh] = useState(null);
   const [dayLow, setDayLow] = useState(null);
-
 
   const [qty, setQty] = useState(prefill.qty || "");
   const [price, setPrice] = useState(prefill.price || "");
@@ -118,7 +128,16 @@ export default function Buy() {
 
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
-  const isModifyMode = isModify && isPositionModify;
+
+  // ✅ NEW: On EXIT, force Market + lock trade controls
+  const lockTradeControls = Boolean(isExit);
+
+  useEffect(() => {
+    if (!lockTradeControls) return;
+    setOrderMode("MARKET");
+    setPrice("");
+    userEditedPrice.current = false;
+  }, [lockTradeControls]);
 
   useEffect(() => {
     if (!symbol) return;
@@ -195,9 +214,15 @@ export default function Buy() {
             if (Number.isFinite(high)) setDayHigh(high);
             if (Number.isFinite(low)) setDayLow(low);
             if (Number.isFinite(change)) setPriceChange(change);
-            if (Number.isFinite(changePct)) setPriceChangePercent(changePct);
+            if (Number.isFinite(changePct))
+              setPriceChangePercent(changePct);
 
-            if (orderMode === "LIMIT" && !price && !userEditedPrice.current) {
+            if (
+              orderMode === "LIMIT" &&
+              !price &&
+              !userEditedPrice.current &&
+              !lockTradeControls
+            ) {
               setPrice(live.toFixed(2));
             }
           }
@@ -211,7 +236,7 @@ export default function Buy() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [symbol, orderMode, price, livePrice]);
+  }, [symbol, orderMode, price, livePrice, lockTradeControls]);
 
   const handleSubmit = async () => {
     if (submitting) return;
@@ -240,7 +265,9 @@ export default function Buy() {
 
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          throw new Error(data?.detail || "Failed to convert to market order");
+          throw new Error(
+            data?.detail || "Failed to convert to market order"
+          );
         }
 
         setSuccessText("Order executed at Market price ✅");
@@ -288,18 +315,19 @@ export default function Buy() {
         payload.price = px;
       }
 
-      let res, data;
-
       if (isPositionModify && Number(qty) <= 0) {
         setErrorMsg("❌ Quantity must be greater than zero");
         setSubmitting(false);
         return;
       }
 
-      if (isPositionModify && !isAdd) {
+      // ✅ IMPORTANT: don't treat EXIT as "modify position"
+      if (isPositionModify && !isAdd && !isExit) {
         await handleModifyPosition();
         return;
       }
+
+      let res, data;
 
       if (isModify && prefill.modifyId) {
         res = await fetch(`${API}/orders/${prefill.modifyId}`, {
@@ -323,11 +351,12 @@ export default function Buy() {
             : data?.detail?.message ||
             data?.message ||
             "Order failed";
-
         throw new Error(msg);
       }
 
-      if (isAdd) {
+      if (isExit) {
+        setSuccessText("Exit Successful ✅");
+      } else if (isAdd) {
         setSuccessText("Added to Position ✅");
       } else if (isModify) {
         setSuccessText("Modify Successful ✅");
@@ -339,17 +368,21 @@ export default function Buy() {
 
       setSuccessModal(true);
 
-      const cameFromPortfolio =
-        prefill.fromAdd === true && prefill.fromPosition === true;
-
       setTimeout(() => {
         setSuccessModal(false);
 
-        if (cameFromPortfolio) {
+        // ✅ NEW: respect returnTo
+        if (returnTo === "/portfolio") {
           nav("/portfolio", { state: { refresh: true } });
           return;
         }
 
+        if (returnTo === "/orders") {
+          nav("/orders", { state: { refresh: true, tab: returnTab || "positions" } });
+          return;
+        }
+
+        // ✅ fallback (old behavior)
         if (data && data.triggered) {
           nav("/orders", { state: { refresh: true, tab: "positions" } });
         } else {
@@ -374,7 +407,6 @@ export default function Buy() {
         username,
         script: symbol,
         new_qty: isFNO ? Number(lotQty) : Number(qty),
-
         stoploss: stoploss ? Number(stoploss) : null,
         target: target ? Number(target) : null,
         price_type: orderMode,
@@ -395,22 +427,24 @@ export default function Buy() {
             : data?.detail?.message ||
             data?.message ||
             "Error modifying position";
-
         throw new Error(msg);
       }
 
       setSuccessText("Position modified successfully!");
       setSuccessModal(true);
 
-      const cameFromPortfolio =
-        prefill.fromAdd === true && prefill.fromPosition === true;
-
       setTimeout(() => {
-        if (cameFromPortfolio) {
+        if (returnTo === "/portfolio") {
           nav("/portfolio", { state: { refresh: true } });
-        } else {
-          nav("/orders", { state: { refresh: true, tab: "positions" } });
+          return;
         }
+        if (returnTo === "/orders") {
+          nav("/orders", { state: { refresh: true, tab: returnTab || "positions" } });
+          return;
+        }
+
+        // fallback
+        nav("/orders", { state: { refresh: true, tab: "positions" } });
       }, 1500);
 
     } catch (err) {
@@ -431,32 +465,6 @@ export default function Buy() {
     setPrice(e.target.value);
     userEditedPrice.current = true;
   };
-
-  const getInvestmentBreakdown = () => {
-    const qtyNum = isFNO ? Number(lotQty) : Number(qty);
-    const priceNum = orderMode === "LIMIT" ? Number(price) : livePrice;
-
-    if (!qtyNum || !priceNum) return null;
-
-    const subtotal = qtyNum * priceNum;
-    const brokerage = subtotal * 0.0003;
-    const taxes = subtotal * 0.0018;
-    const total = subtotal + brokerage + taxes;
-
-    return { subtotal, brokerage, taxes, total };
-  };
-
-  const breakdown = getInvestmentBreakdown();
-
-  const getRiskLevel = () => {
-    if (!breakdown) return "low";
-    if (breakdown.total > 100000) return "high";
-    if (breakdown.total > 50000) return "medium";
-    return "low";
-  };
-
-  const riskLevel = getRiskLevel();
-  const riskColor = riskLevel === "high" ? "text-red-400" : riskLevel === "medium" ? "text-yellow-400" : "text-green-400";
 
   const priceDirection =
     livePrice && prevPrice
@@ -502,11 +510,13 @@ export default function Buy() {
                 </div>
                 <div>
                   <h2 className="font-bold text-xl bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    {isAdd
-                      ? `ADD ${symbol}`
-                      : isModify
-                        ? `MODIFY ${symbol}`
-                        : `BUY ${symbol}`}
+                    {isExit
+                      ? `EXIT ${symbol}`
+                      : isAdd
+                        ? `ADD ${symbol}`
+                        : isModify
+                          ? `MODIFY ${symbol}`
+                          : `BUY ${symbol}`}
                   </h2>
                   <p className={`text-xs ${textSecondaryClass}`}>
                     {marketOpen ? "Market Open" : "Market Closed"}
@@ -521,7 +531,9 @@ export default function Buy() {
 
         {/* Error */}
         {errorMsg && (
-          <div className={`${glassClass} rounded-2xl p-4 mb-6 border border-red-500/40 shadow-lg`}>
+          <div
+            className={`${glassClass} rounded-2xl p-4 mb-6 border border-red-500/40 shadow-lg`}
+          >
             <div className="flex items-center space-x-3">
               <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
               <p className="text-sm text-red-300">{String(errorMsg)}</p>
@@ -532,7 +544,9 @@ export default function Buy() {
         {/* Live Price Card */}
         <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl`}>
           <div className="text-center space-y-4">
-            <p className={`text-sm ${textSecondaryClass} flex items-center justify-center space-x-2`}>
+            <p
+              className={`text-sm ${textSecondaryClass} flex items-center justify-center space-x-2`}
+            >
               <BarChart3 className="w-4 h-4" />
               <span>Live Price</span>
             </p>
@@ -551,11 +565,14 @@ export default function Buy() {
                 ₹{livePrice != null ? livePrice.toFixed(2) : "--"}
               </div>
 
-              {priceDirection === "up" && <ArrowUpRight className="w-6 h-6 text-green-400 animate-bounce" />}
-              {priceDirection === "down" && <ArrowDownRight className="w-6 h-6 text-red-400 animate-bounce" />}
+              {priceDirection === "up" && (
+                <ArrowUpRight className="w-6 h-6 text-green-400 animate-bounce" />
+              )}
+              {priceDirection === "down" && (
+                <ArrowDownRight className="w-6 h-6 text-red-400 animate-bounce" />
+              )}
             </div>
 
-            {/* Change badge (only if values exist) */}
             <div className="flex items-center justify-center">
               <span
                 className={`px-3 py-1 rounded-full text-sm font-semibold ${priceChange >= 0
@@ -566,14 +583,18 @@ export default function Buy() {
                 {priceChange >= 0 ? "+" : ""}
                 {Number.isFinite(priceChange) ? priceChange.toFixed(2) : "0.00"}{" "}
                 ({priceChangePercent >= 0 ? "+" : ""}
-                {Number.isFinite(priceChangePercent) ? priceChangePercent.toFixed(2) : "0.00"}%)
+                {Number.isFinite(priceChangePercent)
+                  ? priceChangePercent.toFixed(2)
+                  : "0.00"}
+                %)
               </span>
             </div>
 
-            {/* Day range (optional) */}
             {dayHigh != null && dayLow != null && (
               <div className="space-y-2">
-                <div className={`flex justify-between text-xs ${textSecondaryClass}`}>
+                <div
+                  className={`flex justify-between text-xs ${textSecondaryClass}`}
+                >
                   <span>Day Low: ₹{dayLow}</span>
                   <span>Day High: ₹{dayHigh}</span>
                 </div>
@@ -589,7 +610,6 @@ export default function Buy() {
             )}
           </div>
 
-          {/* FNO stats */}
           {isFNO && (
             <div className="mt-6 pt-6 border-t border-white/10 grid grid-cols-2 gap-4">
               <div className={`${glassClass} rounded-xl p-3 text-center`}>
@@ -597,9 +617,13 @@ export default function Buy() {
                 <p className="text-lg font-bold text-cyan-300">{lotSize}</p>
               </div>
               <div className={`${glassClass} rounded-xl p-3 text-center`}>
-                <p className={`text-xs ${textSecondaryClass} mb-1`}>Total Investment</p>
+                <p className={`text-xs ${textSecondaryClass} mb-1`}>
+                  Total Investment
+                </p>
                 <p className="text-lg font-bold text-blue-300">
-                  {totalInvestment > 0 ? `₹${totalInvestment.toLocaleString()}` : "--"}
+                  {totalInvestment > 0
+                    ? `₹${totalInvestment.toLocaleString()}`
+                    : "--"}
                 </p>
               </div>
             </div>
@@ -607,15 +631,20 @@ export default function Buy() {
         </div>
 
         {/* Form Card */}
-        <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl space-y-6 flex-1`}>
+        <div
+          className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl space-y-6 flex-1`}
+        >
           {/* Order Type */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => !isPositionModify && setOrderMode("MARKET")}
-              disabled={isPositionModify}
-              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${orderMode === "MARKET"
+              onClick={() => !isPositionModify && !lockTradeControls && setOrderMode("MARKET")}
+              disabled={isPositionModify || lockTradeControls}
+              className={`py-4 rounded-xl font-semibold transition-all transform ${orderMode === "MARKET"
                 ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/40"
-                : `${glassClass} ${cardHoverClass} ${isPositionModify ? "opacity-50 cursor-not-allowed" : ""}`
+                : `${glassClass} ${cardHoverClass}`
+                } ${isPositionModify || lockTradeControls
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:scale-105"
                 }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -625,11 +654,19 @@ export default function Buy() {
             </button>
 
             <button
-              onClick={() => !isPositionModify && marketOpen && setOrderMode("LIMIT")}
-              disabled={!marketOpen || isPositionModify}
-              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${orderMode === "LIMIT"
+              onClick={() =>
+                !isPositionModify &&
+                !lockTradeControls &&
+                marketOpen &&
+                setOrderMode("LIMIT")
+              }
+              disabled={!marketOpen || isPositionModify || lockTradeControls}
+              className={`py-4 rounded-xl font-semibold transition-all transform ${orderMode === "LIMIT"
                 ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/40"
-                : `${glassClass} ${cardHoverClass} ${(!marketOpen || isPositionModify) ? "opacity-50 cursor-not-allowed" : ""}`
+                : `${glassClass} ${cardHoverClass}`
+                } ${!marketOpen || isPositionModify || lockTradeControls
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:scale-105"
                 }`}
             >
               <div className="flex items-center justify-center space-x-2">
@@ -641,7 +678,9 @@ export default function Buy() {
 
           {/* Quantity */}
           <div>
-            <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+            <label
+              className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}
+            >
               <Package className="w-4 h-4" />
               <span>Quantity {isFNO && "(Lots)"}</span>
             </label>
@@ -652,16 +691,13 @@ export default function Buy() {
               disabled={isPureModify}
               onChange={(e) => setQty(e.target.value)}
               className={`w-full px-4 py-3 ${glassClass} rounded-xl
-    ${textClass}
-    placeholder-slate-400
-    focus:outline-none focus:ring-2 focus:ring-green-500/50
-    ${isPureModify ? "cursor-not-allowed opacity-50" : ""}
-  `}
+                ${textClass}
+                placeholder-slate-400
+                focus:outline-none focus:ring-2 focus:ring-green-500/50
+                ${isPureModify ? "cursor-not-allowed opacity-50" : ""}
+              `}
             />
 
-
-
-            {/* Quick presets */}
             {!isPureModify && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {quickPresets.map((preset) => (
@@ -670,6 +706,7 @@ export default function Buy() {
                     onClick={() => setQty(String(preset))}
                     className={`px-3 py-1 ${glassClass} rounded-lg text-xs font-semibold ${cardHoverClass} transition-all hover:scale-105 ${Number(qty) === preset ? "ring-2 ring-green-500/70" : ""
                       }`}
+                    type="button"
                   >
                     {preset}x
                   </button>
@@ -677,7 +714,6 @@ export default function Buy() {
               </div>
             )}
 
-            {/* FNO computed qty */}
             {isFNO && (
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <div className={`${glassClass} rounded-xl p-3 text-center`}>
@@ -694,7 +730,9 @@ export default function Buy() {
 
           {/* Limit Price */}
           <div>
-            <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+            <label
+              className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}
+            >
               <DollarSign className="w-4 h-4" />
               <span>Limit Price</span>
             </label>
@@ -703,11 +741,22 @@ export default function Buy() {
               type="number"
               value={orderMode === "LIMIT" ? price : ""}
               onChange={handlePriceChange}
-              disabled={orderMode === "MARKET" || !marketOpen || isPositionModify}
-              placeholder={
-                !marketOpen ? "Limit orders disabled after market close" : "Enter limit price"
+              disabled={
+                orderMode === "MARKET" || !marketOpen || isPositionModify || lockTradeControls
               }
-              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${(orderMode === "MARKET" || !marketOpen || isPositionModify) ? "cursor-not-allowed opacity-50" : ""
+              placeholder={
+                lockTradeControls
+                  ? "Disabled in EXIT"
+                  : !marketOpen
+                    ? "Limit orders disabled after market close"
+                    : "Enter limit price"
+              }
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${orderMode === "MARKET" ||
+                !marketOpen ||
+                isPositionModify ||
+                lockTradeControls
+                ? "cursor-not-allowed opacity-50"
+                : ""
                 }`}
             />
           </div>
@@ -715,32 +764,34 @@ export default function Buy() {
           {/* Segment */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => !isPositionModify && setSegment("intraday")}
-              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${segment === "intraday"
+              onClick={() => !isPositionModify && !lockTradeControls && setSegment("intraday")}
+              disabled={isPositionModify || lockTradeControls}
+              className={`py-4 rounded-xl font-semibold transition-all transform ${segment === "intraday"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
-                }`}
+                } ${isPositionModify || lockTradeControls ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
             >
               Intraday
             </button>
 
             <button
-              onClick={() => !isPositionModify && setSegment("delivery")}
-              className={`py-4 rounded-xl font-semibold transition-all transform hover:scale-105 ${segment === "delivery"
+              onClick={() => !isPositionModify && !lockTradeControls && setSegment("delivery")}
+              disabled={isPositionModify || lockTradeControls}
+              className={`py-4 rounded-xl font-semibold transition-all transform ${segment === "delivery"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
-                }`}
+                } ${isPositionModify || lockTradeControls ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
             >
               Delivery
             </button>
           </div>
 
-
-
           {/* SL & Target */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+              <label
+                className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}
+              >
                 <Shield className="w-4 h-4" />
                 <span>Stoploss</span>
               </label>
@@ -756,7 +807,9 @@ export default function Buy() {
             </div>
 
             <div>
-              <label className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}>
+              <label
+                className={`text-sm ${textSecondaryClass} mb-2 flex items-center space-x-1`}
+              >
                 <Target className="w-4 h-4" />
                 <span>Target</span>
               </label>
@@ -772,7 +825,7 @@ export default function Buy() {
             </div>
           </div>
 
-          {/* Submit (IMPORTANT: do NOT disable just because marketOpen=false) */}
+          {/* Submit */}
           <button
             onClick={handleSubmit}
             disabled={submitting}
@@ -790,7 +843,15 @@ export default function Buy() {
               ) : (
                 <>
                   <Sparkles className="w-5 h-5" />
-                  <span>{isAdd ? "Add to Position" : isModify ? "Save Changes" : "BUY"}</span>
+                  <span>
+                    {isExit
+                      ? "EXIT"
+                      : isAdd
+                        ? "Add to Position"
+                        : isModify
+                          ? "Save Changes"
+                          : "BUY"}
+                  </span>
                 </>
               )}
             </div>
@@ -800,7 +861,9 @@ export default function Buy() {
         {/* Success Modal */}
         {successModal && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4">
-            <div className={`${glassClass} rounded-3xl p-8 text-center max-w-sm w-full shadow-2xl`}>
+            <div
+              className={`${glassClass} rounded-3xl p-8 text-center max-w-sm w-full shadow-2xl`}
+            >
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-10 h-10 text-green-400 animate-pulse" />
               </div>
@@ -809,12 +872,13 @@ export default function Buy() {
                 {successText || "Order saved"}
               </p>
 
-              <p className={`text-sm ${textSecondaryClass}`}>Redirecting you now...</p>
+              <p className={`text-sm ${textSecondaryClass}`}>
+                Redirecting you now...
+              </p>
             </div>
           </div>
         )}
       </div>
     </div>
   );
-
 }
