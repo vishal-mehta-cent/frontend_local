@@ -144,7 +144,7 @@ export default function Menu({ logout }) {
 
                     {/* Coming Soon Badge */}
                     {isDisabled && (
-                      <div className={`absolute top-2 right-2 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md ${isDark ? "bg-white/15 border border-white/15" : "bg-slate-700"}`}>
+                      <div className={`absolute top-2 right-2 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-md bg-gradient-to-r from-indigo-500 to-blue-500 ${isDark ? "bg-white/15 border border-white/15" : "bg-slate-700"}`}>
                         SOON
                       </div>
                     )}
@@ -184,12 +184,6 @@ export default function Menu({ logout }) {
                         <p className={`mt-1.5 text-xs leading-tight ${textSecondaryClass}`}>
                           {item.sublabel}
                         </p>
-                      )}
-
-                      {isDisabled && (
-                        <span className={`block mt-2 text-xs font-semibold ${isDark ? "text-slate-400" : "text-slate-400"}`}>
-                          Coming soon
-                        </span>
                       )}
                     </div>
 
