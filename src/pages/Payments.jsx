@@ -211,7 +211,8 @@ export default function Payments({ username }) {
         {view === "PLANS" && (
           <>
             <h1 className="text-3xl font-bold text-center mb-2">Upgrade your plan</h1>
-
+             <div className="max-w-[1800px] mx-auto">
+</div>
             <div className="text-center text-sm text-slate-300 mb-2">
               {subLoading ? (
                 <span className="inline-flex items-center gap-2">
@@ -237,7 +238,14 @@ export default function Payments({ username }) {
               <div className="mb-8" />
             )}
 
-            <div className="flex gap-6 overflow-x-auto overflow-y-visible pb-6 pt-8 flex-nowrap px-2">
+            <div className="
+  flex gap-6 pb-6 pt-8 px-2
+  overflow-x-auto
+  flex-nowrap
+  justify-start
+  lg:justify-center
+">
+
               {plansWithStatus.map((plan) => {
                 const isCurrent = plan.current;
                 const isQueued = plan.isQueued;
@@ -327,7 +335,7 @@ export default function Payments({ username }) {
               })}
             </div>
 
-            <div className="mt-10 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl p-6 shadow-[0_20px_40px_rgba(0,0,0,0.25)] max-w-[1700px] mx-auto">
+            <div className="mt-10 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl p-6 shadow-[0_20px_40px_rgba(0,0,0,0.25)] max-w-[1800px] mx-auto">
               <div className="flex items-start gap-3">
                 <div className="mt-1">
                   <Info className="w-5 h-5 text-cyan-300" />
