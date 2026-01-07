@@ -100,11 +100,10 @@ const ExchangeBadge = ({ exchange }) => {
 
   return (
     <span
-      className={`text-[11px] px-2 py-[1px] rounded border font-semibold ${
-        isNSE
+      className={`text-[11px] px-2 py-[1px] rounded border font-semibold ${isNSE
           ? "bg-blue-50 text-blue-700 border-blue-300"
           : "bg-purple-50 text-purple-700 border-purple-300"
-      }`}
+        }`}
     >
       {ex}
     </span>
@@ -386,34 +385,37 @@ export default function Orders({ username }) {
     }
   };
 
-const handleModify = (order) => {
-  const side = order.type || order.order_type; // BUY / SELL
+  const handleModify = (order) => {
+    const side = order.type || order.order_type; // BUY / SELL
 
-  navigate(
-    side === "SELL"
-      ? `/sell/${order.script}`
-      : `/buy/${order.script}`,
-    {
-      state: {
-        modifyId: order.id,
+    navigate(
+      side === "SELL"
+        ? `/sell/${order.script}`
+        : `/buy/${order.script}`,
+      {
+        state: {
+          modifyId: order.id,
 
-        // 🔑 PREFILL
-        qty: order.qty,
-        price: order.price,
-        exchange: order.exchange || "NSE",
-        segment: order.segment || "intraday",
-        stoploss: order.stoploss,
-        target: order.target,
+          // 🔑 PREFILL
+          qty: order.qty,
+          price: order.price,
+          exchange: order.exchange || "NSE",
+          segment: order.segment || "intraday",
+          stoploss: order.stoploss,
+          target: order.target,
 
-        // 🔒 MODE FLAGS
-        orderMode: order.price ? "LIMIT" : "MARKET",
-        fromModify: true,
-      },
-    }
-  );
+          // 🔒 MODE FLAGS
+          orderMode: order.price ? "LIMIT" : "MARKET",
+          fromModify: true,
+          returnTo: "/orders",
+          returnTab: "positions",
 
-  setShowActions(false);
-};
+        },
+      }
+    );
+
+    setShowActions(false);
+  };
 
 
   const handleExit = (pos) => {
@@ -430,6 +432,9 @@ const handleModify = (order) => {
           stoploss: pos.stoploss,
           target: pos.target,
           orderMode: "MARKET",
+          // ✅ ADD THESE:
+          returnTo: "/orders",
+          returnTab: "positions",
         },
       });
     } else {
@@ -444,34 +449,40 @@ const handleModify = (order) => {
           stoploss: pos.stoploss,
           target: pos.target,
           orderMode: "MARKET",
+          // ✅ ADD THESE:
+          returnTo: "/orders",
+          returnTab: "positions",
         },
       });
     }
     setShowActions(false);
   };
 
-const handleAdd = (pos) => {
-  const symbol = pos.symbol || pos.script;
+  const handleAdd = (pos) => {
+    const symbol = pos.symbol || pos.script;
 
-  const isSellFirst = Boolean(pos.short_first);
+    const isSellFirst = Boolean(pos.short_first);
 
-  navigate(
-    isSellFirst ? `/sell/${symbol}` : `/buy/${symbol}`,
-    {
-      state: {
-        fromAdd: true,
-        fromPosition: true,   // 🔥 IMPORTANT
-        qty: pos.qty,
-        price: pos.price,
-        stoploss: pos.stoploss,
-        target: pos.target,
-        segment: pos.segment,
-        exchange: pos.exchange || "NSE",
-        orderMode: "MARKET",
-      },
-    }
-  );
-};
+    navigate(
+      isSellFirst ? `/sell/${symbol}` : `/buy/${symbol}`,
+      {
+        state: {
+          fromAdd: true,
+          fromPosition: true,   // 🔥 IMPORTANT
+          // ✅ ADD THESE:
+          returnTo: "/orders",
+          returnTab: "positions",
+          qty: pos.qty,
+          price: pos.price,
+          stoploss: pos.stoploss,
+          target: pos.target,
+          segment: pos.segment,
+          exchange: pos.exchange || "NSE",
+          orderMode: "MARKET",
+        },
+      }
+    );
+  };
 
 
 
@@ -678,28 +689,28 @@ const handleAdd = (pos) => {
                     </div>
 
                     {/* RIGHT SIDE (TOTAL + per-share + %) */}
-                  {/* RIGHT SIDE P&L — ONLY FOR POSITIONS */}
-{!isOrdersTab && (
-  <div className="text-right pr-1">
-    <div className={`text-2xl font-extrabold ${pnlColor}`}>
-      {arrow} {money(total)}
-    </div>
+                    {/* RIGHT SIDE P&L — ONLY FOR POSITIONS */}
+                    {!isOrdersTab && (
+                      <div className="text-right pr-1">
+                        <div className={`text-2xl font-extrabold ${pnlColor}`}>
+                          {arrow} {money(total)}
+                        </div>
 
-    <div className={`${pnlColor} text-xs mt-0.5`}>
-      {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
-      {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
-    </div>
+                        <div className={`${pnlColor} text-xs mt-0.5`}>
+                          {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
+                          {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
+                        </div>
 
-    {o.exit_price != null && (
-      <div className="text-xs text-gray-600 mt-1">
-        Exit Price:{" "}
-        <span className="font-semibold text-gray-800">
-          {money(o.exit_price)}
-        </span>
-      </div>
-    )}
-  </div>
-)}
+                        {o.exit_price != null && (
+                          <div className="text-xs text-gray-600 mt-1">
+                            Exit Price:{" "}
+                            <span className="font-semibold text-gray-800">
+                              {money(o.exit_price)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
 
                   </div>
@@ -773,58 +784,58 @@ const handleAdd = (pos) => {
             ) : (
               // Positions modal actions
               <div className="flex justify-center gap-6">
-<button
-  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
-  onClick={() => {
-    handleAdd(selectedOrder);   // ✅ reuse correct logic
-    setShowActions(false);      // close modal
-  }}
->
-  Add
-</button>
-<button
-  onClick={() => {
-    const side = selectedOrder.type || selectedOrder.order_type;
+                <button
+                  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
+                  onClick={() => {
+                    handleAdd(selectedOrder);   // ✅ reuse correct logic
+                    setShowActions(false);      // close modal
+                  }}
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => {
+                    const side = selectedOrder.type || selectedOrder.order_type;
 
-    navigate(
-      side === "BUY"
-        ? `/buy/${selectedOrder.script}`
-        : `/sell/${selectedOrder.script}`,
-      {
-        state: {
-          fromPosition: true,
-          fromModify: true,
+                    navigate(
+                      side === "BUY"
+                        ? `/buy/${selectedOrder.script}`
+                        : `/sell/${selectedOrder.script}`,
+                      {
+                        state: {
+                          fromPosition: true,
+                          fromModify: true,
 
-          // 🔑 REQUIRED PREFILL
-          qty: selectedOrder.qty,
-          price: selectedOrder.price,
-          stoploss: selectedOrder.stoploss,
-          target: selectedOrder.target,
-          segment: selectedOrder.segment,
-          exchange: selectedOrder.exchange || "NSE",
+                          // 🔑 REQUIRED PREFILL
+                          qty: selectedOrder.qty,
+                          price: selectedOrder.price,
+                          stoploss: selectedOrder.stoploss,
+                          target: selectedOrder.target,
+                          segment: selectedOrder.segment,
+                          exchange: selectedOrder.exchange || "NSE",
 
-          // lock behaviour
-          orderMode: "MARKET",
-        },
-      }
-    );
+                          // lock behaviour
+                          orderMode: "MARKET",
+                        },
+                      }
+                    );
 
-    setShowActions(false);
-  }}
-  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
->
-  Modify
-</button>
+                    setShowActions(false);
+                  }}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
+                >
+                  Modify
+                </button>
 
 
 
-  <button
-    onClick={() => handleExit(selectedOrder)}
-    className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md"
-  >
-    Exit
-  </button>
-</div>
+                <button
+                  onClick={() => handleExit(selectedOrder)}
+                  className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md"
+                >
+                  Exit
+                </button>
+              </div>
 
             )}
           </div>
