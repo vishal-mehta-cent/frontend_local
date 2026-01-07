@@ -364,79 +364,77 @@ export default function Whatsapp() {
           </p>
         </div>
 
-        {/* Add Script Section */}
-        <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl`}>
-          <div className="flex items-center space-x-2 mb-4">
-            <Plus className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-lg font-semibold text-cyan-400">Add New Script</h3>
-          </div>
-
-
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Enter script symbol (e.g., TCS)"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setShowAddDropdown(true)}
-
-
-
-
-              onKeyPress={(e) => e.key === "Enter" && addScript()}
-              className={`flex-1 px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all`}
-            />
-            <button
-              onClick={addScript}
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-cyan-500/50 transition-all hover:scale-105 active:scale-95 flex items-center space-x-2"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Add</span>
-            </button>
-          </div>
-        </div>
-        {showAddDropdown && suggestions.length > 0 && (
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-64 overflow-auto`}
-          >
-            {suggestions.map((s, i) => {
-              const sym = s.symbol || s.tradingsymbol;
-              return (
-                <div
-                  key={`${sym}-${i}`}
-                  onClick={() => {
-                    setNewScript(sym.toUpperCase());
-                    setQuery(sym.toUpperCase());
-                    setShowAddDropdown(false);
-                  }}
-                  className="px-4 py-3 cursor-pointer hover:bg-green-500/20 transition"
-                >
-                  <div className="font-semibold text-green-400">
-                    {sym}
-                  </div>
-                  <div className="text-xs text-slate-400">
-                    {s.name} • {s.exchange}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-
-
         {/* Scripts Table */}
         <div className={`${glassClass} rounded-3xl p-6 shadow-2xl mb-36`}>
           {/* Search Bar */}
           {/* Search Bar */}
-          <div className="mb-8">
+          {/* Add Script Section */}
+          <div className={`${glassClass} rounded-3xl p-6 mb-6 shadow-2xl`}>
+            <div className="flex items-center space-x-2 mb-4">
+
+              <h3 className="text-lg font-semibold text-cyan-400">Add New Script</h3>
+            </div>
+
+
+            <div className="flex gap-3">
+              <input
+                type="text"
+                placeholder="Enter Script To Add (e.g., TCS)"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setShowAddDropdown(true)}
+
+
+
+
+                onKeyPress={(e) => e.key === "Enter" && addScript()}
+                className={`flex-1 px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 transition-all`}
+              />
+              <button
+                onClick={addScript}
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-cyan-500/50 transition-all hover:scale-105 active:scale-95 flex items-center space-x-2"
+              >
+
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+          {showAddDropdown && suggestions.length > 0 && (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-64 overflow-auto`}
+            >
+              {suggestions.map((s, i) => {
+                const sym = s.symbol || s.tradingsymbol;
+                return (
+                  <div
+                    key={`${sym}-${i}`}
+                    onClick={() => {
+                      setNewScript(sym.toUpperCase());
+                      setQuery(sym.toUpperCase());
+                      setShowAddDropdown(false);
+                    }}
+                    className="px-4 py-3 cursor-pointer hover:bg-green-500/20 transition"
+                  >
+                    <div className="font-semibold text-green-400">
+                      {sym}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {s.name} • {s.exchange}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="mb-2">
 
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search scripts..."
+                placeholder="Search Existing Scripts..."
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
