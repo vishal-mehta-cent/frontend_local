@@ -19,8 +19,9 @@ import {
 
 import { useTheme } from "../context/ThemeContext";
 
-
-const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com"; // backend API base
+const API =
+  import.meta.env.VITE_BACKEND_BASE_URL ||
+  "https://paper-trading-backend.onrender.com"; // backend API base
 
 function parseHHMMToMinutes(val, fallbackMinutes) {
   try {
@@ -39,13 +40,21 @@ function isMarketOpenUTC() {
   const nowUTC = new Date();
   const minutes = nowUTC.getUTCHours() * 60 + nowUTC.getUTCMinutes();
 
-  // ✅ from Vite env (fallbacks match your current Sell.jsx values)
-  const OPEN = parseHHMMToMinutes(import.meta.env.VITE_MARKET_OPEN_TIME_UTC, 3 * 60 + 30);
-  const CLOSE = parseHHMMToMinutes(import.meta.env.VITE_MARKET_CLOSE_TIME_UTC, 12 * 60 + 50);
+  // ✅ MATCH Buy.jsx fallbacks:
+  // 09:15 IST = 03:45 UTC
+  const OPEN = parseHHMMToMinutes(
+    import.meta.env.VITE_MARKET_OPEN_TIME_UTC,
+    3 * 60 + 45
+  );
+
+  // 15:30 IST = 10:00 UTC
+  const CLOSE = parseHHMMToMinutes(
+    import.meta.env.VITE_MARKET_CLOSE_TIME_UTC,
+    10 * 60
+  );
 
   return minutes >= OPEN && minutes <= CLOSE;
 }
-
 
 export default function Sell() {
   const { symbol } = useParams();
@@ -53,23 +62,18 @@ export default function Sell() {
   const location = useLocation();
   const prefill = location.state || {};
 
-
   // ✅ MUST come first
   const [confirmedShort, setConfirmedShort] = useState(false);
 
   // ✅ SAFE derived value
-  const allowShort = Boolean(
-    confirmedShort && !prefill.skipSellFirstCheck
-  );
-
-
-
+  const allowShort = Boolean(confirmedShort && !prefill.skipSellFirstCheck);
 
   // Mode flags
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
   const isPositionModify = Boolean(prefill.fromPosition);
-  const isAddMode = isAdd && isPositionModify; // 🔥 KEY
+
+  const isAddMode = isAdd && isPositionModify;
   const isPureModify = isPositionModify && !isAdd;
 
   // Prefill inputs if passed
@@ -84,22 +88,23 @@ export default function Sell() {
   const [successModal, setSuccessModal] = useState(false);
   const [successText, setSuccessText] = useState("");
   const [livePrice, setLivePrice] = useState(null);
+
   // 🔥 FNO states
   const [isFNO, setIsFNO] = useState(false);
   const [lotSize, setLotSize] = useState(1);
   const [lotQty, setLotQty] = useState(0);
   const [totalInvestment, setTotalInvestment] = useState(0);
 
-
   const [orderMode, setOrderMode] = useState(prefill.orderMode || "MARKET");
   const [submitting, setSubmitting] = useState(false);
 
+  // ✅ MATCH Buy.jsx username style (with safe fallback)
+  const username =
+    localStorage.getItem("username") || localStorage.getItem("user_id");
 
-  const username = localStorage.getItem("user_id") || localStorage.getItem("username");
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
 
-  const isModifyMode = isModify && isPositionModify;
   const { isDark } = useTheme();
 
   const bgClass = isDark
@@ -124,86 +129,12 @@ export default function Sell() {
   const [dayHigh, setDayHigh] = useState(null);
   const [dayLow, setDayLow] = useState(null);
 
-
-  // -------- Check market time on mount --------
-  // -------- Check market time on mount --------
-  useEffect(() => {
-    // Get current UTC time
-    const nowUTC = new Date();
-    const hours = nowUTC.getUTCHours();
-    const minutes = nowUTC.getUTCMinutes();
-
-    // ---- Define UTC market hours ----
-    // For example: Indian market 09:15–15:30 IST = 03:45–10:00 UTC
-    const nowMinutes = hours * 60 + minutes;
-
-    // ✅ use env (fallbacks should match isMarketOpenUTC() fallbacks)
-    const openMinutes = parseHHMMToMinutes(import.meta.env.VITE_MARKET_OPEN_TIME_UTC, 3 * 60 + 30);
-    const closeMinutes = parseHHMMToMinutes(import.meta.env.VITE_MARKET_CLOSE_TIME_UTC, 12 * 60 + 50);
-
-    const isMarketOpen = nowMinutes >= openMinutes && nowMinutes <= closeMinutes;
-
-    // Check only when not modifying/adding
-    if (!isMarketOpen && !isModify && !isAdd) {
-      const confirmProceed = window.confirm(
-        "⚠️ Market (UTC 03:30–10:30) is closed. Do you still want to place a SELL order?"
-      );
-      if (!confirmProceed) {
-        nav(`/script/${symbol}`);
-      }
-    }
-  }, [nav, symbol, isModify, isAdd]);
-
-
-  // -------- Live price polling --------
-  useEffect(() => {
-    if (!symbol) return;
-    let cancelled = false;
-
-    const fetchLive = async () => {
-      try {
-        const res = await fetch(`${API}/quotes?symbols=${symbol}`);
-        const data = await res.json();
-        if (!cancelled && data && data[0]) {
-          const live = Number(data[0].price);
-          if (Number.isFinite(live)) {
-            setPrevPrice(livePrice);
-            setLivePrice(live);
-
-            // ✅ Read extra fields if backend sends them (same as Buy.jsx)
-            const high = Number(data[0].dayHigh);
-            const low = Number(data[0].dayLow);
-            const change = Number(data[0].change);
-            const changePct = Number(data[0].pct_change);
-
-            if (Number.isFinite(high)) setDayHigh(high);
-            if (Number.isFinite(low)) setDayLow(low);
-            if (Number.isFinite(change)) setPriceChange(change);
-            if (Number.isFinite(changePct)) setPriceChangePercent(changePct);
-
-            if (orderMode === "LIMIT" && !price && !userEditedPrice.current) {
-              setPrice(live.toFixed(2));
-            }
-          }
-
-        }
-      } catch { }
-    };
-
-    fetchLive();
-    const id = setInterval(fetchLive, 3000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [symbol, orderMode, price]);
   useEffect(() => {
     if (!symbol) return;
 
     fetch(`${API}/market/instrument-info?symbol=${symbol}`)
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (data.is_fno === true) {
           setIsFNO(true);
           setLotSize(Number(data.lot_size) || 1);
@@ -250,52 +181,102 @@ export default function Sell() {
     const id = setInterval(checkMarket, 30_000);
     return () => clearInterval(id);
   }, [orderMode]);
-  // -------- Submit --------
+
+  // -------- Live price polling --------
+  useEffect(() => {
+    if (!symbol) return;
+    let cancelled = false;
+
+    const fetchLive = async () => {
+      try {
+        const res = await fetch(`${API}/quotes?symbols=${symbol}`);
+        const data = await res.json();
+        if (!cancelled && data && data[0]) {
+          const live = Number(data[0].price);
+          if (Number.isFinite(live)) {
+            setPrevPrice(livePrice);
+            setLivePrice(live);
+
+            // ✅ Read extra fields if backend sends them (same as Buy.jsx)
+            const high = Number(data[0].dayHigh);
+            const low = Number(data[0].dayLow);
+            const change = Number(data[0].change);
+            const changePct = Number(data[0].pct_change);
+
+            if (Number.isFinite(high)) setDayHigh(high);
+            if (Number.isFinite(low)) setDayLow(low);
+            if (Number.isFinite(change)) setPriceChange(change);
+            if (Number.isFinite(changePct)) setPriceChangePercent(changePct);
+
+            if (orderMode === "LIMIT" && !price && !userEditedPrice.current) {
+              setPrice(live.toFixed(2));
+            }
+          }
+        }
+      } catch { }
+    };
+
+    fetchLive();
+    const id = setInterval(fetchLive, 3000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, orderMode, price, livePrice]);
+
+  // -------- Submit (MATCH Buy.jsx structure + endpoints) --------
   const handleSubmit = async () => {
-    // ✅ OPEN ORDER MODIFY: LIMIT → MARKET (SELL)
-    if (isModify && prefill.modifyId && orderMode === "MARKET") {
-      const res = await fetch(
-        `${API}/orders/convert-to-market/${prefill.modifyId}`,
-        { method: "POST" }
+    if (submitting) return;
+    setSubmitting(true);
+    setErrorMsg("");
+    setSuccessText("");
+
+    // ✅ MATCH Buy.jsx: intraday not allowed when market closed
+    if (!marketOpen && segment === "intraday") {
+      setErrorMsg(
+        "❌ Intraday is not applicable when market is close, Please use delivery."
       );
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.detail || "Failed to convert to market order");
-      }
-
-      setSuccessText("Order executed at Market price ✅");
-      setSuccessModal(true);
-
-      const cameFromPortfolio =
-        prefill.fromAdd === true && prefill.fromPosition === true;
-
-      if (cameFromPortfolio) {
-        nav("/portfolio", { state: { refresh: true } });
-      } else {
-        nav("/orders", { state: { refresh: true, tab: "positions" } });
-      }
-
-
       setSubmitting(false);
       return;
     }
 
-    if (submitting) return;
-    setErrorMsg("");
-
-    // ✅ EXIT FROM POSITIONS (handled separately)
-    if (isPositionModify && !isAdd) {
-      await handleModifyPosition();
-      return;
-    }
-
-    setSubmitting(true);
-
-
-
     try {
-      if (!username) throw new Error("❌ Please login again.");
+      // ✅ MATCH Buy.jsx: LIMIT not allowed after market close
+      if (!marketOpen && orderMode === "LIMIT") {
+        throw new Error("❌ Limit orders are not allowed after market close.");
+      }
+
+      // ✅ MATCH Buy.jsx: Open order modify (LIMIT → MARKET)
+      if (isModify && prefill.modifyId && orderMode === "MARKET") {
+        const res = await fetch(
+          `${API}/orders/convert-to-market/${prefill.modifyId}`,
+          { method: "POST" }
+        );
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data?.detail || "Failed to convert to market order");
+        }
+
+        setSuccessText("Order executed at Market price ✅");
+        setSuccessModal(true);
+
+        setTimeout(() => {
+          setSuccessModal(false);
+          nav("/orders", { state: { refresh: true, tab: "positions" } });
+        }, 1200);
+
+        setSubmitting(false);
+        return;
+      }
+
+      // ✅ MATCH Buy.jsx: redirect to login if missing username
+      if (!username) {
+        nav("/login");
+        return;
+      }
+
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
       const qtyNum = isFNO ? Number(lotQty) : Number(qty);
@@ -313,7 +294,7 @@ export default function Sell() {
         price: orderMode === "LIMIT" ? Number(price) : null,
         stoploss: stoploss !== "" ? Number(stoploss) : null,
         target: target !== "" ? Number(target) : null,
-        allow_short: allowShort,          // ✅ allow SELL FIRST
+        allow_short: allowShort, // keep SELL-FIRST flow
       };
 
       if (orderMode === "LIMIT") {
@@ -347,9 +328,7 @@ export default function Sell() {
       // ✅ SELL validation: Stoploss & Target
       // ================================
       const entryPrice =
-        orderMode === "LIMIT"
-          ? Number(payload.price)
-          : Number(livePrice);
+        orderMode === "LIMIT" ? Number(payload.price) : Number(livePrice);
 
       if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
         throw new Error("❌ Unable to determine entry price.");
@@ -362,7 +341,9 @@ export default function Sell() {
           throw new Error("❌ Invalid stoploss value.");
         }
         if (sl <= entryPrice) {
-          throw new Error("❌ Stoploss must be higher than entry price for SELL.");
+          throw new Error(
+            "❌ Stoploss must be higher than entry price for SELL."
+          );
         }
       }
 
@@ -377,16 +358,26 @@ export default function Sell() {
         }
       }
 
+      // ✅ MATCH Buy.jsx: quantity check for position modify
+      if (isPositionModify && Number(qty) <= 0) {
+        setErrorMsg("❌ Quantity must be greater than zero");
+        setSubmitting(false);
+        return;
+      }
 
-      let res, data;
+      // ✅ MATCH Buy.jsx: position modify path
+      if (isPositionModify && !isAdd) {
+        await handleModifyPosition();
+        return;
+      }
 
-      if (isAdd) {
-        res = await fetch(`${API}/orders/add`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-      } else if (isModify) {
+      // ✅ MOST IMPORTANT FIX:
+      // MATCH Buy.jsx endpoints:
+      // - Modify → PUT /orders/{id}
+      // - Else → POST /orders
+      // (NO /orders/add)
+      let res;
+      if (isModify && prefill.modifyId) {
         res = await fetch(`${API}/orders/${prefill.modifyId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -400,52 +391,48 @@ export default function Sell() {
         });
       }
 
-      data = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         const det = data?.detail;
 
-        // ✅ SELL FIRST confirmation
+        // ✅ SELL FIRST confirmation (keep your existing backend flow)
         if (det?.code === "NEEDS_CONFIRM_SHORT") {
           setErrorMsg(det.message);
-          setConfirmedShort(true);   // 🔥 THIS IS THE KEY
+          setConfirmedShort(true);
           setSubmitting(false);
           return;
         }
 
         const msg =
-          typeof det === "string"
-            ? det
-            : det?.message || "Order failed";
-
+          typeof det === "string" ? det : det?.message || "Order failed";
         throw new Error(msg);
       }
 
-
-      // ✅ Success message mapping:
+      // ✅ Success text (same mapping style)
       if (isAdd) {
         setSuccessText("Added to Position ✅");
       } else if (isModify) {
         setSuccessText("Modify Successful ✅");
       } else if (orderMode === "LIMIT") {
-        // LIMIT: generic order confirmation
         setSuccessText("Order Successful ✅");
       } else {
-        // MARKET: explicit Sell confirmation
         setSuccessText("Sell Successful ✅");
       }
 
       setSuccessModal(true);
 
+      const cameFromPortfolio =
+        prefill.fromAdd === true && prefill.fromPosition === true;
+
       setTimeout(() => {
         setSuccessModal(false);
-        // ✅ LIMIT orders (including SELL FIRST) must always go to Open Trades
-        if (orderMode === "LIMIT") {
-          nav("/orders", { state: { refresh: true, tab: "open" } });
+
+        if (cameFromPortfolio) {
+          nav("/portfolio", { state: { refresh: true } });
           return;
         }
 
-        // MARKET orders behave normally
-        if (data.triggered) {
+        if (data && data.triggered) {
           nav("/orders", { state: { refresh: true, tab: "positions" } });
         } else {
           nav("/orders", { state: { refresh: true, tab: "open" } });
@@ -467,7 +454,7 @@ export default function Sell() {
       const payload = {
         username,
         script: symbol,
-        new_qty: isFNO ? Number(lotQty) : Number(qty),               // ✅ REPLACE QTY
+        new_qty: isFNO ? Number(lotQty) : Number(qty),
         stoploss: stoploss ? Number(stoploss) : null,
         target: target ? Number(target) : null,
         price_type: orderMode,
@@ -485,20 +472,23 @@ export default function Sell() {
         const msg =
           typeof data?.detail === "string"
             ? data.detail
-            : data?.detail?.message ||
-            data?.message ||
-            "Error modifying position";
-
+            : data?.detail?.message || data?.message || "Error modifying position";
         throw new Error(msg);
       }
-
 
       setSuccessText("Position modified successfully!");
       setSuccessModal(true);
 
+      // ✅ MATCH Buy.jsx: redirect based on portfolio origin
+      const cameFromPortfolio =
+        prefill.fromAdd === true && prefill.fromPosition === true;
+
       setTimeout(() => {
-        setSuccessModal(false);
-        nav("/orders", { state: { refresh: true, tab: "positions" } });
+        if (cameFromPortfolio) {
+          nav("/portfolio", { state: { refresh: true } });
+        } else {
+          nav("/orders", { state: { refresh: true, tab: "positions" } });
+        }
       }, 1500);
     } catch (err) {
       const msg =
@@ -509,8 +499,7 @@ export default function Sell() {
           "Server error";
 
       setErrorMsg(msg);
-    }
-    finally {
+    } finally {
       setSubmitting(false);
     }
   };
@@ -533,8 +522,9 @@ export default function Sell() {
       : 50;
 
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}>
-
+    <div
+      className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}
+    >
       {/* Background Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-500/20 rounded-full blur-3xl animate-pulse"></div>
@@ -548,8 +538,11 @@ export default function Sell() {
       {/* Content Container */}
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6 min-h-screen flex flex-col">
         {/* Header */}
-        <div className={`${glassClass} rounded-2xl p-4 mb-6 flex items-center justify-between shadow-2xl`}>
-          <BackButton to="/orders" />
+        <div
+          className={`${glassClass} rounded-2xl p-4 mb-6 flex items-center justify-between shadow-2xl`}
+        >
+          {/* ✅ MATCH Buy.jsx back target */}
+          <BackButton to={isAddMode ? "/portfolio" : "/orders"} />
           <div className="flex items-center space-x-2">
             <TrendingDown className="w-5 h-5 text-red-400" />
             <h2 className="font-bold text-lg bg-gradient-to-r from-red-400 to-rose-400 bg-clip-text text-transparent">
@@ -561,7 +554,9 @@ export default function Sell() {
 
         {/* Error Message */}
         {errorMsg && (
-          <div className={`${glassClass} rounded-2xl p-4 mb-6 border-red-500/50 shadow-lg`}>
+          <div
+            className={`${glassClass} rounded-2xl p-4 mb-6 border-red-500/50 shadow-lg`}
+          >
             <div className="flex items-center space-x-3">
               <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
               <p className="text-sm text-red-400">{String(errorMsg)}</p>
@@ -655,8 +650,8 @@ export default function Sell() {
                       }`}
                   >
                     {priceChange >= 0 ? "+" : ""}
-                    {Number.isFinite(priceChange) ? priceChange.toFixed(2) : "0.00"}{" "}
-                    ({priceChangePercent >= 0 ? "+" : ""}
+                    {Number.isFinite(priceChange) ? priceChange.toFixed(2) : "0.00"} (
+                    {priceChangePercent >= 0 ? "+" : ""}
                     {Number.isFinite(priceChangePercent) ? priceChangePercent.toFixed(2) : "0.00"}%)
                   </span>
                 </div>
@@ -680,17 +675,16 @@ export default function Sell() {
                 )}
               </div>
             </div>
-          )
-          }
+          )}
 
           {/* Order Type Selection */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => !isPureModify && setOrderMode("MARKET")}
-              disabled={isPureModify}
+              onClick={() => !isPositionModify && setOrderMode("MARKET")}
+              disabled={isPositionModify}
               className={`py-4 rounded-xl font-semibold transition-all ${orderMode === "MARKET"
                 ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
-                : `${glassClass} ${cardHoverClass} ${isPureModify ? "opacity-50 cursor-not-allowed" : ""}`
+                : `${glassClass} ${cardHoverClass} ${isPositionModify ? "opacity-50 cursor-not-allowed" : ""}`
                 }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -698,12 +692,13 @@ export default function Sell() {
                 <span>Market</span>
               </div>
             </button>
+
             <button
-              onClick={() => !isPureModify && setOrderMode("LIMIT")}
-              disabled={isPureModify}
+              onClick={() => !isPositionModify && marketOpen && setOrderMode("LIMIT")}
+              disabled={!marketOpen || isPositionModify}
               className={`py-4 rounded-xl font-semibold transition-all ${orderMode === "LIMIT"
                 ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
-                : `${glassClass} ${cardHoverClass} ${isPureModify ? "opacity-50 cursor-not-allowed" : ""}`
+                : `${glassClass} ${cardHoverClass} ${(!marketOpen || isPositionModify) ? "opacity-50 cursor-not-allowed" : ""}`
                 }`}
             >
               <div className="flex items-center justify-center gap-2">
@@ -712,6 +707,7 @@ export default function Sell() {
               </div>
             </button>
           </div>
+
 
           {/* Quantity Input for Non-FNO */}
           {!isFNO && (
@@ -729,7 +725,6 @@ export default function Sell() {
                 className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${isPureModify ? "cursor-not-allowed opacity-50" : ""
                   }`}
               />
-              {/* Quick presets */}
               {!isPureModify && (
                 <div className="flex flex-wrap gap-2 mt-3">
                   {quickPresets.map((preset) => (
@@ -745,11 +740,8 @@ export default function Sell() {
                   ))}
                 </div>
               )}
-
             </div>
           )}
-
-
 
           {/* Limit Price Input */}
           <div>
@@ -765,35 +757,34 @@ export default function Sell() {
                 userEditedPrice.current = true;
               }}
               placeholder={orderMode === "LIMIT" ? "Enter Limit Price" : "Disabled for Market orders"}
-              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${(orderMode === "MARKET" || isPureModify || !marketOpen) ? "cursor-not-allowed opacity-50" : ""
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${orderMode === "MARKET" || isPureModify || !marketOpen
+                ? "cursor-not-allowed opacity-50"
+                : ""
                 }`}
-              disabled={orderMode === "MARKET" || isPureModify || !marketOpen}
+              disabled={orderMode === "MARKET" || !marketOpen || isPositionModify}
             />
           </div>
 
           {/* Segment Selection */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => {
-                if (isPureModify) return;
-                setSegment("intraday");
-              }}
+              onClick={() => !isPositionModify && setSegment("intraday")}
+              disabled={isPositionModify}
               className={`py-4 rounded-xl font-semibold transition-all ${segment === "intraday"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
-                }`}
+                } ${isPositionModify ? "cursor-not-allowed" : ""}`}
             >
               Intraday
             </button>
+
             <button
-              onClick={() => {
-                if (isPureModify) return;
-                setSegment("delivery");
-              }}
+              onClick={() => !isPositionModify && setSegment("delivery")}
+              disabled={isPositionModify}
               className={`py-4 rounded-xl font-semibold transition-all ${segment === "delivery"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
-                }`}
+                } ${isPositionModify ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               Delivery
             </button>
@@ -860,5 +851,4 @@ export default function Sell() {
       )}
     </div>
   );
-
 }
