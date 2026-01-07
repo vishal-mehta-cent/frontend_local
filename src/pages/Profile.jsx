@@ -257,6 +257,13 @@ export default function Profile({ username, logout }) {
         throw new Error(msg);
       }
 
+      // ✅ ADD THIS (debug backend reset output)
+      const out = await res.json().catch(() => null);
+      console.log("RESET RESPONSE:", out);
+      alert(
+        `✅ Reset done\nDBs: ${out?.dbs_touched?.length || 0}\nDeleted: ${JSON.stringify(out?.deleted_rows || {})}`
+      );
+
       // Frontend cleanup: remove local notes saved for this user
       try {
         const prefix = `notes:${username}:`;
@@ -266,9 +273,12 @@ export default function Profile({ username, logout }) {
         }
       } catch { }
 
-      alert("✅ Account restored successfully");
-      // go to menu/trade and refresh UI
+      // (optional) remove this old alert because we already show one above
+      // alert("✅ Account restored successfully");
+
+      // go to menu
       nav("/menu");
+
     } catch (e) {
       alert(e?.message || "Reset failed");
     }
