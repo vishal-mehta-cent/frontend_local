@@ -30,16 +30,16 @@ export default function Whatsapp() {
   const emailId = localStorage.getItem("email_id") || "";
   const autoAddedRef = useRef(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-const [showAddDropdown, setShowAddDropdown] = useState(false);
+  const [showAddDropdown, setShowAddDropdown] = useState(false);
 
-const [query, setQuery] = useState("");
-const [suggestions, setSuggestions] = useState([]);
-const [allScripts, setAllScripts] = useState([]);
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [allScripts, setAllScripts] = useState([]);
 
-const addDropdownScripts =
-  newScript.trim().length === 0
-    ? []
-    : scripts
+  const addDropdownScripts =
+    newScript.trim().length === 0
+      ? []
+      : scripts
         .filter(s =>
           s.script?.toLowerCase().includes(newScript.toLowerCase())
         )
@@ -69,35 +69,35 @@ const addDropdownScripts =
   };
 
   useEffect(() => {
-  fetch(`${API}/search/scripts`)
-    .then(r => r.json())
-    .then(data => {
-      if (Array.isArray(data)) setAllScripts(data);
-      else setAllScripts([]);
-    })
-    .catch(() => setAllScripts([]));
-}, []);
+    fetch(`${API}/search/scripts`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) setAllScripts(data);
+        else setAllScripts([]);
+      })
+      .catch(() => setAllScripts([]));
+  }, []);
 
-useEffect(() => {
-  if (!query.trim()) {
-    setSuggestions([]);
-    return;
-  }
-
-  const timer = setTimeout(async () => {
-    try {
-      const res = await fetch(
-        `${API}/search?q=${encodeURIComponent(query)}`
-      );
-      const data = await res.json();
-      setSuggestions(Array.isArray(data) ? data.slice(0, 8) : []);
-    } catch {
+  useEffect(() => {
+    if (!query.trim()) {
       setSuggestions([]);
+      return;
     }
-  }, 200);
 
-  return () => clearTimeout(timer);
-}, [query]);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API}/search?q=${encodeURIComponent(query)}`
+        );
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data.slice(0, 8) : []);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [query]);
 
 
   useEffect(() => {
@@ -137,10 +137,10 @@ useEffect(() => {
   }, [userId]);
 
   useEffect(() => {
-  const close = () => setShowSearchDropdown(false);
-  window.addEventListener("click", close);
-  return () => window.removeEventListener("click", close);
-}, []);
+    const close = () => setShowSearchDropdown(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
 
 
   useEffect(() => {
@@ -286,10 +286,10 @@ useEffect(() => {
   const filteredScripts = scripts.filter(script =>
     script.script?.toLowerCase().includes(searchQuery.toLowerCase())
   );
-const dropdownScripts =
-  searchQuery.trim().length === 0
-    ? []
-    : scripts
+  const dropdownScripts =
+    searchQuery.trim().length === 0
+      ? []
+      : scripts
         .filter(s =>
           s.script?.toLowerCase().includes(searchQuery.toLowerCase())
         )
@@ -311,28 +311,28 @@ const dropdownScripts =
           <div className="flex items-center justify-between">
             <BackButton to="/trade" />
 
-           {/* CENTER */}
-  <div className="flex items-center space-x-3 mx-auto">
-    <div className="relative">
-      <FaWhatsapp className="w-8 h-8 text-green-400 animate-pulse" />
-      <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></span>
-    </div>
-    <div className="text-center">
-      <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-        WhatsApp Alerts
-      </h1>
-      <p className="text-xs text-slate-400">
-        Manage your trading notifications
-      </p>
-    </div>
-  </div>
+            {/* CENTER */}
+            <div className="flex items-center space-x-3 mx-auto">
+              <div className="relative">
+                <FaWhatsapp className="w-8 h-8 text-green-400 animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-ping"></span>
+              </div>
+              <div className="text-center">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                  WhatsApp Alerts
+                </h1>
+                <p className="text-xs text-slate-400">
+                  Manage your trading notifications
+                </p>
+              </div>
+            </div>
 
-  {/* RIGHT PLACEHOLDER (IMPORTANT) */}
-  <div className="w-10 h-10" />
+            {/* RIGHT PLACEHOLDER (IMPORTANT) */}
+            <div className="w-10 h-10" />
 
 
             {/* Theme Toggle */}
-            
+
           </div>
         </div>
 
@@ -370,15 +370,15 @@ const dropdownScripts =
             <Plus className="w-5 h-5 text-cyan-400" />
             <h3 className="text-lg font-semibold text-cyan-400">Add New Script</h3>
           </div>
-          
+
 
           <div className="flex gap-3">
             <input
               type="text"
               placeholder="Enter script symbol (e.g., TCS)"
-             value={query}
-onChange={(e) => setQuery(e.target.value)}
-onFocus={() => setShowAddDropdown(true)}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => setShowAddDropdown(true)}
 
 
 
@@ -395,86 +395,86 @@ onFocus={() => setShowAddDropdown(true)}
             </button>
           </div>
         </div>
-{showAddDropdown && suggestions.length > 0 && (
-  <div
-    onClick={(e) => e.stopPropagation()}
-    className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-64 overflow-auto`}
-  >
-    {suggestions.map((s, i) => {
-      const sym = s.symbol || s.tradingsymbol;
-      return (
-        <div
-          key={`${sym}-${i}`}
-          onClick={() => {
-            setNewScript(sym.toUpperCase());
-            setQuery(sym.toUpperCase());
-            setShowAddDropdown(false);
-          }}
-          className="px-4 py-3 cursor-pointer hover:bg-green-500/20 transition"
-        >
-          <div className="font-semibold text-green-400">
-            {sym}
+        {showAddDropdown && suggestions.length > 0 && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-64 overflow-auto`}
+          >
+            {suggestions.map((s, i) => {
+              const sym = s.symbol || s.tradingsymbol;
+              return (
+                <div
+                  key={`${sym}-${i}`}
+                  onClick={() => {
+                    setNewScript(sym.toUpperCase());
+                    setQuery(sym.toUpperCase());
+                    setShowAddDropdown(false);
+                  }}
+                  className="px-4 py-3 cursor-pointer hover:bg-green-500/20 transition"
+                >
+                  <div className="font-semibold text-green-400">
+                    {sym}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    {s.name} • {s.exchange}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="text-xs text-slate-400">
-            {s.name} • {s.exchange}
-          </div>
-        </div>
-      );
-    })}
-  </div>
-)}
+        )}
 
-       
+
 
         {/* Scripts Table */}
         <div className={`${glassClass} rounded-3xl p-6 shadow-2xl mb-36`}>
- {/* Search Bar */}
-       {/* Search Bar */}
-<div className="mb-8">
-  <div className={`${glassClass} rounded-2xl p-4 shadow-xl`}>
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-      <input
-        type="text"
-        placeholder="Search scripts..."
-        value={searchQuery}
-        onChange={(e) => {
-          setSearchQuery(e.target.value);
-          setShowSearchDropdown(true);
-        }}
-        onFocus={() => setShowSearchDropdown(true)}
-        className={`w-full pl-11 pr-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all`}
-      />
+          {/* Search Bar */}
+          {/* Search Bar */}
+          <div className="mb-8">
 
-      {/* ✅ SEARCH DROPDOWN (CORRECT PLACE) */}
-      {showSearchDropdown && dropdownScripts.length > 0 && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-56 overflow-auto`}
-        >
-          {dropdownScripts.map((item) => (
-            <div
-              key={item.script}
-              onClick={() => {
-                setSearchQuery(item.script);
-                setShowSearchDropdown(false);
-              }}
-              className="px-4 py-2 cursor-pointer text-sm font-medium
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search scripts..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSearchDropdown(true);
+                }}
+                onFocus={() => setShowSearchDropdown(true)}
+                className={`w-half pl-11 pr-4 py-1 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/50 transition-all`}
+              />
+
+              {/* ✅ SEARCH DROPDOWN (CORRECT PLACE) */}
+              {showSearchDropdown && dropdownScripts.length > 0 && (
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  className={`${glassClass} mt-2 rounded-xl shadow-2xl max-h-56 overflow-auto`}
+                >
+                  {dropdownScripts.map((item) => (
+                    <div
+                      key={item.script}
+                      onClick={() => {
+                        setSearchQuery(item.script);
+                        setShowSearchDropdown(false);
+                      }}
+                      className="px-4 py-2 cursor-pointer text-sm font-medium
                          hover:bg-green-500/20 transition
                          text-green-400"
-            >
-              {item.script}
+                    >
+                      {item.script}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  
+
+
 
 
 
           </div>
-        </div>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-2">
               <ClipboardList className="w-5 h-5 text-green-400" />
@@ -484,15 +484,14 @@ onFocus={() => setShowAddDropdown(true)}
               </span>
             </div>
 
-  
+
 
 
             <button
               onClick={handleSave}
               disabled={saving}
-              className={`bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-green-500/50 transition-all hover:scale-105 active:scale-95 flex items-center space-x-2 ${
-                saving ? "opacity-50 cursor-not-allowed" : ""
-              }`}
+              className={`bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-green-500/50 transition-all hover:scale-105 active:scale-95 flex items-center space-x-2 ${saving ? "opacity-50 cursor-not-allowed" : ""
+                }`}
             >
               {saving ? (
                 <>
@@ -641,31 +640,31 @@ onFocus={() => setShowAddDropdown(true)}
           </div>
         </div>
 
-    {/* Subscription Box - BELOW ALL SCRIPTS */}
-<div className={`${glassClass} rounded-3xl p-6 shadow-2xl border-2 border-blue-500/30 mt-10`}>
-  <div className="flex flex-col gap-4">
+        {/* Subscription Box - BELOW ALL SCRIPTS */}
+        <div className={`${glassClass} rounded-3xl p-6 shadow-2xl border-2 border-blue-500/30 mt-10`}>
+          <div className="flex flex-col gap-4">
 
-    <div className="flex items-center gap-2 text-blue-400 font-semibold text-lg">
-      <span>👑</span>
-      <span>Your Subscription</span>
-    </div>
+            <div className="flex items-center gap-2 text-blue-400 font-semibold text-lg">
+              <span>👑</span>
+              <span>Your Subscription</span>
+            </div>
 
-    <p className="text-green-400 font-medium">
-      Short-Term & BTST
-    </p>
+            <p className="text-green-400 font-medium">
+              Short-Term & BTST
+            </p>
 
-    <p className={`text-sm ${textSecondaryClass}`}>
-      Upgrade to access Intraday and Fast Alert notifications
-    </p>
+            <p className={`text-sm ${textSecondaryClass}`}>
+              Upgrade to access Intraday and Fast Alert notifications
+            </p>
 
-    <button
-      className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold hover:opacity-90 transition"
-    >
-      ✨ Upgrade Now
-    </button>
+            <button
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 text-white font-semibold hover:opacity-90 transition"
+            >
+              ✨ Upgrade Now
+            </button>
 
-  </div>
-</div>
+          </div>
+        </div>
 
       </div>
 
@@ -673,13 +672,12 @@ onFocus={() => setShowAddDropdown(true)}
       {toast.show && (
         <div className="fixed top-6 right-6 z-50 animate-slideIn">
           <div
-            className={`${glassClass} rounded-2xl p-4 shadow-2xl flex items-center space-x-3 min-w-[300px] ${
-              toast.type === "success"
-                ? "border-green-500/50"
-                : toast.type === "error"
+            className={`${glassClass} rounded-2xl p-4 shadow-2xl flex items-center space-x-3 min-w-[300px] ${toast.type === "success"
+              ? "border-green-500/50"
+              : toast.type === "error"
                 ? "border-red-500/50"
                 : "border-blue-500/50"
-            }`}
+              }`}
           >
             {toast.type === "success" && (
               <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0 animate-pulse" />
