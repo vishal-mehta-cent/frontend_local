@@ -6,10 +6,10 @@ const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 const PLANS = [
   { id: "free", name: "Free", price: 0, trial: "3 Days Free Trial", desc: "Try NeuroCrest for 3 days", strike: null, period: "Only for 3 days", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
-  { id: "monthly", name: "Monthly", price: 149, strike: 500, desc: "Introductory monthly access", period: "Per month", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
+  { id: "monthly", name: "Monthly", price: 1, strike: 500, desc: "Introductory monthly access", period: "Per month", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
   { id: "quarterly", name: "Quarterly", price: 399, strike: 1500, desc: "Best value for consistency", period: "Per quarter", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
   { id: "halfyearly", name: "Half-yearly", price: 699, strike: 3000, desc: "Great value for 6 months", period: "Per 6 months", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
-  { id: "annual", name: "Annual", price: 999, strike: 6000, desc: "Maximum savings for long-term users", period: "Per year", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
+  { id: "annual", name: "Annual", price: 1, strike: 6000, desc: "Maximum savings for long-term users", period: "Per year", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
 ];
 
 async function postJSON(url, body) {
@@ -111,7 +111,7 @@ export default function Payments({ username }) {
             setSuccess(false);
           }, 1200);
         }
-      } catch {}
+      } catch { }
     }, 2500);
 
     return () => clearInterval(timer);
@@ -211,8 +211,7 @@ export default function Payments({ username }) {
         {view === "PLANS" && (
           <>
             <h1 className="text-3xl font-bold text-center mb-2">Upgrade your plan</h1>
-             <div className="max-w-[1800px] mx-auto">
-</div>
+
             <div className="text-center text-sm text-slate-300 mb-2">
               {subLoading ? (
                 <span className="inline-flex items-center gap-2">
@@ -238,14 +237,7 @@ export default function Payments({ username }) {
               <div className="mb-8" />
             )}
 
-            <div className="
-  flex gap-6 pb-6 pt-8 px-2
-  overflow-x-auto
-  flex-nowrap
-  justify-start
-  lg:justify-center
-">
-
+            <div className="flex gap-6 overflow-x-auto overflow-y-visible pb-6 pt-8 flex-nowrap px-2">
               {plansWithStatus.map((plan) => {
                 const isCurrent = plan.current;
                 const isQueued = plan.isQueued;
@@ -316,26 +308,36 @@ export default function Payments({ username }) {
                         ))}
                       </ul>
 
-                      <div className="mt-5 rounded-xl border border-white/15 bg-white/5 p-3">
-                        <div className="text-xs font-semibold text-slate-100">Upcoming features (Coming soon)</div>
-                        <div className="text-xs text-slate-300 mt-1">
-                          Event based Alerts (News / Bulk deals etc.) • IPO Tracking • Portfolio Intelligence
-                        </div>
-                      </div>
+                      {/* Show these ONLY for non-free plans */}
+                      {plan.id !== "free" && (
+                        <>
+                          <div className="mt-5 rounded-xl border border-white/15 bg-white/5 p-3">
+                            <div className="text-xs font-semibold text-slate-100">
+                              Upcoming features (Coming soon)
+                            </div>
+                            <div className="text-xs text-slate-300 mt-1">
+                              Event based Alerts (News / Bulk deals etc.) • IPO Tracking • Portfolio Intelligence
+                            </div>
+                          </div>
 
-                      <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3">
-                        <div className="text-xs font-semibold text-amber-200">Introductory offer</div>
-                        <div className="text-xs text-amber-100/90 mt-1">
-                          These are introductory offers only — grab it before they are gone.
-                        </div>
-                      </div>
+                          <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3">
+                            <div className="text-xs font-semibold text-amber-200">
+                              Introductory offer
+                            </div>
+                            <div className="text-xs text-amber-100/90 mt-1">
+                              These are introductory offers only — grab it before they are gone.
+                            </div>
+                          </div>
+                        </>
+                      )}
+
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            <div className="mt-10 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl p-6 shadow-[0_20px_40px_rgba(0,0,0,0.25)] max-w-[1800px] mx-auto">
+            <div className="mt-10 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl p-6 shadow-[0_20px_40px_rgba(0,0,0,0.25)] max-w-[1700px] mx-auto">
               <div className="flex items-start gap-3">
                 <div className="mt-1">
                   <Info className="w-5 h-5 text-cyan-300" />
