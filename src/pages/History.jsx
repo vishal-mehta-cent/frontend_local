@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { moneyINR } from "../utils/format";
-import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search } from "lucide-react";
+import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search, ArrowUpRight,ArrowDownRight, } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { FaWhatsapp } from "react-icons/fa";
@@ -394,10 +394,65 @@ export default function History({ username }) {
                           )}
                         </div>
 
-                        <div className={`font-bold text-lg flex items-center justify-center gap-1 ${pnlTone}`}>
-                          <span className="text-xl">{pnlNum >= 0 ? "↗" : "↘"}</span>
-                          <span>{fmtMoney(pnlNum)}</span>
-                        </div>
+                        {/* ✅ P&L pill like your 2nd image */}
+<div className="flex justify-center">
+  <div
+    className={[
+      "inline-flex items-center gap-2",
+      "px-4 py-2 rounded-2xl",
+      "shadow-lg ring-1",
+      "backdrop-blur-xl",
+      pnlNum > 0
+        ? isDark
+          ? "bg-emerald-500/15 ring-emerald-400/20"
+          : "bg-emerald-50 ring-emerald-200/70"
+        : pnlNum < 0
+        ? isDark
+          ? "bg-rose-500/15 ring-rose-400/20"
+          : "bg-rose-50 ring-rose-200/70"
+        : isDark
+        ? "bg-white/8 ring-white/10"
+        : "bg-slate-100/80 ring-slate-200/70",
+    ].join(" ")}
+  >
+    {pnlNum > 0 ? (
+      <ArrowUpRight
+        size={18}
+        className={isDark ? "text-emerald-300" : "text-emerald-600"}
+      />
+    ) : pnlNum < 0 ? (
+      <ArrowDownRight
+        size={18}
+        className={isDark ? "text-rose-300" : "text-rose-600"}
+      />
+    ) : (
+      <ArrowUpRight
+        size={18}
+        className={isDark ? "text-slate-300/70" : "text-slate-500/70"}
+      />
+    )}
+
+    <span
+      className={[
+        "font-extrabold tracking-tight",
+        pnlNum > 0
+          ? isDark
+            ? "text-emerald-300"
+            : "text-emerald-600"
+          : pnlNum < 0
+          ? isDark
+            ? "text-rose-300"
+            : "text-rose-600"
+          : isDark
+          ? "text-slate-200/70"
+          : "text-slate-600",
+      ].join(" ")}
+    >
+      {fmtMoney(pnlNum)}
+    </span>
+  </div>
+</div>
+
 
                         <div className="text-sm leading-tight text-center">
                           {sellQty > 0 ? (
