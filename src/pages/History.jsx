@@ -357,8 +357,10 @@ export default function History({ username }) {
                     return (
                       <div
                         key={`${t.symbol || "row"}-${t.time || "time"}-${idx}`}
-                        className={`grid grid-cols-5 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
-                          } ${isClosedOrPartial ? "opacity-60" : ""}`}
+                        className={`grid grid-cols-5 items-center p-4 border-t ${
+  isDark ? "border-white/10" : "border-white/40"
+}`}
+
                       >
                         <div className="flex flex-col items-center text-center">
                           <div className="inline-flex items-center justify-center gap-2">
