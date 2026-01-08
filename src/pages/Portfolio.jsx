@@ -304,92 +304,46 @@ export default function Portfolio({ username }) {
   };
 
   // ===== Multi-sheet Excel (.xlsx) download =====
-  const handleDownloadExcel = () => {
-    const instructionSheet = XLSX.utils.aoa_to_sheet([
-      ["Instruction"],
-      ["This file contains Portfolio and Instrument details."],
-      ["Portfolio is your uploaded/updated holdings."],
-      ["Instrument sheet is refreshed daily from Zerodha."],
-    ]);
+const handleDownloadExcel = async () => {
+  try {
+    if (!username) {
+      alert("Username missing. Please login again.");
+      return;
+    }
 
-    const portfolioHeaders = [
-      "Symbol",
-      "Name",
-      "Segment",
-      "Qty",
-      "Avg Price",
-      "Entry Price",
-      "Stoploss",
-      "Target",
-      "Live",
-      "Investment",
-      "Date",
-    ];
-    const portfolioRows =
-      filteredOpen && filteredOpen.length
-        ? filteredOpen.map((p) => {
-          const symbol = (p.symbol || p.script || "").toUpperCase();
-          const name = p.name || "";
-          const seg = (p.segment || "delivery").toLowerCase();
-          const qty = toNum(p.qty) ?? 0;
-          const avg = toNum(p.avg_price) ?? 0;
-          const entry = toNum(p.entry_price) ?? avg;
-          const live =
-            toNum(quotes[symbol]?.price) ??
-            toNum(p.current_price) ??
-            avg ??
-            0;
-          const sl = toNum(p.stoploss) ?? 0;
-          const tgt = toNum(p.target) ?? 0;
-          const invest = qty * (avg ?? 0);
-          const dtRaw = pickDateTime(p);
-          const ymd = toLocalYMD(parseDate(dtRaw)) || "";
-          return [
-            symbol,
-            name,
-            seg,
-            qty,
-            avg,
-            entry,
-            sl,
-            tgt,
-            live,
-            invest,
-            ymd,
-          ];
-        })
-        : [];
-    const portfolioSheet = XLSX.utils.aoa_to_sheet([
-      portfolioHeaders,
-      ...portfolioRows,
-    ]);
+    const url = `${API_BASE}/portfolio/${encodeURIComponent(username)}/download`;
 
-    const instrumentSheet = XLSX.utils.aoa_to_sheet([
-      ["Instrument", "Exchange", "Lot Size", "Tick Size"],
-      ["RELIANCE", "NSE", 505, 0.05],
-      ["TCS", "NSE", 150, 0.05],
-      ["INFY", "NSE", 300, 0.05],
-    ]);
+    // Fetch the file as blob and download with saveAs (reliable across browsers)
+    const res = await fetch(url);
+    if (!res.ok) {
+      let detail = "";
+      try {
+        const j = await res.json();
+        detail = j?.detail || "";
+      } catch {}
+      throw new Error(detail || `Download failed (HTTP ${res.status})`);
+    }
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, instructionSheet, "Instruction");
-    XLSX.utils.book_append_sheet(workbook, portfolioSheet, "Portfolio");
-    XLSX.utils.book_append_sheet(workbook, instrumentSheet, "Instrument");
+    const blob = await res.blob();
 
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
+    // Use server filename if present, else fallback
+    const cd = res.headers.get("content-disposition") || "";
+    const match = cd.match(/filename="([^"]+)"/i);
+    const serverName = match?.[1];
+
     const stamp = new Date()
       .toISOString()
       .slice(0, 19)
       .replace("T", "_")
       .replace(/:/g, "");
-    saveAs(blob, `portfolio_${username || "user"}_${stamp}.xlsx`);
-  };
+
+    const fname = serverName || `portfolio_${username}_${stamp}.xlsx`;
+    saveAs(blob, fname);
+  } catch (err) {
+    console.error("Excel download failed:", err);
+    alert(err?.message || "Failed to download portfolio file.");
+  }
+};
 
   // Totals
   const totalInvested = useMemo(
