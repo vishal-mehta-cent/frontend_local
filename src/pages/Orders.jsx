@@ -1,11 +1,13 @@
 // frontend/src/pages/Orders.jsx
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ClipboardList, Search, Briefcase, User, X, Clock, Lightbulb } from "lucide-react";
+import { User, X, RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
 import BackButton from "../components/BackButton";
 import { toast } from "react-toastify";
 import useOpenTrades from "../hooks/useOpenTrades";
 import { FaWhatsapp } from "react-icons/fa";
+import SwipeNav from "../components/SwipeNav";
+import { useTheme } from "../context/ThemeContext";
 
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
@@ -101,11 +103,29 @@ const ExchangeBadge = ({ exchange }) => {
   return (
     <span
       className={`text-[11px] px-2 py-[1px] rounded border font-semibold ${isNSE
-          ? "bg-blue-50 text-blue-700 border-blue-300"
-          : "bg-purple-50 text-purple-700 border-purple-300"
+        ? "bg-blue-50 text-blue-700 border-blue-300"
+        : "bg-purple-50 text-purple-700 border-purple-300"
         }`}
     >
       {ex}
+    </span>
+  );
+};
+
+const PnlArrowBox = ({ up }) => {
+  return (
+    <span
+      className={[
+        "inline-flex items-center justify-center",
+        "w-7 h-7 rounded-md",
+        up ? "bg-emerald-500/20 text-emerald-300" : "bg-rose-500/20 text-rose-300",
+        "border",
+        up ? "border-emerald-400/20" : "border-rose-400/20",
+      ].join(" ")}
+    >
+      <span className="text-base font-black leading-none">
+        {up ? "↗" : "↘"}
+      </span>
     </span>
   );
 };
@@ -135,6 +155,20 @@ export default function Orders({ username }) {
   const isOrdersTab = tab === "open";
   const getSymbol = (o) => (o?.script || o?.symbol || "").toString().toUpperCase();
   const who = username || localStorage.getItem("username");
+  const { isDark } = useTheme();
+
+  const bgClass = isDark
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100";
+
+  const glassClass = isDark
+    ? "bg-white/5 backdrop-blur-xl border border-white/10"
+    : "bg-white/60 backdrop-blur-xl border border-white/40";
+
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+  const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
+
 
   // Stop spinner early if username is missing
   useEffect(() => {
@@ -525,71 +559,92 @@ export default function Orders({ username }) {
 
   // ---------- UI ----------
   return (
-    <div className="relative min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
-      <BackButton to="/menu" />
+    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}>
+      {/* Background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
+      </div>
 
-      <div className="p-4">
-        <h2 className="text-2xl font-bold text-center text-gray-700 dark:text-white mb-10">
-          Orders
-        </h2>
+      {/* ✅ Sticky header ONLY (ends after SwipeNav) */}
+      <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
+        <div className="w-full px-3 sm:px-4 md:px-6 py-4">
 
-        {/* ===== Tabs ===== */}
-        <div className="sticky flex justify-center mb-4 space-x-6">
-          {["open", "positions"].map((t) => (
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <BackButton to="/menu" />
+              <div>
+                <div className="text-xl font-bold">Neurocrest</div>
+                <div className={`text-xs ${textSecondaryClass}`}>Next-Gen Trading</div>
+              </div>
+            </div>
+
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`pb-1 text-sm font-medium ${tab === t
-                ? "text-blue-600 border-b-2 border-blue-600"
-                : "text-gray-500 dark:text-gray-300"
-                }`}
+              onClick={() => navigate("/profile")}
+              className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
             >
-              {t === "open" ? "Open Trades" : "Positions"}
+              <User className="w-5 h-5" />
             </button>
-          ))}
+          </div>
+
+          <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
+        </div>
+      </div>
+
+      {/* ✅ Main content */}
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
+
+        {/* Page header + Tabs + Refresh button */}
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h2 className={`text-4xl font-bold ${textClass} mb-1`}>Orders</h2>
+            <p className={textSecondaryClass}>Your active trades and positions</p>
+
+            <div className={`flex p-1.5 rounded-2xl ${glassClass} w-fit mt-4 shadow-lg`}>
+              {["open", "positions"].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`px-6 py-2.5 rounded-xl font-medium transition-all ${tab === t
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                    : textSecondaryClass
+                    }`}
+                >
+                  {t === "open" ? "Open Trades" : "Positions"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            onClick={loadData}
+            className={`flex items-center space-x-2 px-5 py-3 rounded-xl ${glassClass} ${cardHoverClass} transition-all shadow-lg`}
+          >
+            <RefreshCw size={18} />
+            <span className="font-medium">Refresh</span>
+          </button>
         </div>
 
-        {/* ===== Total P&L (Positions only) ===== */}
+        {/* Total P&L (Positions only) */}
         {tab !== "open" && (
           <div className="mb-4 text-center">
-            <div className="inline-block px-4 py-2 bg-white dark:bg-gray-800 rounded-xl shadow text-xl font-semibold">
+            <div className={`inline-block px-4 py-2 ${glassClass} rounded-xl shadow text-xl font-semibold`}>
               Total P&L:{" "}
-              <span
-                className={totalPnl >= 0 ? "text-green-600" : "text-red-500"}
-              >
+              <span className={totalPnl >= 0 ? "text-green-400" : "text-red-400"}>
                 {money(totalPnl)}
               </span>
             </div>
           </div>
         )}
 
-        {/* ===== Refresh Indicator ===== */}
-        {tab === "open" && (
-          <div className="flex justify-center mb-3 text-sm text-gray-500 dark:text-gray-300">
-            {isRefreshing ? (
-              <span>Refreshing open trades...</span>
-            ) : (
-              <button
-                onClick={refresh}
-                className="text-blue-600 hover:underline"
-              >
-                Refresh Now
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* ===== List Rendering ===== */}
+        {/* List Rendering */}
         {loading ? (
-          <div className="text-center text-gray-500 dark:text-gray-400">
-            Loading...
-          </div>
+          <div className={`text-center ${textSecondaryClass}`}>Loading...</div>
         ) : errorMsg ? (
-          <div className="text-center text-red-500 dark:text-red-400">
-            {errorMsg}
-          </div>
+          <div className="text-center text-red-400">{errorMsg}</div>
         ) : ordersToShow.length === 0 ? (
-          <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
+          <div className={`text-center ${textSecondaryClass} mt-10`}>
             No {isOrdersTab ? "open trades" : "positions"}.
           </div>
         ) : (
@@ -598,288 +653,361 @@ export default function Orders({ username }) {
               const script = (o.script || o.symbol || "N/A").toUpperCase();
               const q = quotes[script] || {};
 
-              // ✅ Use exit_price for inactive (closed) SELL scripts
               const live =
                 o.inactive && o.exit_price != null
                   ? toNum(o.exit_price)
-                  : toNum(q.price) ??
-                  toNum(o.live_price) ??
-                  toNum(o.price) ??
-                  0;
+                  : toNum(q.price) ?? toNum(o.live_price) ?? toNum(o.price) ?? 0;
 
-              // timestamp (time + date)
               const dtRaw = pickDateTime(o);
               const dt = parseDate(dtRaw);
 
               const side = o.type || o.order_type || "";
               const isBuy = side === "BUY";
-              const isSell = !isBuy;
 
-              // Entry price (order price for Open tab, executed/avg for Positions tab)
               const entryPrice = isOrdersTab
                 ? toNum(o.trigger_price) ?? toNum(o.price) ?? 0
                 : toNum(o.price) ?? 0;
 
               const qty = toNum(o.qty) ?? 0;
 
-              // ✅ Freeze calculations for inactive rows using exit_price
               const effectivePrice =
                 o.inactive && o.exit_price != null ? toNum(o.exit_price) : live;
 
-              // ✅ Simple and universal: profit = (exit - entry)
+              // ✅ side-aware P&L (BUY and SELL both correct)
               const perShare =
                 entryPrice && effectivePrice
-                  ? effectivePrice - entryPrice
+                  ? (isBuy ? (effectivePrice - entryPrice) : (entryPrice - effectivePrice))
                   : 0;
 
               const pct = entryPrice ? (perShare / entryPrice) * 100 : 0;
               const total = perShare * qty;
 
-              // ✅ Color purely on profit/loss sign — no side-based bias
               const pnlUp = total >= 0;
-              const pnlColor = pnlUp ? "text-green-600" : "text-red-600";
-              const arrow = pnlUp ? "↗" : "↘";
+              const pnlColor = pnlUp ? "text-emerald-400" : "text-rose-400";
+              const pctColor = pnlUp ? "text-emerald-300" : "text-rose-300";
+
 
               const sl = toNum(o.stoploss);
               const tgt = toNum(o.target);
               const disabledRow = !!o.inactive;
 
-
               return (
                 <div
                   key={o.id ?? `${script}-${dtRaw ?? ""}-${i}`}
-                  className={`p-4 rounded-xl shadow ${disabledRow
-                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                    : "bg-white dark:bg-gray-800 hover:shadow-md cursor-pointer"
-                    }`}
+                  className={[
+                    "rounded-[30px] p-6 md:p-7 border",
+                    "shadow-[0_18px_50px_rgba(0,0,0,0.28)]",
+                    "transition",
+                    disabledRow
+                      ? "opacity-60 cursor-not-allowed"
+                      : "cursor-pointer hover:shadow-[0_22px_60px_rgba(0,0,0,0.34)]",
+                    isDark
+                      ? "bg-[#2c447a]/85 border-white/10 backdrop-blur-xl"
+                      : "bg-white/80 border-slate-200/60 backdrop-blur-xl",
+                  ].join(" ")}
                   onClick={() => {
                     if (disabledRow) return;
                     setSelectedOrder(o);
                     setShowActions(true);
                   }}
                 >
-                  {/* top line: side + qty + time+date */}
-                  <div className="flex justify-between text-sm">
-                    <span className={`${isBuy ? "text-green-600" : "text-red-600"} font-semibold`}>
-                      {isBuy ? "BUY" : "SELL"} • {intval(o.qty)}/{intval(o.total)} Qty
-                      {(!isBuy && o.short_first) ? " • SELL FIRST" : ""}
-                    </span>
+                  {/* ===== TOP ROW ===== */}
+                  <div className="flex items-start justify-between gap-6">
+                    {/* LEFT: icon + symbol + meta */}
+                    <div className="flex items-start gap-4">
+                      {/* ✅ TC glass + glow block */}
+                      <div className="relative">
+                        {/* glow behind */}
+                        <div
+                          className={[
+                            "absolute -inset-2 rounded-[22px] blur-xl",
+                            isBuy ? "bg-emerald-400/25" : "bg-rose-400/25",
+                          ].join(" ")}
+                        />
 
-                    <span className="text-right text-gray-500 dark:text-gray-300 leading-4">
-                      <div>{fmtTime(dt)}</div>
-                      <div className="text-[11px]">{fmtDate(dt)}</div>
-                    </span>
-                  </div>
+                        {/* main icon */}
+                        <div
+                          className={[
+                            "relative w-16 h-16 rounded-[22px] text-white flex items-center justify-center",
+                            "font-extrabold text-lg",
+                            "shadow-[0_12px_25px_rgba(0,0,0,0.25)]",
+                            isBuy
+                              ? "bg-gradient-to-br from-emerald-400 to-emerald-600"
+                              : "bg-gradient-to-br from-rose-400 to-rose-600",
+                          ].join(" ")}
+                        >
+                          {(script || "NA").slice(0, 2)}
 
-                  {/* symbol / segment + live  ———  right-side P&L block */}
-                  <div className="mt-1 flex items-start justify-between gap-2">
-                    <div>
-                      <div className="text-xl font-bold text-gray-800 dark:text-white">{script}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <SegmentBadge segment={o.segment} />
-                        <span className="text-xs text-gray-600">
-                          {o.inactive && o.exit_price != null ? "Exit" : "Live"}:{" "}
-                          <span className="font-semibold text-gray-800">
-                            {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
+
+                          {/* ✅ BUY/SELL overlay */}
+                          <span
+                            className={[
+                              "absolute -bottom-3 right-0 translate-x-1 z-10",
+                              "px-2 rounded-[8px] text-[11px] font-extrabold tracking-wide",
+                              "text-white shadow-md",
+                              isBuy ? "bg-emerald-600" : "bg-rose-600",
+                            ].join(" ")}
+                          >
+                            {isBuy ? "BUY" : "SELL"}
                           </span>
-                        </span>
+                        </div>
 
-                        <ExchangeBadge exchange={o.exchange} />
                       </div>
-                    </div>
 
-                    {/* RIGHT SIDE (TOTAL + per-share + %) */}
-                    {/* RIGHT SIDE P&L — ONLY FOR POSITIONS */}
-                    {!isOrdersTab && (
-                      <div className="text-right pr-1">
-                        <div className={`text-2xl font-extrabold ${pnlColor}`}>
-                          {arrow} {money(total)}
-                        </div>
 
-                        <div className={`${pnlColor} text-xs mt-0.5`}>
-                          {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
-                          {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
-                        </div>
+                      <div>
+                        <div className={`text-2xl font-extrabold ${textClass}`}>{script}</div>
 
-                        {o.exit_price != null && (
-                          <div className="text-xs text-gray-600 mt-1">
-                            Exit Price:{" "}
-                            <span className="font-semibold text-gray-800">
-                              {money(o.exit_price)}
+                        <div className={`mt-1 flex flex-wrap items-center gap-3 text-sm ${textSecondaryClass}`}>
+                          <div>
+                            Live:{" "}
+                            <span className={`${isDark ? "text-cyan-200" : "text-sky-600"} font-bold`}>
+                              {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
                             </span>
                           </div>
-                        )}
+
+                          <span className={`${isDark ? "text-white/35" : "text-slate-300"}`}>•</span>
+
+                          <span className={`${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"} px-3 py-1 rounded-full text-xs font-semibold`}>
+                            {(o.exchange || "NSE").toUpperCase()}
+                          </span>
+
+                          <span className={`${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"} px-3 py-1 rounded-full text-xs font-semibold`}>
+                            {intval(o.qty)} Qty
+                          </span>
+                          {(!isBuy && o.short_first) && (
+                            <span
+                              className={[
+                                "px-3 py-1 rounded-full text-xs font-extrabold tracking-wide",
+                                isDark ? "bg-rose-500/20 text-rose-200 border border-rose-500/20"
+                                  : "bg-rose-50 text-rose-600 border border-rose-200",
+                              ].join(" ")}
+                            >
+                              SELL FIRST
+                            </span>
+                          )}
+
+                        </div>
+
+                      </div>
+                    </div>
+                    {o.status_msg && (
+                      <div className={`mt-3 text-xs text-right ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                        {o.status_msg}
                       </div>
                     )}
+                    {/* ✅ RIGHT: P&L exactly like Image-2 */}
+                    {!isOrdersTab && (
+                      <div className="text-right">
+                        <div className={`flex items-center justify-end gap-2 ${pnlColor}`}>
+                          {pnlUp ? <TrendingUp size={26} /> : <TrendingDown size={26} />}
+                          <div className="text-3xl font-extrabold leading-none">
+                            {money(total)}
+                          </div>
+                        </div>
 
-
-                  </div>
-
-                  {/* entry/SL/Target */}
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Chip label={isOrdersTab ? "Order Price" : "Entry Price"} value={money(entryPrice)} />
-                    {sl != null && <Chip label="SL" value={money(sl)} tone="red" />}
-                    {tgt != null && <Chip label="Target" value={money(tgt)} tone="green" />}
-                  </div>
-
-                  {/* footer line */}
-                  <div className="flex justify-between text-xs mt-2">
-                    <span className="text-gray-500 dark:text-gray-400">
-                      {o.exchange || "NSE"}={money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
-                    </span>
-                    {o.status_msg && (
-                      <span className="text-[11px] text-gray-500">{o.status_msg}</span>
+                        <div className={`mt-1 text-sm font-bold ${pctColor}`}>
+                          {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%
+                        </div>
+                      </div>
                     )}
                   </div>
+
+                  {/* ===== BOTTOM GLASS PANEL ===== */}
+                  <div
+                    className={[
+                      "mt-6 rounded-2xl px-6 py-5",
+                      "grid grid-cols-1 sm:grid-cols-4 gap-8",
+                      isDark
+                        ? "bg-white/5 border border-white/10"
+                        : "bg-slate-50/70 border border-slate-200/50",
+                    ].join(" ")}
+                  >
+                    <div>
+                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                        {isOrdersTab ? "Order Price" : "Entry Price"}
+                      </div>
+                      <div className={`mt-1 text-xl font-extrabold ${textClass}`}>{money(entryPrice)}</div>
+                    </div>
+
+                    <div>
+                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                        Stop Loss
+                      </div>
+                      <div className="mt-1 text-xl font-extrabold text-rose-400">{money(sl ?? 0)}</div>
+                    </div>
+
+                    <div>
+                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                        Target
+                      </div>
+                      <div className="mt-1 text-xl font-extrabold text-emerald-400">{money(tgt ?? 0)}</div>
+                    </div>
+
+                    <div>
+                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                        Investment
+                      </div>
+                      <div className={`mt-1 text-xl font-extrabold ${textClass}`}>
+                        {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Optional bottom-right status (only if exists) */}
+
+
                 </div>
               );
+
             })}
           </div>
         )}
       </div>
 
-      {/* Popup Action Modal */}
+      {/* Modal */}
+      {/* Popup Action Modal (Premium Glass UI) */}
       {showActions && selectedOrder && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 w-80 shadow-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold text-lg text-gray-800 dark:text-white">
-                {getSymbol(selectedOrder)}
-              </h3>
-              <X
-                size={20}
-                className="cursor-pointer text-gray-500 hover:text-red-500"
-                onClick={() => setShowActions(false)}
-              />
-            </div>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowActions(false)}
+        >
+          <div
+            className="relative w-full max-w-sm rounded-3xl overflow-hidden
+                 bg-slate-900/80 border border-white/10 backdrop-blur-xl
+                 shadow-2xl text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* soft glow */}
+            <div className="absolute -top-24 -left-24 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
+            <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-cyan-500/20 rounded-full blur-3xl" />
 
-            {/* Live Data (just LTP) */}
-            <div className="text-center mb-4">
-              {(() => {
-                const sym = getSymbol(selectedOrder);
-                const q = (sym && quotes[sym]) || {};
-                const live = toNum(q.price) ?? toNum(selectedOrder.price) ?? 0;
-                return <div className="text-2xl font-bold">{money(live)}</div>;
-              })()}
-            </div>
-
-            {isOrdersTab ? (
-              // Open Trades modal actions
-              <div className="grid grid-cols-3 gap-3">
-                <button
-                  onClick={() => handleModify(selectedOrder)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg"
-                >
-                  Modify
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={handleClose}
-                  className={`${busy ? "opacity-60" : ""} bg-gray-700 hover:bg-gray-800 text-white py-2 rounded-lg`}
-                  title="Cancel all open orders for this script and remove today's executed rows, refunding today’s BUY amounts"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              // Positions modal actions
-              <div className="flex justify-center gap-6">
-                <button
-                  className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700"
-                  onClick={() => {
-                    handleAdd(selectedOrder);   // ✅ reuse correct logic
-                    setShowActions(false);      // close modal
-                  }}
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => {
-                    const side = selectedOrder.type || selectedOrder.order_type;
-
-                    navigate(
-                      side === "BUY"
-                        ? `/buy/${selectedOrder.script}`
-                        : `/sell/${selectedOrder.script}`,
-                      {
-                        state: {
-                          fromPosition: true,
-                          fromModify: true,
-
-                          // 🔑 REQUIRED PREFILL
-                          qty: selectedOrder.qty,
-                          price: selectedOrder.price,
-                          stoploss: selectedOrder.stoploss,
-                          target: selectedOrder.target,
-                          segment: selectedOrder.segment,
-                          exchange: selectedOrder.exchange || "NSE",
-
-                          // lock behaviour
-                          orderMode: "MARKET",
-                        },
-                      }
-                    );
-
-                    setShowActions(false);
-                  }}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700"
-                >
-                  Modify
-                </button>
-
-
+            {/* Header */}
+            <div className="relative z-10 px-6 pt-5 pb-4 border-b border-white/10">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-sm font-semibold tracking-wide text-white/90">
+                    {getSymbol(selectedOrder)}
+                  </div>
+                </div>
 
                 <button
-                  onClick={() => handleExit(selectedOrder)}
-                  className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md"
+                  onClick={() => setShowActions(false)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition"
+                  aria-label="Close"
                 >
-                  Exit
+                  <X size={18} className="text-white/80" />
                 </button>
               </div>
 
-            )}
+              {/* Price */}
+              <div className="mt-3 text-center">
+                {(() => {
+                  const sym = getSymbol(selectedOrder);
+                  const q = (sym && quotes[sym]) || {};
+                  const live = toNum(q.price) ?? toNum(selectedOrder.price) ?? 0;
+                  return (
+                    <div className="text-3xl font-extrabold tracking-tight">
+                      {money(live)}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="relative z-10 p-6">
+              {isOrdersTab ? (
+                // ✅ Open Trades: Modify + Cancel (2 buttons)
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleModify(selectedOrder)}
+                    className="py-3 rounded-xl font-semibold text-white
+                         bg-gradient-to-r from-blue-500 to-cyan-500
+                         hover:from-blue-600 hover:to-cyan-600
+                         shadow-lg hover:shadow-blue-500/30 transition"
+                  >
+                    Modify
+                  </button>
+
+                  <button
+                    disabled={busy}
+                    onClick={handleClose}
+                    className={`py-3 rounded-xl font-semibold
+                          bg-white/10 hover:bg-white/15 border border-white/10
+                          shadow-lg transition
+                          ${busy ? "opacity-60 cursor-not-allowed" : ""}`}
+                    title="Cancel"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                // ✅ Positions: Add + Modify + Exit (3 buttons)
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    className="py-3 rounded-xl font-semibold text-white
+                         bg-gradient-to-r from-emerald-500 to-green-600
+                         hover:from-emerald-600 hover:to-green-700
+                         shadow-lg hover:shadow-emerald-500/25 transition"
+                    onClick={() => {
+                      handleAdd(selectedOrder);
+                      setShowActions(false);
+                    }}
+                  >
+                    Add
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const side = selectedOrder.type || selectedOrder.order_type;
+
+                      navigate(
+                        side === "BUY"
+                          ? `/buy/${selectedOrder.script}`
+                          : `/sell/${selectedOrder.script}`,
+                        {
+                          state: {
+                            fromPosition: true,
+                            fromModify: true,
+                            qty: selectedOrder.qty,
+                            price: selectedOrder.price,
+                            stoploss: selectedOrder.stoploss,
+                            target: selectedOrder.target,
+                            segment: selectedOrder.segment,
+                            exchange: selectedOrder.exchange || "NSE",
+                            orderMode: "MARKET",
+                          },
+                        }
+                      );
+
+                      setShowActions(false);
+                    }}
+                    className="py-3 rounded-xl font-semibold text-white
+                         bg-gradient-to-r from-blue-500 to-indigo-600
+                         hover:from-blue-600 hover:to-indigo-700
+                         shadow-lg hover:shadow-blue-500/25 transition"
+                  >
+                    Modify
+                  </button>
+
+                  <button
+                    onClick={() => handleExit(selectedOrder)}
+                    className="py-3 rounded-xl font-semibold text-white
+                         bg-gradient-to-r from-rose-500 to-red-600
+                         hover:from-rose-600 hover:to-red-700
+                         shadow-lg hover:shadow-red-500/25 transition"
+                  >
+                    Exit
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Floating Icons */}
-      <div className="absolute right-5 top-20 flex items-center space-x-4 z-50">
-        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/portfolio")}>
-          <Briefcase size={22} className="text-gray-600 dark:text-white hover:text-blue-600" />
-          <span className="text-xs text-gray-500 dark:text-white">Portfolio</span>
-        </div>
-        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/Recommendations")}>
-          <Lightbulb size={22} className="text-gray-600 dark:text-white hover:text-blue-600" />
-          <span className="text-xs text-gray-500 dark:text-white">Reco.</span>
-        </div>
-        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/history")}>
-          <Clock size={22} className="text-gray-600 hover:text-blue-600" />
-          <span className="text-xs text-gray-500">History</span>
-        </div>
-        <div className="flex flex-col items-center cursor-pointer" onClick={() => navigate("/profile")}>
-          <User size={22} className="text-gray-600 dark:text-white hover:text-blue-600" />
-          <span className="text-xs text-gray-500 dark:text-white">Profile</span>
-        </div>
-      </div>
-
-      {/* Bottom Nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-gray-800 p-2 flex justify-around z-40 border-t border-gray-700">
-        <button onClick={() => navigate("/trade")} className="flex flex-col items-center text-gray-400">
-          <Search size={22} />
-          <span className="text-xs">Watchlist</span>
-        </button>
-        <button className="flex flex-col items-center text-blue-400">
-          <ClipboardList size={22} />
-          <span className="text-xs">Orders</span>
-        </button>
-        <button
-          onClick={() => navigate("/whatsapp")}
-          className="flex flex-col items-center text-gray-400"
-        >
-          <FaWhatsapp size={24} />
-          <span className="text-xs">WhatsApp</span>
-        </button>
-      </div>
     </div>
   );
+
 }
