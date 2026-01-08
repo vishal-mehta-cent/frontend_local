@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { Eye, EyeOff } from "lucide-react";
@@ -18,15 +18,6 @@ export default function LoginRegister({ onLoginSuccess }) {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  // ✅ NEW: OTP flow states
-  const [step, setStep] = useState("login"); // login | phone | otp
-  const [phone, setPhone] = useState("");
-  const [otpDigits, setOtpDigits] = useState(["", "", "", ""]);
-  const [timer, setTimer] = useState(0);
-  const [otpLoading, setOtpLoading] = useState(false);
-
-  const otpRefs = useRef([]);
 
   // ✅ avoid portal issues during initial mount
   const [mounted, setMounted] = useState(false);
@@ -54,23 +45,6 @@ export default function LoginRegister({ onLoginSuccess }) {
 
   const brandGradient =
     "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
-
-  // ✅ NEW: resend timer
-  useEffect(() => {
-    if (step !== "otp") return;
-    if (timer <= 0) return;
-    const t = setInterval(() => setTimer((s) => s - 1), 1000);
-    return () => clearInterval(t);
-  }, [step, timer]);
-
-  const resetOtpUi = () => {
-    setOtpDigits(["", "", "", ""]);
-    otpRefs.current = [];
-  };
-const cleanPhone10 = (val) => {
-  const digits = String(val || "").replace(/\D/g, "");
-  return digits.length > 10 ? digits.slice(-10) : digits;
-};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -108,17 +82,7 @@ const cleanPhone10 = (val) => {
           localStorage.setItem("email_id", data.email || "");
           localStorage.setItem("username", username);
 
-          // ✅ NEW: require_otp handling (new users)
-          if (data.require_otp) {
-            setStep("phone");
-            resetOtpUi();
-            setPhone("");
-            setTimer(0);
-            setMessage("✅ Login OK. Please verify your phone number.");
-            setMessageType("success");
-          } else {
-            onLoginSuccess(username);
-          }
+          onLoginSuccess(username);
         } else {
           setMessage("✅ " + (data.message || "Registration successful"));
           setMessageType("success");
@@ -162,121 +126,6 @@ const cleanPhone10 = (val) => {
       setMessage("❌ Google login failed");
       setMessageType("error");
     }
-  };
-
-const handleSendOtp = async () => {
-  setMessage("");
-  setMessageType("");
-
-  const cleaned = cleanPhone10(phone);
-  if (!cleaned || cleaned.length !== 10) {
-    setMessage("❌ Please enter valid 10-digit phone number.");
-    setMessageType("error");
-    return;
-  }
-
-  // IMPORTANT: store cleaned phone so verify uses the same value backend stored
-  setPhone(cleaned);
-
-  setOtpLoading(true);
-  try {
-    const res = await fetch(`${backendBaseUrl}/auth/send-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, phone: cleaned }),
-    });
-    const out = await res.json();
-
-    if (out.success) {
-      setStep("otp");
-      resetOtpUi();
-      setTimer(30);
-
-      // Show real backend message
-      const ok = out.sms_sent === true;
-      setMessage((ok ? "✅ " : "⚠️ ") + (out.message || "OTP generated"));
-      setMessageType(ok ? "success" : "error");
-
-      // Debug fallback OTP (only shown in console)
-      if (out.dev_otp) console.log("DEV OTP:", out.dev_otp);
-
-      setTimeout(() => {
-        otpRefs.current?.[0]?.focus?.();
-      }, 50);
-    } else {
-      setMessage("❌ " + (out.message || "OTP send failed"));
-      setMessageType("error");
-    }
-  } catch (e) {
-    setMessage("❌ OTP send failed");
-    setMessageType("error");
-  } finally {
-    setOtpLoading(false);
-  }
-};
-
-
-  const handleVerifyOtp = async () => {
-    setMessage("");
-    setMessageType("");
-
-    const code = otpDigits.join("");
-    if (code.length < 4) {
-      setMessage("❌ Please enter OTP.");
-      setMessageType("error");
-      return;
-    }
-
-    setOtpLoading(true);
-    try {
-      const res = await fetch(`${backendBaseUrl}/auth/verify-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, phone, otp: code }),
-      });
-      const out = await res.json();
-
-      if (out.success) {
-        setMessage("✅ OTP verified. Logging in...");
-        setMessageType("success");
-        onLoginSuccess(username);
-      } else {
-        setMessage("❌ " + (out.message || "OTP invalid"));
-        setMessageType("error");
-      }
-    } catch (e) {
-      setMessage("❌ OTP verification failed");
-      setMessageType("error");
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const onOtpChange = (idx, value) => {
-    const val = String(value || "").replace(/\D/g, "").slice(0, 1);
-    const next = [...otpDigits];
-    next[idx] = val;
-    setOtpDigits(next);
-
-    if (val && idx < next.length - 1) {
-      otpRefs.current[idx + 1]?.focus?.();
-    }
-  };
-
-  const onOtpKeyDown = (idx, e) => {
-    if (e.key === "Backspace") {
-      if (otpDigits[idx]) {
-        const next = [...otpDigits];
-        next[idx] = "";
-        setOtpDigits(next);
-        return;
-      }
-      if (idx > 0) {
-        otpRefs.current[idx - 1]?.focus?.();
-      }
-    }
-    if (e.key === "ArrowLeft" && idx > 0) otpRefs.current[idx - 1]?.focus?.();
-    if (e.key === "ArrowRight" && idx < otpDigits.length - 1) otpRefs.current[idx + 1]?.focus?.();
   };
 
   if (!mounted) return null;
@@ -359,10 +208,6 @@ const handleSendOtp = async () => {
                 setIsLogin(true);
                 setMessage("");
                 setMessageType("");
-                setStep("login");
-                setPhone("");
-                resetOtpUi();
-                setTimer(0);
               }}
               className={`flex-1 py-2 rounded-full font-semibold transition-all ${
                 isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
@@ -376,10 +221,6 @@ const handleSendOtp = async () => {
                 setIsLogin(false);
                 setMessage("");
                 setMessageType("");
-                setStep("login");
-                setPhone("");
-                resetOtpUi();
-                setTimer(0);
               }}
               className={`flex-1 py-2 rounded-full font-semibold transition-all ${
                 !isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
@@ -406,190 +247,80 @@ const handleSendOtp = async () => {
             </div>
           )}
 
-          {step === "login" && (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <input
-                type="text"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete={isLogin ? "username" : "new-username"}
-                className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all ${inputClass}`}
-              />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete={isLogin ? "username" : "new-username"}
+              className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all ${inputClass}`}
+            />
 
+            <div className="relative">
+              <input
+                type={showPwd ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete={isLogin ? "current-password" : "new-password"}
+                className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all pr-12 ${inputClass}`}
+              />
+              <button
+                type="button"
+                aria-label={showPwd ? "Hide password" : "Show password"}
+                onClick={() => setShowPwd((s) => !s)}
+                className={`absolute right-4 top-1/2 -translate-y-1/2 ${
+                  isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
+                }`}
+                tabIndex={-1}
+              >
+                {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+
+            {!isLogin && (
               <div className="relative">
                 <input
-                  type={showPwd ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  type={showPwd2 ? "text" : "password"}
+                  placeholder="Confirm Password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  autoComplete="new-password"
                   className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all pr-12 ${inputClass}`}
                 />
                 <button
                   type="button"
-                  aria-label={showPwd ? "Hide password" : "Show password"}
-                  onClick={() => setShowPwd((s) => !s)}
+                  aria-label={showPwd2 ? "Hide confirm password" : "Show confirm password"}
+                  onClick={() => setShowPwd2((s) => !s)}
                   className={`absolute right-4 top-1/2 -translate-y-1/2 ${
                     isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
                   }`}
                   tabIndex={-1}
                 >
-                  {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPwd2 ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+            )}
 
-              {!isLogin && (
-                <div className="relative">
-                  <input
-                    type={showPwd2 ? "text" : "password"}
-                    placeholder="Confirm Password"
-                    value={confirm}
-                    onChange={(e) => setConfirm(e.target.value)}
-                    autoComplete="new-password"
-                    className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all pr-12 ${inputClass}`}
-                  />
-                  <button
-                    type="button"
-                    aria-label={showPwd2 ? "Hide confirm password" : "Show confirm password"}
-                    onClick={() => setShowPwd2((s) => !s)}
-                    className={`absolute right-4 top-1/2 -translate-y-1/2 ${
-                      isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
-                    }`}
-                    tabIndex={-1}
-                  >
-                    {showPwd2 ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              )}
-
-              {isLogin && (
-                <p
-                  className={`text-xs text-right cursor-pointer hover:underline select-none ${
-                    isDark ? "text-cyan-300" : "text-blue-600"
-                  }`}
-                >
-                  Forgot Password?
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
-              >
-                {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
-              </button>
-            </form>
-          )}
-
-          {/* ✅ PHONE STEP (new users only) */}
-          {step === "phone" && (
-            <div className="space-y-4">
-              <div className={`text-sm ${textSecondaryClass} text-center`}>
-                Verify Phone for <span className="font-semibold">{username}</span>
-              </div>
-
-              <input
-                type="tel"
-                placeholder="Enter phone number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all ${inputClass}`}
-              />
-
-              <button
-                type="button"
-                onClick={handleSendOtp}
-                disabled={otpLoading}
-                className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
-              >
-                {otpLoading ? "Sending OTP..." : "Generate OTP"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setStep("login");
-                  setPhone("");
-                  resetOtpUi();
-                  setTimer(0);
-                  setMessage("");
-                  setMessageType("");
-                }}
-                className={`w-full py-3 rounded-xl font-bold ${
-                  isDark ? "bg-white/10 text-white" : "bg-black/10 text-slate-900"
+            {isLogin && (
+              <p
+                className={`text-xs text-right cursor-pointer hover:underline select-none ${
+                  isDark ? "text-cyan-300" : "text-blue-600"
                 }`}
               >
-                Back
-              </button>
-            </div>
-          )}
+                Forgot Password?
+              </p>
+            )}
 
-          {/* ✅ OTP STEP */}
-          {step === "otp" && (
-            <div className="space-y-4">
-              <div className={`text-sm ${textSecondaryClass} text-center`}>
-                Enter OTP sent to <span className="font-semibold">{phone}</span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                {otpDigits.map((d, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => (otpRefs.current[i] = el)}
-                    value={d}
-                    onChange={(e) => onOtpChange(i, e.target.value)}
-                    onKeyDown={(e) => onOtpKeyDown(i, e)}
-                    inputMode="numeric"
-                    maxLength={1}
-                    className={`w-12 h-12 text-center text-xl rounded-xl outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all ${inputClass}`}
-                  />
-                ))}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleVerifyOtp}
-                disabled={otpLoading}
-                className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
-              >
-                {otpLoading ? "Verifying..." : "Confirm OTP"}
-              </button>
-
-              {timer > 0 ? (
-                <div className={`text-xs text-center ${textSecondaryClass}`}>
-                  Resend OTP in {timer}s
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={otpLoading}
-                  className={`w-full py-3 rounded-xl font-bold ${
-                    isDark ? "bg-white/10 text-white" : "bg-black/10 text-slate-900"
-                  }`}
-                >
-                  Resend OTP
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setStep("phone");
-                  resetOtpUi();
-                  setMessage("");
-                  setMessageType("");
-                }}
-                className={`w-full py-3 rounded-xl font-bold ${
-                  isDark ? "bg-white/10 text-white" : "bg-black/10 text-slate-900"
-                }`}
-              >
-                Change Phone Number
-              </button>
-            </div>
-          )}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
+            >
+              {isLoading ? "Please wait..." : isLogin ? "Sign In" : "Sign Up"}
+            </button>
+          </form>
 
           {googleClientId && (
             <div className="mt-5 flex justify-center">
