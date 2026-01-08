@@ -55,6 +55,10 @@ export default function Trade({ username }) {
   const activeNavClass =
     "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg";
 
+  // same gradient used in Landing.jsx
+  const brandGradient =
+    "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
+
   useEffect(() => {
     if (!who) return;
 
@@ -508,27 +512,27 @@ export default function Trade({ username }) {
 
       {/* HEADER */}
       <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="w-full px-3 sm:px-4 md:px-6 py-4">
+
           {/* Top Row: Logo, Title, Theme Toggle, Profile */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 via-cyan-400 to-blue-500 rounded-2xl shadow-lg shadow-blue-500/50"></div>
-                <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 text-white" />
-              </div>
-              <div>
-                <div className="text-xl font-bold">TradeHub</div>
-                <div className={`text-xs ${textSecondaryClass}`}>Next-Gen Trading</div>
+          <div className="relative flex items-start justify-between mb-4">
+            {/* Left: Back ABOVE Title */}
+            <div className="flex flex-col items-start">
+              <BackButton />
+
+              <div className="mt-1">
+                <div className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
+                  NEUROCREST
+                </div>
+
+                <div className={`text-xs ${textSecondaryClass}`}>
+                  Next-Gen Trading
+                </div>
               </div>
             </div>
 
+            {/* Right: Profile */}
             <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setIsDark(!isDark)}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
               <button
                 onClick={() => nav("/profile")}
                 className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
@@ -537,83 +541,121 @@ export default function Trade({ username }) {
               </button>
             </div>
           </div>
+
           {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
           <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
 
 
-
-          {/* Funds Display */}
-          <div className={`${glassClass} rounded-2xl p-2 mb-4 shadow-lg text-center`}>
-            <div className="flex items-center justify-center gap-3 text-sm font-medium">
-              <span>Total: {moneyINR(totalFunds, { decimals: 0 })}</span>
-              <div className="w-1 h-1 rounded-full bg-cyan-400"></div>
-              <span>Available: {moneyINR(availableFunds, { decimals: 0 })}</span>
-            </div>
-          </div>
-
-          {/* Tabs: My List / Must Watch */}
-          <div className={`flex p-1.5 rounded-2xl ${glassClass} w-fit mx-auto shadow-lg`}>
-
-            {["mylist", "mustwatch"].map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-6 py-2.5 rounded-xl font-medium transition-all ${tab === t
-                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                  : textSecondaryClass
-                  }`}
-              >
-                {t === "mylist" ? "My List" : "Must Watch"}
-              </button>
-
-            ))}
-
-          </div>
         </div>
       </div>
 
 
 
       {/* MAIN CONTENT */}
-      <div className="max-w-7xl mx-auto px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
+
         {tab === "mylist" && (
           <div className="space-y-6">
-            {/* Search Bar */}
-            <div className="relative">
-              <input
-                type="text"
-                value={query}
-                onChange={handleSearch}
-                placeholder="Search & Add"
-                className={`w-full pl-4 pr-4 py-3 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
-              />
 
-              {suggestions.length > 0 && (
-                <ul className={`absolute w-full ${glassClass} rounded-2xl shadow-2xl mt-3 max-h-80 overflow-auto z-10`}>
-                  {suggestions.map((s, i) => {
-                    const sym = s?.symbol || s?.tradingsymbol || "";
-                    return (
-                      <li
-                        key={`${sym}-${i}`}
-                        onClick={() => goDetail(sym)}
-                        className={`px-4 py-3 ${cardHoverClass} cursor-pointer transition-all ${i !== suggestions.length - 1 ? `border-b ${isDark ? 'border-white/10' : 'border-white/40'}` : ''
-                          }`}
-                      >
-                        <div className="font-semibold text-lg">
-                          {highlightMatch(sym, query)}
-                        </div>
-                        <div className={`text-sm ${textSecondaryClass}`}>
-                          {highlightMatch(s.name, query)}
-                        </div>
-                        <div className={`text-xs ${textSecondaryClass} mt-1`}>
-                          {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+            {/* Tabs: My List / Must Watch */}
+            {/* Tabs + Funds (same line) */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              {/* Tabs: My List / Must Watch */}
+              <div className={`flex p-1.5 rounded-2xl ${glassClass} w-fit shadow-lg`}>
+                {["mylist", "mustwatch"].map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`px-6 py-2.5 rounded-xl font-medium transition-all ${tab === t
+                      ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                      : textSecondaryClass
+                      }`}
+                  >
+                    {t === "mylist" ? "My List" : "Must Watch"}
+                  </button>
+                ))}
+              </div>
+
+              {/* Funds on right side (auto spacing) */}
+              <div
+                className={[
+                  glassClass,
+                  "rounded-2xl shadow-lg w-fit sm:ml-auto",
+                  "px-4 py-3",
+                ].join(" ")}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  {/* Total Funds */}
+                  <div>
+                    <div className={`text-[10px] tracking-widest font-semibold uppercase ${textSecondaryClass}`}>
+                      Total Funds
+                    </div>
+                    <div className="mt-1 text-base font-extrabold">
+                      {moneyINR(totalFunds, { decimals: 0 })}
+                    </div>
+                  </div>
+                  {/* ✅ Vertical divider */}
+                  <div className={`h-8 w-px ${isDark ? "bg-white/15" : "bg-slate-900/10"}`} />
+
+                  {/* Available */}
+                  <div className="text-right">
+                    <div className={`text-[10px] tracking-widest font-semibold uppercase ${textSecondaryClass}`}>
+                      Available
+                    </div>
+                    <div className="mt-1 text-base font-extrabold text-cyan-400">
+                      {moneyINR(availableFunds, { decimals: 0 })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
             </div>
+
+            {/* Search Bar */}
+            {/* Search Bar (centered + icon) */}
+            <div className="flex justify-center">
+              {/* Search Bar (aligned under tabs + icon) */}
+              <div className="relative w-full max-w-4xl">
+                <Search
+                  className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 z-10 ${isDark ? "text-slate-200" : "text-slate-500"
+                    }`}
+                />
+                <input
+                  type="text"
+                  value={query}
+                  onChange={handleSearch}
+                  placeholder="Search & Add"
+                  className={`w-full pl-12 pr-4 py-3 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
+                />
+
+
+                {suggestions.length > 0 && (
+                  <ul className={`absolute left-0 right-0 ${glassClass} rounded-2xl shadow-2xl mt-3 max-h-80 overflow-auto z-10`}>
+                    {suggestions.map((s, i) => {
+                      const sym = s?.symbol || s?.tradingsymbol || "";
+                      return (
+                        <li
+                          key={`${sym}-${i}`}
+                          onClick={() => goDetail(sym)}
+                          className={`px-4 py-3 ${cardHoverClass} cursor-pointer transition-all ${i !== suggestions.length - 1
+                            ? `border-b ${isDark ? "border-white/10" : "border-white/40"}`
+                            : ""
+                            }`}
+                        >
+                          <div className="font-semibold text-lg">{highlightMatch(sym, query)}</div>
+                          <div className={`text-sm ${textSecondaryClass}`}>{highlightMatch(s.name, query)}</div>
+                          <div className={`text-xs ${textSecondaryClass} mt-1`}>
+                            {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+
 
             {/* WATCHLIST LIST */}
             <div className="space-y-4">
@@ -632,61 +674,83 @@ export default function Trade({ username }) {
                       className={`${glassClass} p-5 rounded-3xl ${cardHoverClass} cursor-pointer transition-all duration-300 shadow-xl`}
                       onClick={() => goDetail(sym)}
                     >
-                      <div className="flex justify-between items-start mb-3">
+                      <div className="flex justify-between items-center mb-3">
+
                         <div>
-                          <div className="text-2xl font-bold mb-2">{sym}</div>
-                          <div className={`text-sm ${textSecondaryClass} flex items-center space-x-2`}>
-                            <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${isDark ? 'bg-blue-500/20 text-blue-300 border border-blue-400/30' : 'bg-blue-100 text-blue-700 border border-blue-200'
-                              }`}>
-                              {q.exchange || "NSE"}
-                            </span>
+                          <div className="flex items-end h-full">
+                            <div className="flex items-end gap-2">
+                              <div className="text-2xl font-bold leading-none">{sym}</div>
+
+                              <span
+                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${isDark
+                                    ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                    : "bg-blue-100 text-blue-700 border border-blue-200"
+                                  }`}
+                              >
+                                {q.exchange || "NSE"}
+                              </span>
+                            </div>
                           </div>
+
+
                         </div>
 
-                        <div className="text-right">
-                          <div className={`text-3xl font-bold mb-1 ${isPos ? "text-emerald-400" : "text-rose-400"
-                            }`}>
-                            {q.price != null
-                              ? Number(q.price).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                              : "--"}
+                        <div className="flex items-start justify-end gap-3">
+                          <div className="text-right">
+                            {/* ✅ Line 1: Live price + (-) */}
+                            <div className="flex items-center justify-end gap-2">
+                              <div
+                                className={`text-3xl font-bold ${isPos ? "text-emerald-400" : "text-rose-400"
+                                  }`}
+                              >
+                                {q.price != null
+                                  ? Number(q.price).toLocaleString("en-IN", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })
+                                  : "--"}
+                              </div>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveFromWatchlist(sym);
+                                }}
+                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${isDark
+                                    ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
+                                    : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
+                                  }`}
+                                title="Remove"
+                              >
+                                -
+                              </button>
+                            </div>
+                            {/* ✅ Line 2: Change + % + WhatsApp */}
+                            <div
+                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${isPos ? "text-emerald-400" : "text-rose-400"
+                                }`}
+                            >
+                              {q.change != null && (
+                                <>
+                                  <span>{isPos ? "+" : ""}{Number(q.change).toFixed(2)}</span>
+                                  <span>({Number(q.pct_change || 0).toFixed(2)}%)</span>
+                                </>
+                              )}
+
+                              {whatsappList.includes(sym) && (
+                                <FaWhatsapp
+                                  className="text-green-400 text-[16px] ml-1"
+                                  title="Added to WhatsApp Alerts"
+                                />
+                              )}
+                            </div>
                           </div>
-                          <div className={`text-sm font-semibold flex items-center justify-end space-x-2 ${isPos ? "text-emerald-400" : "text-rose-400"
-                            }`}>
-                            {q.change != null && (
-                              <>
-                                <span>
-                                  {isPos ? "+" : ""}{Number(q.change).toFixed(2)}
-                                </span>
-                                <span>({Number(q.pct_change || 0).toFixed(2)}%)</span>
-                              </>
-                            )}
-                          </div>
+
                         </div>
+
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          {whatsappList.includes(sym) && (
-                            <FaWhatsapp
-                              className="text-green-400 text-xl cursor-default"
-                              title="Added to WhatsApp Alerts"
-                            />
-                          )}
-                        </div>
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveFromWatchlist(sym);
-                          }}
-                          className={`text-sm px-4 py-2 rounded-xl font-semibold transition-all shadow-lg ${isDark
-                            ? 'bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30'
-                            : 'bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200'
-                            }`}
-                        >
-                          -
-                        </button>
-                      </div>
                     </div>
                   );
                 })
