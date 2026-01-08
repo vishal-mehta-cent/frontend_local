@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { moneyINR } from "../utils/format";
-import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search, ArrowUpRight,ArrowDownRight, } from "lucide-react";
+import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search, ArrowUpRight,ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { FaWhatsapp } from "react-icons/fa";
@@ -421,12 +421,12 @@ export default function History({ username }) {
         className={isDark ? "text-emerald-300" : "text-emerald-600"}
       />
     ) : pnlNum < 0 ? (
-      <ArrowDownRight
+      <TrendingDown
         size={18}
         className={isDark ? "text-rose-300" : "text-rose-600"}
       />
     ) : (
-      <ArrowUpRight
+      <TrendingUp
         size={18}
         className={isDark ? "text-slate-300/70" : "text-slate-500/70"}
       />
