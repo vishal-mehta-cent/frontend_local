@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { moneyINR } from "../utils/format";
-import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search, ArrowUpRight,ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react";
+import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { FaWhatsapp } from "react-icons/fa";
@@ -37,6 +37,9 @@ export default function History({ username }) {
   const textClass = isDark ? 'text-white' : 'text-slate-900';
   const textSecondaryClass = isDark ? 'text-slate-300' : 'text-slate-600';
   const cardHoverClass = isDark ? 'hover:bg-white/10' : 'hover:bg-white/80';
+
+  const brandGradient =
+    "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
 
   useEffect(() => {
     if (!who) {
@@ -236,7 +239,12 @@ export default function History({ username }) {
               <BackButton />
 
               <div className="mt-1">
-                <div className="text-xl font-bold">Neurocrest</div>
+                <div
+                  className={`text-2xl sm:text-2xl font-extrabold uppercase tracking-wide
+              bg-clip-text text-transparent ${brandGradient}`}
+                >
+                  NEUROCREST
+                </div>
                 <div className={`text-xs ${textSecondaryClass}`}>
                   Next-Gen Trading
                 </div>
@@ -357,9 +365,8 @@ export default function History({ username }) {
                     return (
                       <div
                         key={`${t.symbol || "row"}-${t.time || "time"}-${idx}`}
-                        className={`grid grid-cols-5 items-center p-4 border-t ${
-  isDark ? "border-white/10" : "border-white/40"
-}`}
+                        className={`grid grid-cols-5 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
+                          }`}
 
                       >
                         <div className="flex flex-col items-center text-center">
@@ -397,63 +404,63 @@ export default function History({ username }) {
                         </div>
 
                         {/* ✅ P&L pill like your 2nd image */}
-<div className="flex justify-center">
-  <div
-    className={[
-      "inline-flex items-center gap-2",
-      "px-4 py-2 rounded-2xl",
-      "shadow-lg ring-1",
-      "backdrop-blur-xl",
-      pnlNum > 0
-        ? isDark
-          ? "bg-emerald-500/15 ring-emerald-400/20"
-          : "bg-emerald-50 ring-emerald-200/70"
-        : pnlNum < 0
-        ? isDark
-          ? "bg-rose-500/15 ring-rose-400/20"
-          : "bg-rose-50 ring-rose-200/70"
-        : isDark
-        ? "bg-white/8 ring-white/10"
-        : "bg-slate-100/80 ring-slate-200/70",
-    ].join(" ")}
-  >
-    {pnlNum > 0 ? (
-      <ArrowUpRight
-        size={18}
-        className={isDark ? "text-emerald-300" : "text-emerald-600"}
-      />
-    ) : pnlNum < 0 ? (
-      <TrendingDown
-        size={18}
-        className={isDark ? "text-rose-300" : "text-rose-600"}
-      />
-    ) : (
-      <TrendingUp
-        size={18}
-        className={isDark ? "text-slate-300/70" : "text-slate-500/70"}
-      />
-    )}
+                        <div className="flex justify-center">
+                          <div
+                            className={[
+                              "inline-flex items-center gap-2",
+                              "px-4 py-2 rounded-2xl",
+                              "shadow-lg ring-1",
+                              "backdrop-blur-xl",
+                              pnlNum > 0
+                                ? isDark
+                                  ? "bg-emerald-500/15 ring-emerald-400/20"
+                                  : "bg-emerald-50 ring-emerald-200/70"
+                                : pnlNum < 0
+                                  ? isDark
+                                    ? "bg-rose-500/15 ring-rose-400/20"
+                                    : "bg-rose-50 ring-rose-200/70"
+                                  : isDark
+                                    ? "bg-white/8 ring-white/10"
+                                    : "bg-slate-100/80 ring-slate-200/70",
+                            ].join(" ")}
+                          >
+                            {pnlNum > 0 ? (
+                              <ArrowUpRight
+                                size={18}
+                                className={isDark ? "text-emerald-300" : "text-emerald-600"}
+                              />
+                            ) : pnlNum < 0 ? (
+                              <TrendingDown
+                                size={18}
+                                className={isDark ? "text-rose-300" : "text-rose-600"}
+                              />
+                            ) : (
+                              <TrendingUp
+                                size={18}
+                                className={isDark ? "text-slate-300/70" : "text-slate-500/70"}
+                              />
+                            )}
 
-    <span
-      className={[
-        "font-extrabold tracking-tight",
-        pnlNum > 0
-          ? isDark
-            ? "text-emerald-300"
-            : "text-emerald-600"
-          : pnlNum < 0
-          ? isDark
-            ? "text-rose-300"
-            : "text-rose-600"
-          : isDark
-          ? "text-slate-200/70"
-          : "text-slate-600",
-      ].join(" ")}
-    >
-      {fmtMoney(pnlNum)}
-    </span>
-  </div>
-</div>
+                            <span
+                              className={[
+                                "font-extrabold tracking-tight",
+                                pnlNum > 0
+                                  ? isDark
+                                    ? "text-emerald-300"
+                                    : "text-emerald-600"
+                                  : pnlNum < 0
+                                    ? isDark
+                                      ? "text-rose-300"
+                                      : "text-rose-600"
+                                    : isDark
+                                      ? "text-slate-200/70"
+                                      : "text-slate-600",
+                              ].join(" ")}
+                            >
+                              {fmtMoney(pnlNum)}
+                            </span>
+                          </div>
+                        </div>
 
 
                         <div className="text-sm leading-tight text-center">
