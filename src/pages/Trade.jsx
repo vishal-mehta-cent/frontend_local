@@ -614,7 +614,7 @@ export default function Trade({ username }) {
 
             {/* Search Bar */}
             {/* Search Bar (centered + icon) */}
-            <div className="flex justify-center">
+            <div className="flex justify-left">
               {/* Search Bar (aligned under tabs + icon) */}
               <div className="relative w-full max-w-4xl">
                 <Search
