@@ -8,6 +8,8 @@ import useOpenTrades from "../hooks/useOpenTrades";
 import { FaWhatsapp } from "react-icons/fa";
 import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
+import { ArrowLeft, Sun, Moon } from "lucide-react";
+
 
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
@@ -169,6 +171,8 @@ export default function Orders({ username }) {
   const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
   const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
 
+  const brandGradient =
+    "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
 
   // Stop spinner early if username is missing
   useEffect(() => {
@@ -560,34 +564,64 @@ export default function Orders({ username }) {
   // ---------- UI ----------
   return (
     <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}>
-      {/* Background blobs */}
+      {/* BACKGROUND BLUR EFFECTS */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* ✅ Sticky header ONLY (ends after SwipeNav) */}
+      {/* HEADER (same style as Trade.jsx) */}
       <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
-        <div className="w-full px-3 sm:px-4 md:px-6 py-4">
-
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          {/* Top Row */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <BackButton to="/menu" />
-              <div>
-                <div className="text-xl font-bold">Neurocrest</div>
-                <div className={`text-xs ${textSecondaryClass}`}>Next-Gen Trading</div>
+            {/* Left: Back + Brand */}
+            {/* Left: Back ABOVE Brand (same like Watchlist header) */}
+            <div className="flex flex-col items-start">
+              {/* Back button (no big box) */}
+              <button
+                type="button"
+                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/menu"))}
+
+                title="Back"
+                aria-label="Back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              {/* Brand gradient */}
+              <div className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
+                NEUROCREST
+              </div>
+
+              <div className={`text-xs ${textSecondaryClass} -mt-1`}>
+                Next-Gen Trading
               </div>
             </div>
 
-            <button
-              onClick={() => navigate("/profile")}
-              className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-            >
-              <User className="w-5 h-5" />
-            </button>
+
+            {/* Right: Theme + Profile */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsDark((v) => !v)}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+                title="Theme"
+              >
+                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+
+              <button
+                onClick={() => navigate("/profile")}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+                title="Profile"
+              >
+                <User className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
+          {/* Nav Row */}
           <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
         </div>
       </div>
