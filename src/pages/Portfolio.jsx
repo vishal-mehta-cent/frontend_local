@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import SwipeNav from "../components/SwipeNav";
+import { useTheme } from "../context/ThemeContext";
+import { User } from "lucide-react";
+
 
 // ---------- API base (prod-safe) ----------
 const API_BASE = (
@@ -77,6 +81,20 @@ export default function Portfolio({ username }) {
   const [quotes, setQuotes] = useState({});
   const pollRef = useRef(null);
   const navigate = useNavigate();
+    const { isDark } = useTheme();
+
+  const bgClass = isDark
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100";
+
+  const glassClass = isDark
+    ? "bg-white/5 backdrop-blur-xl border border-white/10"
+    : "bg-white/60 backdrop-blur-xl border border-white/40";
+
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+  const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
+
 
   const fileInputRef = useRef(null);
   const [startDate, setStartDate] = useState("");
@@ -405,250 +423,336 @@ export default function Portfolio({ username }) {
     return (totalPnL / totalInvested) * 100;
   }, [totalPnL, totalInvested]);
 
+    const getInitials = (symbol) => {
+    const s = (symbol || "").toUpperCase();
+    return s.length >= 2 ? s.substring(0, 2) : s;
+  };
+
+  const getAvatarColor = (symbol) => {
+    const colors = [
+      "bg-emerald-500",
+      "bg-rose-500",
+      "bg-blue-500",
+      "bg-purple-500",
+      "bg-orange-500",
+      "bg-cyan-500",
+    ];
+    const index = (symbol || "").charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+
   return (
-    <div className="p-4">
-      <BackButton to="/menu" />
-      <h2 className="text-center text-xl font-bold text-blue-600">
-        Portfolio
-      </h2>
+    <div
+      className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}
+    >
+      {/* Background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
+      </div>
 
-      {loading && <div className="text-center text-gray-500">Loading…</div>}
+      {/* Header */}
+      <div className={`sticky top-0 z-50 ${glassClass} shadow-lg relative`}>
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <BackButton to="/menu" />
+              <div>
+                <div className="text-xl font-bold">TradeHub</div>
+                <div className={`text-xs ${textSecondaryClass}`}>
+                  Next-Gen Trading
+                </div>
+              </div>
+            </div>
 
-      {!loading && error && (
-        <div className="text-center text-red-600">{error}</div>
-      )}
-
-      {!loading && !error && (
-        <>
-          {/* Summary */}
-          <div className="text-center mt-3">
-            <div className="inline-flex flex-wrap items-center gap-2">
-              <span className="inline-block px-4 py-2 bg-white rounded-xl shadow text-sm font-semibold">
-                Total Invested: {money(totalInvested)}
-              </span>
-              <span className="inline-block px-4 py-2 bg-white rounded-xl shadow text-sm font-semibold">
-                Current Valuation: {money(totalCurrentValuation)}
-              </span>
-              <span
-                className={`inline-block px-4 py-2 rounded-xl shadow text-sm font-semibold ${totalPnL >= 0
-                    ? "bg-emerald-50 text-emerald-700"
-                    : "bg-rose-50 text-rose-700"
-                  }`}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate("/profile")}
+                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
               >
-                P&L: {money(totalPnL)} ({signed(totalPnLPct, 2)}%)
-              </span>
+                <User className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
-          {/* Buttons */}
-          <div className="mt-3 mb-2 flex items-center justify-center gap-3">
-            <button
-              onClick={handleDownloadExcel}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-            >
-              <Download size={16} />
-              <span>Download</span>
-            </button>
+          {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
+          <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
+        </div>
+      </div>
 
-            <button
-              onClick={handleUploadClick}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-700 text-white hover:bg-gray-800"
-            >
-              <Upload size={16} />
-              <span>Upload</span>
-            </button>
+      {/* Body */}
+      <div className="max-w-7xl mx-auto px-6 py-6 relative pb-24">
+        <div className="mb-6">
+          <h2 className={`text-4xl font-bold ${textClass} mb-2`}>Portfolio</h2>
+          <p className={`${textSecondaryClass}`}>
+            Track your holdings and performance
+          </p>
+        </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx"
-              className="hidden"
-              onChange={handleFileSelected}
-            />
+        {loading && (
+          <div className={`text-center ${textSecondaryClass} mt-20`}>
+            Loading…
           </div>
+        )}
 
-          {/* Open Holdings */}
-          <h3 className="text-center text-lg font-semibold mt-3">
-            Open Holdings
-          </h3>
+        {!loading && error && (
+          <div className="text-center text-red-400 mt-20">{error}</div>
+        )}
 
-          {loading ? (
-            <div className="text-center text-sm text-gray-500 mt-2">
-              Loading holdings…
-            </div>
-          ) : filteredOpen.length === 0 ? (
-            <div className="text-center text-sm text-gray-500 mt-2">
-              No holdings in portfolio
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {filteredOpen.map((p, i) => {
-                const symbol = (p.symbol || p.script || "").toUpperCase();
-                const seg = (p.segment || "delivery").toLowerCase();
-
-                const qty = toNum(p.qty) ?? 0;
-                const entry = toNum(p.entry_price) ?? toNum(p.avg_price) ?? 0;
-                const sl = toNum(p.stoploss) ?? 0;
-                const tgt = toNum(p.target) ?? 0;
-
-                // Live label only
-                const live =
-                  toNum(p.current_price) ??
-                  toNum(quotes[symbol]?.price) ??
-                  toNum(p.avg_price) ??
-                  0;
-
-                // ✅ Use backend-calculated fields (with safe fallbacks)
-                const perShare =
-                  toNum(p.pnl_per_share) ?? (toNum(live) - (entry ?? 0));
-                const total =
-                  toNum(p.pnl_total) ?? perShare * (qty ?? 0);
-                const absPct =
-                  toNum(p.pct) ??
-                  ((entry ? (perShare / entry) : 0) * 100);
-
-                const pnlColor =
-                  total > 0
-                    ? "text-green-600"
-                    : total < 0
-                      ? "text-red-600"
-                      : "text-gray-600";
-
-                const invest = qty * entry;
-                const currentVal = qty * live;
-                const cardPnL = currentVal - invest;
-
-                const footerPnlColor =
-                  cardPnL > 0
-                    ? "text-green-600"
-                    : cardPnL < 0
-                      ? "text-red-600"
-                      : "text-gray-600";
-
-                return (
+        {!loading && !error && (
+          <>
+            {/* Summary */}
+            <div className={`${glassClass} rounded-2xl p-6 mb-6 shadow-lg`}>
+              <div className="grid grid-cols-3 gap-6 mb-6">
+                <div>
+                  <div className={`text-sm ${textSecondaryClass} mb-2`}>
+                    Total Invested
+                  </div>
+                  <div className={`text-3xl font-bold ${textClass}`}>
+                    {money(totalInvested)}
+                  </div>
+                </div>
+                <div>
+                  <div className={`text-sm ${textSecondaryClass} mb-2`}>
+                    Current Valuation
+                  </div>
+                  <div className={`text-3xl font-bold ${textClass}`}>
+                    {money(totalCurrentValuation)}
+                  </div>
+                </div>
+                <div>
+                  <div className={`text-sm ${textSecondaryClass} mb-2`}>
+                    Total P&amp;L
+                  </div>
                   <div
-                    key={`${symbol}-${i}`}
-                    className="p-4 rounded-xl shadow bg-white hover:shadow-md transition cursor-pointer"
-                    onClick={() =>
-                      setSelected({
-                        ...p,
-                        symbol,
-                        live,
-                        pnlPerShare: perShare,
-                      })
-                    }
+                    className={`text-3xl font-bold ${
+                      totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"
+                    }`}
                   >
-                    <div className="flex justify-between text-sm">
-                      {qty < 0 ? (
-                        <span className="text-orange-600 font-semibold">
-                          SELL FIRST • {Math.abs(qty)} Qty
-                        </span>
-                      ) : (
-                        <span
-                          className={`font-semibold ${p.side === "BUY"
-                              ? "text-green-600"
-                              : "text-red-600"
-                            }`}
-                        >
-                          {p.side} • {qty} Qty
-                        </span>
+                    {money(totalPnL)}
+                  </div>
+                  <div
+                    className={`text-sm ${
+                      totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"
+                    }`}
+                  >
+                    ({signed(totalPnLPct, 2)}%)
+                  </div>
+                </div>
+              </div>
 
-                      )}
-                    </div>
+              {/* Buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleDownloadExcel}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-xl transition-all shadow-lg font-medium"
+                >
+                  <Download size={18} />
+                  <span>Download Report</span>
+                </button>
+
+                <button
+                  onClick={handleUploadClick}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl ${glassClass} ${cardHoverClass} transition-all shadow-lg font-medium`}
+                >
+                  <Upload size={18} />
+                  <span>Upload Holdings</span>
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx"
+                  className="hidden"
+                  onChange={handleFileSelected}
+                />
+              </div>
+            </div>
+
+            {/* Open Holdings */}
+            <h3 className={`text-2xl font-bold mb-4 ${textClass}`}>
+              Open Holdings
+            </h3>
+
+            {filteredOpen.length === 0 ? (
+              <div className={`text-center text-sm ${textSecondaryClass}`}>
+                No holdings in portfolio
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredOpen.map((p, i) => {
+                  const symbol = (p.symbol || p.script || "").toUpperCase();
+
+                  const qty = toNum(p.qty) ?? 0;
+                  const entry = toNum(p.entry_price) ?? toNum(p.avg_price) ?? 0;
+                  const sl = toNum(p.stoploss) ?? 0;
+                  const tgt = toNum(p.target) ?? 0;
+
+                  const live =
+                    toNum(p.current_price) ??
+                    toNum(quotes[symbol]?.price) ??
+                    toNum(p.avg_price) ??
+                    0;
+
+                  // ✅ Use backend-calculated fields (same as your corrected file)
+                  const perShare =
+                    toNum(p.pnl_per_share) ?? (toNum(live) - (entry ?? 0));
+                  const total = toNum(p.pnl_total) ?? perShare * (qty ?? 0);
+                  const absPct =
+                    toNum(p.pct) ??
+                    ((entry ? perShare / entry : 0) * 100);
+
+                  const pnlColor =
+                    total > 0
+                      ? "text-emerald-400"
+                      : total < 0
+                      ? "text-rose-400"
+                      : "text-gray-400";
+
+                  return (
+                    <div
+                      key={`${symbol}-${i}`}
+                      className={[
+    "p-6 rounded-[28px] transition cursor-pointer",
+    // premium glass look
+    isDark
+      ? "bg-white/6 border border-white/12 backdrop-blur-2xl shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+      : "bg-white/70 border border-white/80 backdrop-blur-2xl shadow-[0_18px_60px_rgba(2,132,199,0.12)]",
+    // soft hover
+    isDark ? "hover:bg-white/8" : "hover:bg-white/85",
+  ].join(" ")}
+  onClick={() =>
+    setSelected({
+      ...p,
+      symbol,
+      live,
+      pnlPerShare: perShare,
+    })
+  }
+>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div
+  className={[
+    "w-12 h-12 rounded-2xl flex items-center justify-center",
+    "text-white font-extrabold text-[16px] tracking-wide",
+    "bg-gradient-to-br from-emerald-400 to-emerald-600",
+    "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
+    "ring-1 ring-white/40",
+  ].join(" ")}
+>
+  {getInitials(symbol)}
+</div>
 
 
-                    <div className="mt-1 flex items-start justify-between gap-2">
-                      <div>
-                        <div className="text-xl font-bold text-gray-800">
-                          {symbol}
+                          <div>
+                            <div className={`text-2xl font-bold ${textClass} mb-1`}>
+                              {symbol}
+                            </div>
+
+                            <div className={`text-sm ${textSecondaryClass}`}>
+                              {qty < 0 ? (
+                                <span className="text-orange-400 font-semibold">
+                                  SELL FIRST • {Math.abs(qty)} Qty
+                                </span>
+                              ) : (
+                                <span>
+                                  {p.side || "BUY"} FIRST • {qty} Qty
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <SegmentBadge segment={seg} />
-                          <span className="text-xs text-gray-600">
-                            Live:{" "}
-                            <span className="font-semibold text-gray-800">
-                              {money(live)}
-                            </span>
-                          </span>
-                        </div>
-                      </div>
 
-                      <div className="flex items-start gap-2 pr-1">
-                        <div className="w-8 h-8 mt-0.5 rounded-lg bg-blue-100 flex items-center justify-center">
-                          {total >= 0 ? (
-                            <ArrowUpRight size={16} className="text-blue-700" />
-                          ) : (
-                            <ArrowDownRight
-                              size={16}
-                              className="text-blue-700"
-                            />
-                          )}
-                        </div>
                         <div className="text-right">
-                          <div className={`text-base font-semibold ${pnlColor}`}>
+                          <div className={`text-2xl font-bold ${pnlColor}`}>
                             {money(total)}
                           </div>
-                          <div className={`text-xs mt-1 ${pnlColor}`}>
-                            {signed(perShare, 4)} ({signed(absPct, 2)}%)
+                          <div className={`text-sm ${pnlColor}`}>
+                            {signed(absPct, 2)}%
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleNoteIn(symbol);
-                            }}
-                            className="inline-flex items-center gap-1 text-xs mt-2 px-2 py-1 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
-                          >
-                            <NotebookPen size={14} />
-                            <span>Notes</span>
-                          </button>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Chip label="Entry Price" value={money(entry)} />
-                      <Chip label="SL" value={money(sl)} tone="red" />
-                      <Chip label="Target" value={money(tgt)} tone="green" />
-                    </div>
+                      {/* ✅ inner rounded panel like Image 1 */}
+<div
+  className={[
+    "mt-4 rounded-2xl px-6 py-4",
+    isDark
+      ? "bg-white/5 border border-white/10"
+      : "bg-sky-50/70 border border-slate-200/40",
+  ].join(" ")}
+>
+  <div className="grid grid-cols-4 gap-8">
+    <div>
+      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
+        Live Price
+      </div>
+      <div className="text-base font-bold text-sky-500">
+        {money(live)}
+      </div>
+    </div>
 
-                    <div className="flex flex-wrap items-center gap-3 text-xs mt-2">
-                      <span className="text-gray-500">
-                        NSE | Total Investment={money(invest)}
-                      </span>
-                      <span className="text-gray-600">
-                        Current Valuation={money(currentVal)}
-                      </span>
-                      <span className={`${footerPnlColor}`}>
-                        P&L={money(cardPnL)}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      )}
+    <div>
+      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
+        Entry
+      </div>
+      <div className={`text-base font-bold ${textClass}`}>
+        {money(entry)}
+      </div>
+    </div>
 
+    <div>
+      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
+        Stop Loss
+      </div>
+      <div className="text-base font-bold text-rose-500">
+        {money(sl)}
+      </div>
+    </div>
+
+    <div>
+      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
+        Target
+      </div>
+      <div className="text-base font-bold text-emerald-500">
+        {money(tgt)}
+      </div>
+    </div>
+  </div>
+</div>
+
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Modal */}
       {selected && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50">
+          <div className={`${glassClass} rounded-xl shadow-lg p-6 w-96 relative`}>
             <button
               onClick={handleCloseModal}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-lg font-bold"
+              className={`absolute top-2 right-2 ${textSecondaryClass} hover:text-red-400 text-lg font-bold`}
             >
               ✕
             </button>
 
-            <h3 className="text-lg font-bold text-blue-600 mb-1">
+            <h3 className="text-lg font-bold text-blue-400 mb-1">
               {selected.symbol}
             </h3>
 
-            <div className="text-2xl font-extrabold text-center">
+            <div className={`text-2xl font-extrabold text-center ${textClass}`}>
               {money(selected.live)}
             </div>
 
-            <div className="space-y-1 text-sm mt-4">
+            <div className={`space-y-1 text-sm mt-4 ${textClass}`}>
               <div>Qty: {selected.qty}</div>
               <div>Avg Price: {money(selected.avg_price)}</div>
               <div>
@@ -658,12 +762,13 @@ export default function Portfolio({ username }) {
               <div>Target: {money(selected.target ?? 0)}</div>
               <div>Current Price: {money(selected.live)}</div>
               <div>
-                P&L / Share:{" "}
+                P&amp;L / Share:{" "}
                 <span
-                  className={`font-semibold ${(selected.pnlPerShare ?? 0) >= 0
-                      ? "text-green-600"
-                      : "text-red-600"
-                    }`}
+                  className={`font-semibold ${
+                    (selected.pnlPerShare ?? 0) >= 0
+                      ? "text-green-400"
+                      : "text-red-400"
+                  }`}
                 >
                   {money(selected.pnlPerShare ?? 0)}
                 </span>
@@ -680,6 +785,7 @@ export default function Portfolio({ username }) {
               >
                 Add
               </button>
+
               <button
                 onClick={() => {
                   handleExit(selected.symbol, selected);
@@ -689,9 +795,10 @@ export default function Portfolio({ username }) {
               >
                 Exit
               </button>
+
               <button
                 onClick={handleCloseModal}
-                className="px-4 py-2 rounded-lg bg-gray-600 text-white font-semibold hover:bg-gray-700"
+                className={`px-4 py-2 rounded-lg ${glassClass} ${textClass} font-semibold ${cardHoverClass}`}
               >
                 Close
               </button>
@@ -701,4 +808,5 @@ export default function Portfolio({ username }) {
       )}
     </div>
   );
+
 }
