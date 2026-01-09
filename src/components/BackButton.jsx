@@ -6,8 +6,9 @@ import { ArrowLeft } from "lucide-react";
 export default function BackButton({ inline = true, className = "" }) {
   const navigate = useNavigate();
 
+  // ✅ Dark theme = white, Light theme = black (auto via Tailwind dark: class)
   const base =
-    "flex items-center text-white hover:text-white transition";
+    "flex items-center transition text-slate-900 hover:text-slate-900 dark:text-white dark:hover:text-white";
 
   const pos = inline ? "" : "absolute top-[5px] left-2 z-50";
   const cls = `${base} ${pos} ${className}`.trim();
