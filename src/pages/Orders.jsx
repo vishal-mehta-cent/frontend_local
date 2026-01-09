@@ -927,38 +927,69 @@ export default function Orders({ username }) {
                   <div
                     className={[
                       "mt-6 rounded-2xl px-6 py-5",
+                      // ✅ +1 column for Date/Time
                       o.inactive && o.exit_price != null
-                        ? "grid grid-cols-1 sm:grid-cols-4 gap-8"
-                        : "grid grid-cols-1 sm:grid-cols-3 gap-8",
+                        ? "grid grid-cols-1 sm:grid-cols-5 gap-8"
+                        : "grid grid-cols-1 sm:grid-cols-4 gap-8",
                       isDark
                         ? "bg-white/5 border border-white/10"
                         : "bg-slate-50/70 border border-slate-200/50",
                     ].join(" ")}
                   >
-
-
                     <div>
-                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                      <div
+                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
+                          }`}
+                      >
                         Stop Loss
                       </div>
-                      <div className="mt-1 text-xl font-extrabold text-rose-400">{money(sl ?? 0)}</div>
+                      <div className="mt-1 text-xl font-extrabold text-rose-400">
+                        {money(sl ?? 0)}
+                      </div>
                     </div>
 
                     <div>
-                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                      <div
+                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
+                          }`}
+                      >
                         Target
                       </div>
-                      <div className="mt-1 text-xl font-extrabold text-emerald-400">{money(tgt ?? 0)}</div>
+                      <div className="mt-1 text-xl font-extrabold text-emerald-400">
+                        {money(tgt ?? 0)}
+                      </div>
                     </div>
 
                     <div>
-                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                      <div
+                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
+                          }`}
+                      >
                         Investment
                       </div>
                       <div className={`mt-1 text-xl font-extrabold ${textClass}`}>
                         {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
                       </div>
                     </div>
+
+                    {/* ✅ Buy/Sell Date + Time */}
+                    <div>
+                      <div
+                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
+                          }`}
+                      >
+                        {isBuy ? "Buy Date" : "Sell Date"}
+                      </div>
+
+                      <div className={`mt-1 text-sm font-extrabold ${textClass}`}>
+                        {fmtDate(dt)}
+                      </div>
+
+                      <div className={`text-xs font-semibold ${textSecondaryClass}`}>
+                        {fmtTime(dt)}
+                      </div>
+                    </div>
+
                     {/* ✅ Exit Price — SAME ROW (only for inactive rows) */}
                     {o.inactive && o.exit_price != null && (
                       <div>
@@ -977,6 +1008,7 @@ export default function Orders({ username }) {
                         </div>
                       </div>
                     )}
+
 
                   </div>
 
