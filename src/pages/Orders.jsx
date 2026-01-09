@@ -9,6 +9,8 @@ import { FaWhatsapp } from "react-icons/fa";
 import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
 import { ArrowLeft, Sun, Moon } from "lucide-react";
+import HeaderActions from "../components/HeaderActions";
+
 
 
 
@@ -157,6 +159,9 @@ export default function Orders({ username }) {
   const isOrdersTab = tab === "open";
   const getSymbol = (o) => (o?.script || o?.symbol || "").toString().toUpperCase();
   const who = username || localStorage.getItem("username");
+  const prevPriceRef = useRef({});
+  const [priceFlash, setPriceFlash] = useState({});
+
   const { isDark } = useTheme();
 
   const bgClass = isDark
@@ -335,6 +340,33 @@ export default function Orders({ username }) {
             };
           });
           setQuotes(map);
+          setPriceFlash((prev) => {
+            const next = { ...prev };
+
+            Object.entries(map).forEach(([sym, q]) => {
+              const isInactive = [...openOrders, ...positions].some(
+                (o) => (o.script || o.symbol)?.toUpperCase() === sym && o.inactive
+              );
+              if (isInactive) return;
+
+              const newPrice = q.price;
+              const oldPrice = prevPriceRef.current[sym];
+
+              if (oldPrice != null && newPrice != null && newPrice !== oldPrice) {
+                next[sym] = newPrice > oldPrice ? "up" : "down";
+
+                // clear flash after 600ms
+                setTimeout(() => {
+                  setPriceFlash((p) => ({ ...p, [sym]: null }));
+                }, 600);
+              }
+
+              prevPriceRef.current[sym] = newPrice;
+            });
+
+            return next;
+          });
+
         })
         .catch(() => { });
     };
@@ -559,11 +591,15 @@ export default function Orders({ username }) {
     }
   };
 
+  const handleCloseModal = () => {
+    setShowActions(false);
+    setSelectedOrder(null);
+  };
 
 
   // ---------- UI ----------
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}>
+    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-500 ease-out`}>
       {/* BACKGROUND BLUR EFFECTS */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
@@ -571,60 +607,40 @@ export default function Orders({ username }) {
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* HEADER (same style as Trade.jsx) */}
+      {/* HEADER */}
       <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          {/* Top Row */}
-          <div className="flex items-center justify-between mb-4">
-            {/* Left: Back + Brand */}
-            {/* Left: Back ABOVE Brand (same like Watchlist header) */}
+        <div className="w-full px-3 sm:px-4 md:px-6 py-4">
+
+          {/* Top Row: Logo, Title, Theme Toggle, Profile */}
+          <div className="relative flex items-start justify-between mb-4">
+            {/* Left: Back ABOVE Title */}
             <div className="flex flex-col items-start">
-              {/* Back button (no big box) */}
-              <button
-                type="button"
-                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/menu"))}
+              <BackButton />
 
-                title="Back"
-                aria-label="Back"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
+              <div className="mt-1">
+                <div className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
+                  NEUROCREST
+                </div>
 
-              {/* Brand gradient */}
-              <div className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
-                NEUROCREST
-              </div>
-
-              <div className={`text-xs ${textSecondaryClass} -mt-1`}>
-                Next-Gen Trading
+                <div className={`text-xs ${textSecondaryClass}`}>
+                  Next-Gen Trading
+                </div>
               </div>
             </div>
 
+            {/* Right: Profile */}
+            {/* Right: Theme + Profile (global) */}
+            <HeaderActions glassClass={glassClass} cardHoverClass={cardHoverClass} />
 
-            {/* Right: Theme + Profile */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsDark((v) => !v)}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-                title="Theme"
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-
-              <button
-                onClick={() => navigate("/profile")}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-                title="Profile"
-              >
-                <User className="w-5 h-5" />
-              </button>
-            </div>
           </div>
 
-          {/* Nav Row */}
+          {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
           <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
+
+
         </div>
       </div>
+
 
       {/* ✅ Main content */}
       <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
@@ -790,79 +806,136 @@ export default function Orders({ username }) {
 
 
                       <div>
+                        {/* SYMBOL */}
                         <div className={`text-2xl font-extrabold ${textClass}`}>{script}</div>
 
+                        {/* Entry / Order Price + Qty */}
                         <div className={`mt-1 flex flex-wrap items-center gap-3 text-sm ${textSecondaryClass}`}>
                           <div>
-                            Live:{" "}
+                            {isOrdersTab ? "Order Price" : "Entry Price"}{" "}
                             <span className={`${isDark ? "text-cyan-200" : "text-sky-600"} font-bold`}>
-                              {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
+                              {money(entryPrice)}
                             </span>
                           </div>
 
                           <span className={`${isDark ? "text-white/35" : "text-slate-300"}`}>•</span>
 
-                          <span className={`${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"} px-3 py-1 rounded-full text-xs font-semibold`}>
+                          <span
+                            className={`${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"} px-3 py-1 rounded-full text-xs font-semibold`}
+                          >
+                            {intval(o.qty)} Qty
+                          </span>
+                        </div>
+
+                        {/* ✅ NSE + Segment (3rd line) */}
+                        <div className="mt-1 flex items-center gap-2">
+                          {/* NSE */}
+                          <span
+                            className={`inline-block px-3 py-[2px] rounded-full text-[11px] font-semibold ${isDark
+                              ? "bg-white/10 text-white"
+                              : "bg-slate-100 text-slate-700"
+                              }`}
+                          >
                             {(o.exchange || "NSE").toUpperCase()}
                           </span>
 
-                          <span className={`${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"} px-3 py-1 rounded-full text-xs font-semibold`}>
-                            {intval(o.qty)} Qty
+                          {/* INTRADAY / DELIVERY */}
+                          <span
+                            className={`inline-block px-3 py-[2px] rounded-full text-[11px] font-semibold tracking-wide ${o.segment === "intraday"
+                              ? isDark
+                                ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/20"
+                                : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                              : isDark
+                                ? "bg-amber-500/20 text-amber-200 border border-amber-400/20"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                              }`}
+                          >
+                            {(o.segment || "delivery").toUpperCase()}
                           </span>
-                          {(!isBuy && o.short_first) && (
-                            <span
-                              className={[
-                                "px-3 py-1 rounded-full text-xs font-extrabold tracking-wide",
-                                isDark ? "bg-rose-500/20 text-rose-200 border border-rose-500/20"
-                                  : "bg-rose-50 text-rose-600 border border-rose-200",
-                              ].join(" ")}
-                            >
-                              SELL FIRST
-                            </span>
-                          )}
-
                         </div>
 
                       </div>
+
                     </div>
-                    {o.status_msg && (
-                      <div className={`mt-3 text-xs text-right ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
-                        {o.status_msg}
+                    {isOrdersTab && o.status_msg && (
+                      <div className="text-right mt-5">
+                        {/* Yet to trigger */}
+                        <div
+                          className={`text-xs ${isDark ? "text-slate-200/70" : "text-slate-500"
+                            }`}
+                        >
+                          {o.status_msg}
+                        </div>
+
+                        {/* Live price BELOW */}
+                        <div
+                          className={[
+                            "mt-2 flex items-baseline justify-end gap-1 text-sm font-bold transition-all duration-300",
+                            priceFlash[script] === "up"
+                              ? "text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md"
+                              : priceFlash[script] === "down"
+                                ? "text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-md"
+                                : isDark
+                                  ? "text-cyan-200"
+                                  : "text-sky-600",
+                          ].join(" ")}
+                        >
+                          {/* Arrow */}
+                          {priceFlash[script] === "up" && <span className="text-xs">▲</span>}
+                          {priceFlash[script] === "down" && <span className="text-xs">▼</span>}
+
+                          {/* Label */}
+                          <span className="opacity-80">Live:</span>
+
+                          {/* Price */}
+                          <span className="tabular-nums">{money(live)}</span>
+                        </div>
+
                       </div>
                     )}
+
                     {/* ✅ RIGHT: P&L exactly like Image-2 */}
                     {!isOrdersTab && (
                       <div className="text-right">
-                        <div className={`flex items-center justify-end gap-2 ${pnlColor}`}>
+                        {/* P&L */}
+                        <div className={`flex items-baseline justify-end gap-2 ${pnlColor}`}>
                           {pnlUp ? <TrendingUp size={26} /> : <TrendingDown size={26} />}
                           <div className="text-3xl font-extrabold leading-none">
                             {money(total)}
                           </div>
                         </div>
 
+                        {/* % */}
                         <div className={`mt-1 text-sm font-bold ${pctColor}`}>
                           {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%
                         </div>
+
+                        {/* ✅ Live price (same as Open Trades) */}
+                        <div
+                          className={`mt-2 text-sm font-bold ${isDark ? "text-cyan-200" : "text-sky-600"
+                            }`}
+                        >
+                          Live: {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
+                        </div>
                       </div>
                     )}
+
+
                   </div>
 
                   {/* ===== BOTTOM GLASS PANEL ===== */}
                   <div
                     className={[
                       "mt-6 rounded-2xl px-6 py-5",
-                      "grid grid-cols-1 sm:grid-cols-4 gap-8",
+                      o.inactive && o.exit_price != null
+                        ? "grid grid-cols-1 sm:grid-cols-4 gap-8"
+                        : "grid grid-cols-1 sm:grid-cols-3 gap-8",
                       isDark
                         ? "bg-white/5 border border-white/10"
                         : "bg-slate-50/70 border border-slate-200/50",
                     ].join(" ")}
                   >
-                    <div>
-                      <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
-                        {isOrdersTab ? "Order Price" : "Entry Price"}
-                      </div>
-                      <div className={`mt-1 text-xl font-extrabold ${textClass}`}>{money(entryPrice)}</div>
-                    </div>
+
 
                     <div>
                       <div className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
@@ -886,6 +959,25 @@ export default function Orders({ username }) {
                         {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
                       </div>
                     </div>
+                    {/* ✅ Exit Price — SAME ROW (only for inactive rows) */}
+                    {o.inactive && o.exit_price != null && (
+                      <div>
+                        <div
+                          className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
+                            }`}
+                        >
+                          Exit Price
+                        </div>
+
+                        <div
+                          className={`mt-1 text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"
+                            }`}
+                        >
+                          {money(o.exit_price)}
+                        </div>
+                      </div>
+                    )}
+
                   </div>
 
                   {/* Optional bottom-right status (only if exists) */}
@@ -900,146 +992,225 @@ export default function Orders({ username }) {
       </div>
 
       {/* Modal */}
-      {/* Popup Action Modal (Premium Glass UI) */}
+      {/* Modal (Portfolio-style detailed modal) */}
       {showActions && selectedOrder && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-          onClick={() => setShowActions(false)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
           <div
-            className="relative w-full max-w-sm rounded-3xl overflow-hidden
-                 bg-slate-900/80 border border-white/10 backdrop-blur-xl
-                 shadow-2xl text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* soft glow */}
-            <div className="absolute -top-24 -left-24 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl" />
-            <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-cyan-500/20 rounded-full blur-3xl" />
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleCloseModal}
+          />
 
-            {/* Header */}
-            <div className="relative z-10 px-6 pt-5 pb-4 border-b border-white/10">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="text-sm font-semibold tracking-wide text-white/90">
-                    {getSymbol(selectedOrder)}
-                  </div>
-                </div>
+          {/* Card */}
+          <div className="relative w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div
+              className={[
+                "relative overflow-hidden rounded-3xl shadow-2xl",
+                isDark
+                  ? "bg-white/5 border border-white/10 backdrop-blur-xl"
+                  : "bg-white/70 border border-white/50 backdrop-blur-xl",
+                textClass,
+              ].join(" ")}
+            >
+              {/* Decorative gradient glow */}
+              <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-3xl" />
 
-                <button
-                  onClick={() => setShowActions(false)}
-                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition"
-                  aria-label="Close"
-                >
-                  <X size={18} className="text-white/80" />
-                </button>
-              </div>
+              {(() => {
+                const sym = getSymbol(selectedOrder);
+                const q = (sym && quotes[sym]) || {};
 
-              {/* Price */}
-              <div className="mt-3 text-center">
-                {(() => {
-                  const sym = getSymbol(selectedOrder);
-                  const q = (sym && quotes[sym]) || {};
-                  const live = toNum(q.price) ?? toNum(selectedOrder.price) ?? 0;
-                  return (
-                    <div className="text-3xl font-extrabold tracking-tight">
-                      {money(live)}
+                const live =
+                  selectedOrder?.inactive && selectedOrder?.exit_price != null
+                    ? toNum(selectedOrder.exit_price)
+                    : (toNum(q.price) ?? toNum(selectedOrder.live_price) ?? toNum(selectedOrder.price) ?? 0);
+
+                const isBuy = (selectedOrder.type || selectedOrder.order_type) === "BUY";
+
+                // Entry/Order price
+                const entryPrice =
+                  isOrdersTab
+                    ? (toNum(selectedOrder.trigger_price) ?? toNum(selectedOrder.price) ?? 0)
+                    : (toNum(selectedOrder.price) ?? 0);
+
+                // P&L per share (only meaningful for positions tab)
+                const perShare =
+                  !isOrdersTab && entryPrice && live
+                    ? (isBuy ? (live - entryPrice) : (entryPrice - live))
+                    : 0;
+
+                return (
+                  <>
+                    {/* Header */}
+                    <div className="relative z-10 p-6 border-b border-white/10">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                            {sym}
+                          </h2>
+                          <p className={`text-sm ${textSecondaryClass} mt-1`}>
+                            {isOrdersTab ? "Order Details" : "Position Details"}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={handleCloseModal}
+                          className={`${glassClass} p-2 rounded-xl ${cardHoverClass} transition-all hover:rotate-90 duration-300`}
+                          title="Close"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      <div className="mt-3 text-center">
+                        <div className={`text-3xl font-extrabold ${textClass}`}>
+                          {money(live)}
+                        </div>
+                      </div>
                     </div>
-                  );
-                })()}
-              </div>
-            </div>
 
-            {/* Actions */}
-            <div className="relative z-10 p-6">
-              {isOrdersTab ? (
-                // ✅ Open Trades: Modify + Cancel (2 buttons)
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => handleModify(selectedOrder)}
-                    className="py-3 rounded-xl font-semibold text-white
-                         bg-gradient-to-r from-blue-500 to-cyan-500
-                         hover:from-blue-600 hover:to-cyan-600
-                         shadow-lg hover:shadow-blue-500/30 transition"
-                  >
-                    Modify
-                  </button>
+                    {/* Info Card (inner glass) */}
+                    <div className="relative z-10 p-6">
+                      <div className={`${glassClass} rounded-2xl p-5 space-y-3`}>
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm ${textSecondaryClass}`}>Qty</span>
+                          <span className="font-semibold">{intval(selectedOrder.qty)}</span>
+                        </div>
 
-                  <button
-                    disabled={busy}
-                    onClick={handleClose}
-                    className={`py-3 rounded-xl font-semibold
-                          bg-white/10 hover:bg-white/15 border border-white/10
-                          shadow-lg transition
-                          ${busy ? "opacity-60 cursor-not-allowed" : ""}`}
-                    title="Cancel"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ) : (
-                // ✅ Positions: Add + Modify + Exit (3 buttons)
-                <div className="grid grid-cols-3 gap-3">
-                  <button
-                    className="py-3 rounded-xl font-semibold text-white
-                         bg-gradient-to-r from-emerald-500 to-green-600
-                         hover:from-emerald-600 hover:to-green-700
-                         shadow-lg hover:shadow-emerald-500/25 transition"
-                    onClick={() => {
-                      handleAdd(selectedOrder);
-                      setShowActions(false);
-                    }}
-                  >
-                    Add
-                  </button>
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm ${textSecondaryClass}`}>
+                            {isOrdersTab ? "Order Price" : "Entry Price"}
+                          </span>
+                          <span className="font-semibold">{money(entryPrice)}</span>
+                        </div>
 
-                  <button
-                    onClick={() => {
-                      const side = selectedOrder.type || selectedOrder.order_type;
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm ${textSecondaryClass}`}>Stoploss</span>
+                          <span className="font-semibold">{money(selectedOrder.stoploss ?? 0)}</span>
+                        </div>
 
-                      navigate(
-                        side === "BUY"
-                          ? `/buy/${selectedOrder.script}`
-                          : `/sell/${selectedOrder.script}`,
-                        {
-                          state: {
-                            fromPosition: true,
-                            fromModify: true,
-                            qty: selectedOrder.qty,
-                            price: selectedOrder.price,
-                            stoploss: selectedOrder.stoploss,
-                            target: selectedOrder.target,
-                            segment: selectedOrder.segment,
-                            exchange: selectedOrder.exchange || "NSE",
-                            orderMode: "MARKET",
-                          },
-                        }
-                      );
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm ${textSecondaryClass}`}>Target</span>
+                          <span className="font-semibold">{money(selectedOrder.target ?? 0)}</span>
+                        </div>
 
-                      setShowActions(false);
-                    }}
-                    className="py-3 rounded-xl font-semibold text-white
-                         bg-gradient-to-r from-blue-500 to-indigo-600
-                         hover:from-blue-600 hover:to-indigo-700
-                         shadow-lg hover:shadow-blue-500/25 transition"
-                  >
-                    Modify
-                  </button>
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm ${textSecondaryClass}`}>Exchange</span>
+                          <span className="font-semibold">{(selectedOrder.exchange || "NSE").toUpperCase()}</span>
+                        </div>
 
-                  <button
-                    onClick={() => handleExit(selectedOrder)}
-                    className="py-3 rounded-xl font-semibold text-white
-                         bg-gradient-to-r from-rose-500 to-red-600
-                         hover:from-rose-600 hover:to-red-700
-                         shadow-lg hover:shadow-red-500/25 transition"
-                  >
-                    Exit
-                  </button>
-                </div>
-              )}
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm ${textSecondaryClass}`}>Segment</span>
+                          <span className="font-semibold">{(selectedOrder.segment || "delivery").toUpperCase()}</span>
+                        </div>
+
+                        {/* P&L / Share (positions only) */}
+                        {!isOrdersTab && (
+                          <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                            <span className={`text-sm ${textSecondaryClass}`}>P&amp;L / Share</span>
+                            <span
+                              className={`font-semibold ${perShare >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                            >
+                              {money(perShare)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons (keep your existing logic) */}
+                    <div className="relative z-10 px-6 pb-6">
+                      {isOrdersTab ? (
+                        <div className="grid grid-cols-2 gap-3">
+                          <button
+                            onClick={() => handleModify(selectedOrder)}
+                            className="py-3 rounded-xl font-semibold text-white
+                        bg-gradient-to-r from-blue-500 to-cyan-500
+                        hover:from-blue-600 hover:to-cyan-600
+                        shadow-lg hover:shadow-blue-500/30 transition"
+                          >
+                            Modify
+                          </button>
+
+                          <button
+                            disabled={busy}
+                            onClick={handleClose}
+                            className={`py-3 rounded-xl font-semibold
+                        bg-white/10 hover:bg-white/15 border border-white/10
+                        shadow-lg transition
+                        ${busy ? "opacity-60 cursor-not-allowed" : ""}`}
+                            title="Cancel"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                          <button
+                            className="py-3 rounded-xl font-semibold text-white
+                        bg-gradient-to-r from-emerald-500 to-green-600
+                        hover:from-emerald-600 hover:to-green-700
+                        shadow-lg hover:shadow-emerald-500/25 transition"
+                            onClick={() => {
+                              handleAdd(selectedOrder);
+                              setShowActions(false);
+                            }}
+                          >
+                            Add
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              const side = selectedOrder.type || selectedOrder.order_type;
+
+                              navigate(
+                                side === "BUY"
+                                  ? `/buy/${selectedOrder.script}`
+                                  : `/sell/${selectedOrder.script}`,
+                                {
+                                  state: {
+                                    fromPosition: true,
+                                    fromModify: true,
+                                    qty: selectedOrder.qty,
+                                    price: selectedOrder.price,
+                                    stoploss: selectedOrder.stoploss,
+                                    target: selectedOrder.target,
+                                    segment: selectedOrder.segment,
+                                    exchange: selectedOrder.exchange || "NSE",
+                                    orderMode: "MARKET",
+                                  },
+                                }
+                              );
+
+                              setShowActions(false);
+                            }}
+                            className="py-3 rounded-xl font-semibold text-white
+                        bg-gradient-to-r from-blue-500 to-indigo-600
+                        hover:from-blue-600 hover:to-indigo-700
+                        shadow-lg hover:shadow-blue-500/25 transition"
+                          >
+                            Modify
+                          </button>
+
+                          <button
+                            onClick={() => handleExit(selectedOrder)}
+                            className="py-3 rounded-xl font-semibold text-white
+                        bg-gradient-to-r from-rose-500 to-red-600
+                        hover:from-rose-600 hover:to-red-700
+                        shadow-lg hover:shadow-red-500/25 transition"
+                          >
+                            Exit
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>
       )}
+
 
     </div>
   );
