@@ -167,6 +167,24 @@ export default function Portfolio({ username }) {
     const da = String(d.getDate()).padStart(2, "0");
     return `${yr}-${mo}-${da}`;
   };
+  const fmtTime = (d) =>
+    d
+      ? d.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
+      : "—";
+
+  const fmtDate = (d) =>
+    d
+      ? d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
+      : "—";
 
   const filteredOpen = useMemo(() => {
     if (!startDate && !endDate) return data.open;
@@ -369,9 +387,11 @@ export default function Portfolio({ username }) {
         toNum(quotes[symbol]?.price) ??
         toNum(p.avg_price) ??
         0;
+
       return s + qty * live;
     }, 0);
   }, [filteredOpen, quotes]);
+
 
   const totalPnL = useMemo(
     () => totalCurrentValuation - totalInvested,
@@ -559,6 +579,9 @@ export default function Portfolio({ username }) {
                     toNum(quotes[symbol]?.price) ??
                     toNum(p.avg_price) ??
                     0;
+                  // ✅ Per-script totals (calculated in JSX)
+                  const scriptInvested = Math.abs(qty) * (toNum(entry) ?? 0);
+                  const scriptCurrentValuation = Math.abs(qty) * (toNum(live) ?? 0);
 
                   // ✅ Use backend-calculated fields (same as your corrected file)
                   const perShare =
@@ -684,27 +707,47 @@ export default function Portfolio({ username }) {
                             : "bg-sky-50/70 border border-slate-200/40",
                         ].join(" ")}
                       >
-                        <div className="grid grid-cols-4 gap-8">
-
-
-                          <div>
-                            <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
-                              Stop Loss
-                            </div>
-                            <div className="text-base font-bold text-rose-500">
-                              {money(sl)}
+                        {/* Force same line: 3 columns */}
+                        <div className="grid grid-cols-3 gap-10 items-start">
+                          {/* 1) Total Investment */}
+                          <div className="flex flex-col">
+                            <div className={`text-xs ${textSecondaryClass} mb-1`}>Total Investment</div>
+                            <div className={`text-lg font-extrabold ${textClass} tabular-nums`}>
+                              {money(scriptInvested)}
                             </div>
                           </div>
 
-                          <div>
-                            <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
-                              Target
+                          {/* 2) Current Valuation */}
+                          <div className="flex flex-col">
+                            <div className={`text-xs ${textSecondaryClass} mb-1`}>Current Valuation</div>
+                            <div className={`text-lg font-extrabold ${textClass} tabular-nums`}>
+                              {money(scriptCurrentValuation)}
                             </div>
-                            <div className="text-base font-bold text-emerald-500">
-                              {money(tgt)}
+                          </div>
+
+                          {/* 3) Buy/Sell Date + Time (same row) */}
+                          <div className="flex flex-col">
+                            <div className={`text-xs ${textSecondaryClass} mb-1`}>
+                              {(p.side || (qty < 0 ? "SELL" : "BUY")) === "SELL" ? "Sell Date" : "Buy Date"}
                             </div>
+
+                            {(() => {
+                              const dtRaw = pickDateTime(p);
+                              const dt = parseDate(dtRaw);
+                              return (
+                                <>
+                                  <div className={`text-sm font-extrabold ${textClass}`}>
+                                    {fmtDate(dt)}
+                                  </div>
+                                  <div className={`text-xs font-semibold ${textSecondaryClass}`}>
+                                    {fmtTime(dt)}
+                                  </div>
+                                </>
+                              );
+                            })()}
                           </div>
                         </div>
+
                       </div>
 
                     </div>
