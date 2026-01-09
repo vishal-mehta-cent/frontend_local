@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { moneyINR } from "../utils/format";
-import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search } from "lucide-react";
+import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search, TrendingUp, TrendingDown, ArrowUpRight} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { FaWhatsapp } from "react-icons/fa";
