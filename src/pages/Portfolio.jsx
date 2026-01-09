@@ -8,12 +8,16 @@ import {
   NotebookPen,
   Download,
   Upload,
+  X,
 } from "lucide-react";
+
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
 import { User } from "lucide-react";
+import HeaderActions from "../components/HeaderActions";
+
 
 
 // ---------- API base (prod-safe) ----------
@@ -63,8 +67,8 @@ const SegmentBadge = ({ segment }) => {
   return (
     <span
       className={`inline-flex items-center px-2 py-[2px] rounded-full text-[11px] border ${isIntra
-          ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-          : "bg-amber-50 text-amber-700 border-amber-200"
+        ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+        : "bg-amber-50 text-amber-700 border-amber-200"
         }`}
       title="Segment"
     >
@@ -81,7 +85,7 @@ export default function Portfolio({ username }) {
   const [quotes, setQuotes] = useState({});
   const pollRef = useRef(null);
   const navigate = useNavigate();
-    const { isDark } = useTheme();
+  const { isDark } = useTheme();
 
   const bgClass = isDark
     ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
@@ -94,6 +98,7 @@ export default function Portfolio({ username }) {
   const textClass = isDark ? "text-white" : "text-slate-900";
   const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
   const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
+  const brandGradient = "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
 
 
   const fileInputRef = useRef(null);
@@ -304,46 +309,46 @@ export default function Portfolio({ username }) {
   };
 
   // ===== Multi-sheet Excel (.xlsx) download =====
-const handleDownloadExcel = async () => {
-  try {
-    if (!username) {
-      alert("Username missing. Please login again.");
-      return;
+  const handleDownloadExcel = async () => {
+    try {
+      if (!username) {
+        alert("Username missing. Please login again.");
+        return;
+      }
+
+      const url = `${API_BASE}/portfolio/${encodeURIComponent(username)}/download`;
+
+      // Fetch the file as blob and download with saveAs (reliable across browsers)
+      const res = await fetch(url);
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const j = await res.json();
+          detail = j?.detail || "";
+        } catch { }
+        throw new Error(detail || `Download failed (HTTP ${res.status})`);
+      }
+
+      const blob = await res.blob();
+
+      // Use server filename if present, else fallback
+      const cd = res.headers.get("content-disposition") || "";
+      const match = cd.match(/filename="([^"]+)"/i);
+      const serverName = match?.[1];
+
+      const stamp = new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace("T", "_")
+        .replace(/:/g, "");
+
+      const fname = serverName || `portfolio_${username}_${stamp}.xlsx`;
+      saveAs(blob, fname);
+    } catch (err) {
+      console.error("Excel download failed:", err);
+      alert(err?.message || "Failed to download portfolio file.");
     }
-
-    const url = `${API_BASE}/portfolio/${encodeURIComponent(username)}/download`;
-
-    // Fetch the file as blob and download with saveAs (reliable across browsers)
-    const res = await fetch(url);
-    if (!res.ok) {
-      let detail = "";
-      try {
-        const j = await res.json();
-        detail = j?.detail || "";
-      } catch {}
-      throw new Error(detail || `Download failed (HTTP ${res.status})`);
-    }
-
-    const blob = await res.blob();
-
-    // Use server filename if present, else fallback
-    const cd = res.headers.get("content-disposition") || "";
-    const match = cd.match(/filename="([^"]+)"/i);
-    const serverName = match?.[1];
-
-    const stamp = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", "_")
-      .replace(/:/g, "");
-
-    const fname = serverName || `portfolio_${username}_${stamp}.xlsx`;
-    saveAs(blob, fname);
-  } catch (err) {
-    console.error("Excel download failed:", err);
-    alert(err?.message || "Failed to download portfolio file.");
-  }
-};
+  };
 
   // Totals
   const totalInvested = useMemo(
@@ -377,7 +382,7 @@ const handleDownloadExcel = async () => {
     return (totalPnL / totalInvested) * 100;
   }, [totalPnL, totalInvested]);
 
-    const getInitials = (symbol) => {
+  const getInitials = (symbol) => {
     const s = (symbol || "").toUpperCase();
     return s.length >= 2 ? s.substring(0, 2) : s;
   };
@@ -397,6 +402,7 @@ const handleDownloadExcel = async () => {
 
 
   return (
+
     <div
       className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}
     >
@@ -407,37 +413,43 @@ const handleDownloadExcel = async () => {
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* Header */}
-      <div className={`sticky top-0 z-50 ${glassClass} shadow-lg relative`}>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <BackButton to="/menu" />
-              <div>
-                <div className="text-xl font-bold">TradeHub</div>
+      {/* HEADER */}
+      <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
+        <div className="w-full px-3 sm:px-4 md:px-6 py-4">
+
+          {/* Top Row: Logo, Title, Theme Toggle, Profile */}
+          <div className="relative flex items-start justify-between mb-4">
+            {/* Left: Back ABOVE Title */}
+            <div className="flex flex-col items-start">
+              <BackButton />
+
+              <div className="mt-1">
+                <div className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
+                  NEUROCREST
+                </div>
+
                 <div className={`text-xs ${textSecondaryClass}`}>
                   Next-Gen Trading
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate("/profile")}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-              >
-                <User className="w-5 h-5" />
-              </button>
-            </div>
+            {/* Right: Profile */}
+            {/* Right: Theme + Profile (global) */}
+            <HeaderActions glassClass={glassClass} cardHoverClass={cardHoverClass} />
+
           </div>
 
           {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
           <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
+
+
         </div>
       </div>
 
+
       {/* Body */}
-      <div className="max-w-7xl mx-auto px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 pt-2 pb-24 relative">
         <div className="mb-6">
           <h2 className={`text-4xl font-bold ${textClass} mb-2`}>Portfolio</h2>
           <p className={`${textSecondaryClass}`}>
@@ -446,7 +458,7 @@ const handleDownloadExcel = async () => {
         </div>
 
         {loading && (
-          <div className={`text-center ${textSecondaryClass} mt-20`}>
+          <div className={`text-left ${textSecondaryClass} mt-20`}>
             Loading…
           </div>
         )}
@@ -481,16 +493,14 @@ const handleDownloadExcel = async () => {
                     Total P&amp;L
                   </div>
                   <div
-                    className={`text-3xl font-bold ${
-                      totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"
-                    }`}
+                    className={`text-3xl font-bold ${totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"
+                      }`}
                   >
                     {money(totalPnL)}
                   </div>
                   <div
-                    className={`text-sm ${
-                      totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"
-                    }`}
+                    className={`text-sm ${totalPnL >= 0 ? "text-emerald-400" : "text-rose-400"
+                      }`}
                   >
                     ({signed(totalPnLPct, 2)}%)
                   </div>
@@ -562,43 +572,43 @@ const handleDownloadExcel = async () => {
                     total > 0
                       ? "text-emerald-400"
                       : total < 0
-                      ? "text-rose-400"
-                      : "text-gray-400";
+                        ? "text-rose-400"
+                        : "text-gray-400";
 
                   return (
                     <div
                       key={`${symbol}-${i}`}
                       className={[
-    "p-6 rounded-[28px] transition cursor-pointer",
-    // premium glass look
-    isDark
-      ? "bg-white/6 border border-white/12 backdrop-blur-2xl shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
-      : "bg-white/70 border border-white/80 backdrop-blur-2xl shadow-[0_18px_60px_rgba(2,132,199,0.12)]",
-    // soft hover
-    isDark ? "hover:bg-white/8" : "hover:bg-white/85",
-  ].join(" ")}
-  onClick={() =>
-    setSelected({
-      ...p,
-      symbol,
-      live,
-      pnlPerShare: perShare,
-    })
-  }
->
+                        "p-6 rounded-[28px] transition cursor-pointer",
+                        // premium glass look
+                        isDark
+                          ? "bg-white/6  backdrop-blur-2xl shadow-[0_18px_60px_rgba(0,0,0,0.55)]"
+                          : "bg-white/70  backdrop-blur-2xl shadow-[0_18px_60px_rgba(2,132,199,0.12)]",
+                        // soft hover
+                        isDark ? "hover:bg-white/8" : "hover:bg-white/85",
+                      ].join(" ")}
+                      onClick={() =>
+                        setSelected({
+                          ...p,
+                          symbol,
+                          live,
+                          pnlPerShare: perShare,
+                        })
+                      }
+                    >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <div
-  className={[
-    "w-12 h-12 rounded-2xl flex items-center justify-center",
-    "text-white font-extrabold text-[16px] tracking-wide",
-    "bg-gradient-to-br from-emerald-400 to-emerald-600",
-    "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
-    "ring-1 ring-white/40",
-  ].join(" ")}
->
-  {getInitials(symbol)}
-</div>
+                            className={[
+                              "w-12 h-12 rounded-2xl flex items-center justify-center",
+                              "text-white font-extrabold text-[16px] tracking-wide",
+                              "bg-gradient-to-br from-emerald-400 to-emerald-600",
+                              "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
+                              "ring-1 ring-white/40",
+                            ].join(" ")}
+                          >
+                            {getInitials(symbol)}
+                          </div>
 
 
                           <div>
@@ -606,77 +616,96 @@ const handleDownloadExcel = async () => {
                               {symbol}
                             </div>
 
+                            {/* Entry Price */}
                             <div className={`text-sm ${textSecondaryClass}`}>
+                              <span>
+                                Entry Price : {" "}
+                                <span className={`${isDark ? "text-cyan-200" : "text-sky-600"} font-bold`}>
+                                  {money(entry)}
+                                </span>
+                              </span>
+
+                              <span className="mx-1.5">•</span>
+
                               {qty < 0 ? (
                                 <span className="text-orange-400 font-semibold">
-                                  SELL FIRST • {Math.abs(qty)} Qty
+                                  SELL
                                 </span>
                               ) : (
-                                <span>
-                                  {p.side || "BUY"} FIRST • {qty} Qty
+                                <span className="font-semibold">
+                                  {p.side || "BUY"}
                                 </span>
                               )}
+
+                              <span className="mx-2">•</span>
+
+                              <span className="font-semibold">
+                                {Math.abs(qty)} Qty
+                              </span>
                             </div>
+
+
                           </div>
                         </div>
 
                         <div className="text-right">
-                          <div className={`text-2xl font-bold ${pnlColor}`}>
-                            {money(total)}
+                          {/* P&L */}
+                          <div
+                            className={`flex items-baseline justify-end gap-2 ${pnlColor}`}
+                          >
+                            <div className="text-2xl font-extrabold leading-none">
+                              {money(total)}
+                            </div>
                           </div>
-                          <div className={`text-sm ${pnlColor}`}>
+
+                          {/* % */}
+                          <div className={`mt-1 text-sm font-bold ${pnlColor}`}>
                             {signed(absPct, 2)}%
                           </div>
+
+                          {/* ✅ LIVE PRICE (same position as Orders page) */}
+                          <div
+                            className={`mt-2 flex items-baseline justify-end gap-1 text-sm font-bold ${isDark ? "text-cyan-200" : "text-sky-600"
+                              }`}
+                          >
+                            <span className="opacity-80">Live:</span>
+                            <span className="tabular-nums">{money(live)}</span>
+                          </div>
                         </div>
+
                       </div>
 
                       {/* ✅ inner rounded panel like Image 1 */}
-<div
-  className={[
-    "mt-4 rounded-2xl px-6 py-4",
-    isDark
-      ? "bg-white/5 border border-white/10"
-      : "bg-sky-50/70 border border-slate-200/40",
-  ].join(" ")}
->
-  <div className="grid grid-cols-4 gap-8">
-    <div>
-      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
-        Live Price
-      </div>
-      <div className="text-base font-bold text-sky-500">
-        {money(live)}
-      </div>
-    </div>
+                      <div
+                        className={[
+                          "mt-4 rounded-2xl px-6 py-4",
+                          isDark
+                            ? "bg-white/5 border border-white/10"
+                            : "bg-sky-50/70 border border-slate-200/40",
+                        ].join(" ")}
+                      >
+                        <div className="grid grid-cols-4 gap-8">
 
-    <div>
-      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
-        Entry
-      </div>
-      <div className={`text-base font-bold ${textClass}`}>
-        {money(entry)}
-      </div>
-    </div>
 
-    <div>
-      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
-        Stop Loss
-      </div>
-      <div className="text-base font-bold text-rose-500">
-        {money(sl)}
-      </div>
-    </div>
+                          <div>
+                            <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
+                              Stop Loss
+                            </div>
+                            <div className="text-base font-bold text-rose-500">
+                              {money(sl)}
+                            </div>
+                          </div>
 
-    <div>
-      <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
-        Target
-      </div>
-      <div className="text-base font-bold text-emerald-500">
-        {money(tgt)}
-      </div>
-    </div>
-  </div>
-</div>
+                          <div>
+                            <div className={`text-[11px] font-medium ${textSecondaryClass} mb-1`}>
+                              Target
+                            </div>
+                            <div className="text-base font-bold text-emerald-500">
+                              {money(tgt)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
                     </div>
                   );
@@ -688,78 +717,133 @@ const handleDownloadExcel = async () => {
       </div>
 
       {/* Modal */}
+      {/* ✅ Premium Glass Modal (same style as ScriptDetailsModal) */}
       {selected && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-50">
-          <div className={`${glassClass} rounded-xl shadow-lg p-6 w-96 relative`}>
-            <button
-              onClick={handleCloseModal}
-              className={`absolute top-2 right-2 ${textSecondaryClass} hover:text-red-400 text-lg font-bold`}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={handleCloseModal}
+          />
+
+          {/* Card */}
+          <div className="relative w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <div
+              className={[
+                "relative overflow-hidden rounded-3xl shadow-2xl",
+                isDark
+                  ? "bg-white/5 border border-white/10 backdrop-blur-xl"
+                  : "bg-white/70 border border-white/50 backdrop-blur-xl",
+                textClass,
+              ].join(" ")}
             >
-              ✕
-            </button>
+              {/* Decorative gradient glow */}
+              <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-3xl" />
 
-            <h3 className="text-lg font-bold text-blue-400 mb-1">
-              {selected.symbol}
-            </h3>
+              {/* Header */}
+              <div className="relative z-10 p-6 border-b border-white/10">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                      {selected.symbol}
+                    </h2>
+                    <p className={`text-sm ${textSecondaryClass} mt-1`}>Position Details</p>
+                  </div>
 
-            <div className={`text-2xl font-extrabold text-center ${textClass}`}>
-              {money(selected.live)}
-            </div>
+                  <button
+                    onClick={handleCloseModal}
+                    className={`${glassClass} p-2 rounded-xl ${cardHoverClass} transition-all hover:rotate-90 duration-300`}
+                    title="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
 
-            <div className={`space-y-1 text-sm mt-4 ${textClass}`}>
-              <div>Qty: {selected.qty}</div>
-              <div>Avg Price: {money(selected.avg_price)}</div>
-              <div>
-                Entry Price: {money(selected.entry_price ?? selected.avg_price)}
+                <div className="mt-3 text-center">
+                  <div className={`text-3xl font-extrabold ${textClass}`}>
+                    {money(selected.live)}
+                  </div>
+                </div>
               </div>
-              <div>Stoploss: {money(selected.stoploss ?? 0)}</div>
-              <div>Target: {money(selected.target ?? 0)}</div>
-              <div>Current Price: {money(selected.live)}</div>
-              <div>
-                P&amp;L / Share:{" "}
-                <span
-                  className={`font-semibold ${
-                    (selected.pnlPerShare ?? 0) >= 0
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {money(selected.pnlPerShare ?? 0)}
-                </span>
+
+              {/* Info Card (inner glass) */}
+              <div className="relative z-10 p-6">
+                <div className={`${glassClass} rounded-2xl p-5 space-y-3`}>
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${textSecondaryClass}`}>Qty</span>
+                    <span className="font-semibold">{selected.qty}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${textSecondaryClass}`}>Avg Price</span>
+                    <span className="font-semibold">{money(selected.avg_price)}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${textSecondaryClass}`}>Entry Price</span>
+                    <span className="font-semibold">
+                      {money(selected.entry_price ?? selected.avg_price)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${textSecondaryClass}`}>Stoploss</span>
+                    <span className="font-semibold">{money(selected.stoploss ?? 0)}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className={`text-sm ${textSecondaryClass}`}>Target</span>
+                    <span className="font-semibold">{money(selected.target ?? 0)}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center pt-3 border-t border-white/10">
+                    <span className={`text-sm ${textSecondaryClass}`}>P&amp;L / Share</span>
+                    <span
+                      className={`font-semibold ${(selected.pnlPerShare ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"
+                        }`}
+                    >
+                      {money(selected.pnlPerShare ?? 0)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div className="flex justify-around border-t pt-4 mt-4">
-              <button
-                onClick={() => {
-                  handleAdd(selected.symbol, selected);
-                  handleCloseModal();
-                }}
-                className="px-4 py-2 rounded-lg bg-green-500 text-white font-semibold hover:bg-green-600"
-              >
-                Add
-              </button>
+              {/* Action Buttons (same premium buttons style) */}
+              <div className="relative z-10 px-6 pb-6">
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    onClick={() => {
+                      handleAdd(selected.symbol, selected);
+                      handleCloseModal();
+                    }}
+                    className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-green-500/50 transition-all hover:scale-105"
+                  >
+                    Add
+                  </button>
 
-              <button
-                onClick={() => {
-                  handleExit(selected.symbol, selected);
-                  handleCloseModal();
-                }}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600"
-              >
-                Exit
-              </button>
+                  <button
+                    onClick={() => {
+                      handleExit(selected.symbol, selected);
+                      handleCloseModal();
+                    }}
+                    className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-red-500/50 transition-all hover:scale-105"
+                  >
+                    Exit
+                  </button>
 
-              <button
-                onClick={handleCloseModal}
-                className={`px-4 py-2 rounded-lg ${glassClass} ${textClass} font-semibold ${cardHoverClass}`}
-              >
-                Close
-              </button>
+                  <button
+                    onClick={handleCloseModal}
+                    className={`${glassClass} ${cardHoverClass} px-4 py-3 rounded-xl font-semibold shadow-lg transition-all hover:scale-105`}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 
