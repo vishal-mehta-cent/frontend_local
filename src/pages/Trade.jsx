@@ -8,13 +8,16 @@ import { moneyINR } from "../utils/format";
 import ChartLauncher from "../components/ChartLauncher";
 import { FaWhatsapp } from "react-icons/fa";
 import SwipeNav from "../components/SwipeNav";
+import HeaderActions from "../components/HeaderActions";
+import { useTheme } from "../context/ThemeContext";
+
 
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
   "https://paper-trading-backend.onrender.com";
 
 export default function Trade({ username }) {
-  const [isDark, setIsDark] = useState(true);
+  const { isDark } = useTheme();
   const [tab, setTab] = useState("mylist");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -532,14 +535,9 @@ export default function Trade({ username }) {
             </div>
 
             {/* Right: Profile */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => nav("/profile")}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-              >
-                <User className="w-5 h-5" />
-              </button>
-            </div>
+            {/* Right: Theme + Profile (global) */}
+            <HeaderActions glassClass={glassClass} cardHoverClass={cardHoverClass} />
+
           </div>
 
           {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
@@ -683,8 +681,8 @@ export default function Trade({ username }) {
 
                               <span
                                 className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${isDark
-                                    ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
-                                    : "bg-blue-100 text-blue-700 border border-blue-200"
+                                  ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                  : "bg-blue-100 text-blue-700 border border-blue-200"
                                   }`}
                               >
                                 {q.exchange || "NSE"}
@@ -717,8 +715,8 @@ export default function Trade({ username }) {
                                   handleRemoveFromWatchlist(sym);
                                 }}
                                 className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${isDark
-                                    ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
-                                    : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
+                                  ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
+                                  : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
                                   }`}
                                 title="Remove"
                               >
