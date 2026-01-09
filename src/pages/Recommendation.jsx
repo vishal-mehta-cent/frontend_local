@@ -8,7 +8,7 @@ import { Moon, Sun, Sparkles, User } from "lucide-react";
 import CustomDropdown from "../components/CustomDropdown";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
-
+import HeaderActions from "../components/HeaderActions";
 
 
 
@@ -22,11 +22,11 @@ const AccuracyGauge = ({ value, label }) => {
 
   return (
     <svg
-  width="140"
-  height="120"
-  viewBox="0 0 140 120"
-  className="accuracy-gauge"
->
+      width="140"
+      height="120"
+      viewBox="0 0 140 120"
+      className="accuracy-gauge"
+    >
 
 
       {/* RED zone */}
@@ -129,6 +129,7 @@ export default function Recommendations() {
   const textSecondaryClass = isDark ? 'text-slate-300' : 'text-slate-600';
   const cardHoverClass = isDark ? 'hover:bg-white/10' : 'hover:bg-white/80';
 
+  const brandGradient = "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
 
 
   const [closedPriceMap, setClosedPriceMap] = useState({});
@@ -618,96 +619,96 @@ export default function Recommendations() {
 
       {/* ---------------- DATE ROW ---------------- */}
       {/* ================= ADVANCED FILTER CONTAINER ================= */}
-<div className="advanced-filter-wrapper">
+      <div className="advanced-filter-wrapper">
 
-  {/* ---------------- DATE ROW ---------------- */}
-  <div className="filters-row date-row-centered">
-    <div className="filter-item">
-      <label>Date:</label>
-      <input
-        type="date"
-        value={selectedDate}
-        onChange={(e) => setSelectedDate(e.target.value)}
-      />
-    </div>
+        {/* ---------------- DATE ROW ---------------- */}
+        <div className="filters-row date-row-centered">
+          <div className="filter-item">
+            <label>Date:</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+            />
+          </div>
 
-    {activeType === "Intraday" && (
-      <div className="filter-item">
-        <label>Intraday Type:</label>
-        <CustomDropdown
-  label=""
-  value={subIntraday}
-  options={[
-    "All",
-    "Intraday",
-    "Intraday - Fast Alerts"
-  ]}
-  onChange={setSubIntraday}
-/>
+          {activeType === "Intraday" && (
+            <div className="filter-item">
+              <label>Intraday Type:</label>
+              <CustomDropdown
+                label=""
+                value={subIntraday}
+                options={[
+                  "All",
+                  "Intraday",
+                  "Intraday - Fast Alerts"
+                ]}
+                onChange={setSubIntraday}
+              />
+
+            </div>
+          )}
+
+          <div className="filter-item">
+            <label>Segment:</label>
+            <CustomDropdown
+              label=""
+              value={segment}
+              options={["Equity", "F&O"]}
+              onChange={setSegment}
+            />
+
+          </div>
+        </div>
+
+        {/* ---------------- DROPDOWN FILTERS ---------------- */}
+        <div className="filters-row filters-row-legend">
+          <div className="filter-item">
+            <label>Alert Type:</label>
+            <CustomDropdown
+              label=""
+              value={selectedAlertType}
+              options={alertTypeList}
+              onChange={setSelectedAlertType}
+            />
+
+          </div>
+
+          <div className="filter-item">
+            <label>Screener:</label>
+            <CustomDropdown
+              label=""
+              value={selectedScreener}
+              options={screenerList}
+              onChange={setSelectedScreener}
+            />
+
+          </div>
+
+          <div className="filter-item">
+            <label>Price Close To:</label>
+            <CustomDropdown
+              label=""
+              value={priceCloseFilter}
+              options={priceCloseList}
+              onChange={setPriceCloseFilter}
+            />
+
+          </div>
+        </div>
+
+        {/* ---------------- LEGEND ---------------- */}
+        <div className="legend-row">
+          <div className="legend-box">
+            <h4>Acronyms</h4>
+            <p><strong>RES</strong> = Resistance | <strong>SUP</strong> = Support</p>
+            <p><strong>T</strong> = Target | <strong>ST</strong> = Stoploss</p>
+            <p>● = Signal Price</p>
+          </div>
+        </div>
 
       </div>
-    )}
-
-    <div className="filter-item">
-      <label>Segment:</label>
-      <CustomDropdown
-  label=""
-  value={segment}
-  options={["Equity", "F&O"]}
-  onChange={setSegment}
-/>
-
-    </div>
-  </div>
-
-  {/* ---------------- DROPDOWN FILTERS ---------------- */}
-  <div className="filters-row filters-row-legend">
-    <div className="filter-item">
-      <label>Alert Type:</label>
-      <CustomDropdown
-  label=""
-  value={selectedAlertType}
-  options={alertTypeList}
-  onChange={setSelectedAlertType}
-/>
-
-    </div>
-
-    <div className="filter-item">
-      <label>Screener:</label>
-      <CustomDropdown
-  label=""
-  value={selectedScreener}
-  options={screenerList}
-  onChange={setSelectedScreener}
-/>
-
-    </div>
-
-    <div className="filter-item">
-      <label>Price Close To:</label>
-      <CustomDropdown
-  label=""
-  value={priceCloseFilter}
-  options={priceCloseList}
-  onChange={setPriceCloseFilter}
-/>
-
-    </div>
-  </div>
-
-  {/* ---------------- LEGEND ---------------- */}
-  <div className="legend-row">
-    <div className="legend-box">
-      <h4>Acronyms</h4>
-      <p><strong>RES</strong> = Resistance | <strong>SUP</strong> = Support</p>
-      <p><strong>T</strong> = Target | <strong>ST</strong> = Stoploss</p>
-      <p>● = Signal Price</p>
-    </div>
-  </div>
-
-</div>
-{/* ================= END ADVANCED FILTER CONTAINER ================= */}
+      {/* ================= END ADVANCED FILTER CONTAINER ================= */}
 
 
       {/* ---------------- SIGNALS SECTION ---------------- */}
@@ -719,11 +720,11 @@ export default function Recommendations() {
               ==================================================== */}
           <div className="signals-column">
             <h3 className="section-title active-title">
-  <span className="signal-title-wrap">
-    <span className="signal-dot signal-dot-active"></span>
-    Active Signals
-  </span>
-</h3>
+              <span className="signal-title-wrap">
+                <span className="signal-dot signal-dot-active"></span>
+                Active Signals
+              </span>
+            </h3>
 
 
             {/* BUY / SELL COUNTS */}
@@ -798,11 +799,11 @@ export default function Recommendations() {
               ==================================================== */}
           <div className="signals-column">
             <h3 className="section-title closed-title">
-  <span className="signal-title-wrap">
-    <span className="signal-dot signal-dot-closed"></span>
-    Closed Signals
-  </span>
-</h3>
+              <span className="signal-title-wrap">
+                <span className="signal-dot signal-dot-closed"></span>
+                Closed Signals
+              </span>
+            </h3>
 
 
             {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐ */}
@@ -965,46 +966,43 @@ export default function Recommendations() {
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* ===== STICKY HEADER (STEP 4) ===== */}
+      {/* HEADER */}
       <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4">
-
-          {/* BRAND ROW */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
+        <div className="w-full px-3 sm:px-4 md:px-6 py-4">
+          {/* Top Row: Back ABOVE Title + Profile */}
+          <div className="relative flex items-start justify-between mb-4">
+            {/* Left: Back ABOVE Title */}
+            <div className="flex flex-col items-start">
               <BackButton to="/menu" />
 
-              <div>
-                <div className="text-xl font-bold">Neurocrest</div>
+              <div className="mt-1">
+                <div
+                  className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}
+                >
+                  NEUROCREST
+                </div>
+
                 <div className={`text-xs ${textSecondaryClass}`}>
                   Next-Gen Trading
                 </div>
               </div>
             </div>
 
-            {/* ACTION BUTTONS */}
-            <div className="flex items-center space-x-3">
-              
+            {/* Right: Profile */}
+            {/* Right: Theme + Profile (global) */}
+            <HeaderActions glassClass={glassClass} cardHoverClass={cardHoverClass} />
 
-               <button
-                              onClick={() => navigate("/profile")}
-                              className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-                            >
-                              <User className="w-5 h-5" />
-                            </button>
-            </div>
           </div>
 
-          {/* ✅ SAME SWIPE NAV AS HISTORY */}
-          <SwipeNav
-            glassClass={glassClass}
-            cardHoverClass={cardHoverClass}
-          />
+          {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
+          <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
         </div>
       </div>
 
+
       {/* ===== MAIN CONTENT (STEP 5) ===== */}
-      <div className="max-w-7xl mx-auto px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 pt-2 pb-24 relative">
+
         <div className="mb-6">
           <h2 className={`text-4xl font-bold ${textClass} mb-2`}>
             Recommendations
