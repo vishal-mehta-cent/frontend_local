@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { moneyINR } from "../utils/format";
-import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search, TrendingUp, TrendingDown, ArrowUpRight} from "lucide-react";
+import { NotebookPen, Download, Moon, Sun, Sparkles, ClipboardList, Briefcase, Clock, Activity, User, Search, TrendingUp, TrendingDown, ArrowUpRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useParams } from "react-router-dom";
 import { FaWhatsapp } from "react-icons/fa";
 import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
 import BackButton from "../components/BackButton";
+import HeaderActions from "../components/HeaderActions";
+
 
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
@@ -254,14 +256,9 @@ export default function History({ username }) {
 
 
             {/* Right: Profile */}
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => navigate("/profile")}
-                className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
-              >
-                <User className="w-5 h-5" />
-              </button>
-            </div>
+            {/* Right: Theme + Profile (global) */}
+            <HeaderActions glassClass={glassClass} cardHoverClass={cardHoverClass} />
+
           </div>
 
 
