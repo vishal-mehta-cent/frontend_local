@@ -18,10 +18,21 @@ import { useTheme } from "../context/ThemeContext";
 const items = [
   { label: "Paper Trading App", path: "/trade", icon: <TrendingUp size={28} />, color: "from-emerald-400 to-teal-500" },
   { label: "Portfolio Tracking", path: "/portfolio", icon: <Briefcase size={28} />, color: "from-blue-400 to-cyan-500" },
-  { label: "Recommendations", path: "/recommendations", icon: <Lightbulb size={28} />, color: "from-amber-400 to-orange-500" },
+  // ✅ DISABLE Recommendations (grey + SOON badge)
+{
+  label: "Recommendations",
+  path: "/recommendations",
+  disabled: true, // ✅ grey + disabled
+  disabledNote: "Contact support to activate", // ✅ small note under text
+  icon: <Lightbulb size={28} />,
+  color: "from-slate-400 to-gray-500",
+},
+
+
+
 
   // ✅ (Coming soon)
-  { label: "Portfolio Intelligence", comingSoon: true, icon: <BarChart2 size={28} />, color: "from-slate-400 to-gray-500" },
+  { label: "On-demand script Insignts", comingSoon: true, icon: <BarChart2 size={28} />, color: "from-slate-400 to-gray-500" },
 
   // ✅ (Coming soon)
   { label: "Event based ALERTS", comingSoon: true, sublabel: "News / Bulk deals etc.", icon: <ClipboardList size={28} />, color: "from-slate-400 to-gray-500" },
@@ -37,6 +48,7 @@ const items = [
     color: "from-indigo-400 to-purple-500",
   },
 
+  
 ];
 
 export default function Menu({ logout }) {
@@ -170,21 +182,31 @@ export default function Menu({ logout }) {
                     </div>
 
                     {/* Label */}
-                    <div className="mt-4 text-center relative z-10">
-                      <span
-                        className={`text-sm font-bold transition-colors duration-300 ${isDisabled
-                          ? (isDark ? "text-slate-300" : "text-slate-500")
-                          : (isDark ? "text-white group-hover:text-white" : "text-slate-800 group-hover:text-slate-900")
-                          }`}
-                      >
-                        {item.label}
-                      </span>
+                    {/* Label */}
+<div className="mt-4 text-center relative z-10">
+  <span
+    className={`text-sm font-bold transition-colors duration-300 ${isDisabled
+      ? (isDark ? "text-slate-300" : "text-slate-500")
+      : (isDark ? "text-white group-hover:text-white" : "text-slate-800 group-hover:text-slate-900")
+    }`}
+  >
+    {item.label}
+  </span>
 
-                      {item.sublabel && (
-                        <p className={`mt-1.5 text-xs leading-tight ${textSecondaryClass}`}>
-                          {item.sublabel}
-                        </p>
-                      )}
+  {/* ✅ Only for Recommendations */}
+  {item.label === "Recommendations" && (
+    <p className={`mt-1.5 text-xs leading-tight ${isDark ? "text-amber-300/90" : "text-amber-700"}`}>
+      Contact support to activate
+    </p>
+  )}
+
+  {item.sublabel && (
+    <p className={`mt-1.5 text-xs leading-tight ${textSecondaryClass}`}>
+      {item.sublabel}
+    </p>
+  )}
+
+
                     </div>
 
                     {/* Bottom Accent Line */}
@@ -196,6 +218,8 @@ export default function Menu({ logout }) {
               })}
             </div>
           </div>
+
+          
 
           {/* Footer Info */}
           <div className="px-8 pb-6 pt-2">
