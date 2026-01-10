@@ -836,7 +836,7 @@ const verifyForgotOtp = async () => {
               <div className="space-y-3">
                 <input
                   type="tel"
-                  placeholder="Mobile No. (optional)"
+                  placeholder="Mobile No."
                   value={fpPhone}
                   onChange={(e) => setFpPhone(e.target.value)}
                   className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
@@ -844,7 +844,7 @@ const verifyForgotOtp = async () => {
 
                 <input
                   type="email"
-                  placeholder="Email ID (optional)"
+                  placeholder="Email ID"
                   value={fpEmail}
                   onChange={(e) => setFpEmail(e.target.value)}
                   className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
