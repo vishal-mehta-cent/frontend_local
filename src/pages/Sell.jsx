@@ -549,7 +549,33 @@ export default function Sell() {
               {isAdd ? `ADD ${symbol}` : isModify ? `MODIFY ${symbol}` : `SELL ${symbol}`}
             </h2>
           </div>
-          <div className="w-10"></div>
+          {!isModify && !isAdd && !isPositionModify && (
+  <button
+    type="button"
+    onClick={() =>
+      nav(`/buy/${symbol}`, {
+        state: {
+          ...prefill,
+          qty,
+          exchange,
+          segment,
+          stoploss,
+          target,
+          orderMode,
+          price,
+        },
+      })
+    }
+    className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
+    ${isDark
+      ? "bg-emerald-500/15 border-emerald-400/25 text-emerald-100 hover:bg-emerald-500/25"
+      : "bg-emerald-100 border-emerald-200 text-emerald-700 hover:bg-emerald-200"
+    }`}
+  >
+    BUY
+  </button>
+)}
+
         </div>
 
         {/* Error Message */}
@@ -667,7 +693,7 @@ export default function Sell() {
                     <div className="relative w-full h-2 bg-white/10 rounded-full overflow-hidden">
                       <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 opacity-40" />
                       <div
-                        className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-300"
+                        className="absolute top-0 h-full w-4 bg-white shadow-lg transition-all duration-300"
                         style={{ left: `${dayRange}%` }}
                       />
                     </div>
