@@ -4,6 +4,7 @@ import { GoogleLogin } from "@react-oauth/google";
 import { Eye, EyeOff } from "lucide-react";
 import "../index.css";
 import { useTheme } from "../context/ThemeContext";
+import { useLocation } from "react-router-dom";
 
 export default function LoginRegister({ onLoginSuccess }) {
   const { isDark } = useTheme();
@@ -37,10 +38,14 @@ export default function LoginRegister({ onLoginSuccess }) {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
+  const location = useLocation();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
+useEffect(() => {
+  const mode = new URLSearchParams(location.search).get("mode");
+  if (mode === "signup") setIsLogin(false);
+  if (mode === "login") setIsLogin(true);
+}, [location.search]);
   const backendBaseUrl =
     import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
