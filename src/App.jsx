@@ -78,9 +78,14 @@ export default function App() {
   }, [username]);
 
   const handleLoginSuccess = (user) => {
-    setUsername(user);
-    window.location.href = "/menu";
-  };
+  setUsername(user);
+
+  const redirect = localStorage.getItem("post_login_redirect") || "/menu";
+  localStorage.removeItem("post_login_redirect");
+
+  window.location.href = redirect;
+};
+
 
   const handleLogout = () => {
     // Don't nuke *everything* (theme/UI prefs etc.) — just auth/session keys
