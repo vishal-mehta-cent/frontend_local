@@ -524,7 +524,35 @@ export default function Buy() {
                 </div>
               </div>
 
-              <div className="w-10" />
+              {!isExit && !isModify && !isPositionModify && (
+  <button
+    type="button"
+    onClick={() =>
+      nav(`/sell/${symbol}`, {
+        state: {
+          ...prefill,
+          qty,
+          exchange,
+          segment,
+          stoploss,
+          target,
+          orderMode,
+          price,
+        },
+      })
+    }
+    className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
+    ${isDark
+      ? "bg-rose-500/15 border-rose-400/25 text-rose-100 hover:bg-rose-500/25"
+      : "bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200"
+    }`}
+>
+    
+  
+    SELL
+  </button>
+)}
+
             </div>
           </div>
         </div>
@@ -602,9 +630,10 @@ export default function Buy() {
                 <div className="relative w-full h-2 bg-white/10 rounded-full overflow-hidden">
                   <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 opacity-40" />
                   <div
-                    className="absolute top-0 h-full w-1 bg-white shadow-lg transition-all duration-300"
-                    style={{ left: `${dayRange}%` }}
-                  />
+  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-xl ring-2 ring-white/40 transition-all duration-300"
+  style={{ left: `calc(${dayRange}% - 8px)` }}
+/>
+
                 </div>
               </div>
             )}
