@@ -51,19 +51,25 @@ export default function Payments({ username }) {
 
   const [sub, setSub] = useState(null);
   const [subLoading, setSubLoading] = useState(true);
+  const isLoggedIn = !!userId;
 
   const refreshSubscription = async () => {
-    if (!userId) return;
-    setSubLoading(true);
-    try {
-      const data = await getJSON(`${API}/payments/subscription/${encodeURIComponent(userId)}`);
-      setSub(data);
-    } catch (e) {
-      console.error("subscription error:", e?.message);
-    } finally {
-      setSubLoading(false);
-    }
-  };
+  if (!userId) {
+    setSub(null);
+    setSubLoading(false);
+    return;
+  }
+  setSubLoading(true);
+  try {
+    const data = await getJSON(`${API}/payments/subscription/${encodeURIComponent(userId)}`);
+    setSub(data);
+  } catch (e) {
+    console.error("subscription error:", e?.message);
+  } finally {
+    setSubLoading(false);
+  }
+};
+
 
   useEffect(() => {
     refreshSubscription();
@@ -210,6 +216,25 @@ export default function Payments({ username }) {
 
         {view === "PLANS" && (
           <>
+          {!isLoggedIn && (
+  <div className="text-center mt-5 mb-6">
+    <p className="text-sm text-slate-300 mb-3">
+      Create your account to start your free trial and activate a plan.
+    </p>
+
+    <button
+      onClick={() => {
+        localStorage.setItem("post_login_redirect", "/payments");
+        nav("/login");
+      }}
+      className="px-10 py-3 rounded-full font-bold text-black bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]
+                 hover:shadow-2xl hover:scale-105 transition-all"
+    >
+      Get Started
+    </button>
+  </div>
+)}
+
             <h1 className="text-3xl font-bold text-center mb-2">Upgrade your plan</h1>
 
             <div className="text-center text-sm text-slate-300 mb-2">
@@ -292,12 +317,22 @@ export default function Payments({ username }) {
                       </p>
 
                       <button
-                        disabled={disabled}
-                        onClick={() => startPayment(plan)}
-                        className={`mb-6 ${disabled ? disabledBtn : primaryBtn}`}
-                      >
-                        {isCurrent ? "Your current plan" : isQueued ? "Queued" : `Get ${plan.name}`}
-                      </button>
+  disabled={!isLoggedIn || disabled}
+  onClick={() => {
+    if (!isLoggedIn) return;
+    startPayment(plan);
+  }}
+  className={`mb-6 ${(!isLoggedIn || disabled) ? disabledBtn : primaryBtn}`}
+>
+  {!isLoggedIn
+    ? "Login to choose plan"
+    : isCurrent
+      ? "Your current plan"
+      : isQueued
+        ? "Queued"
+        : `Get ${plan.name}`}
+</button>
+
 
                       <ul className="space-y-3 text-sm text-slate-200">
                         {plan.features.map((f, i) => (
