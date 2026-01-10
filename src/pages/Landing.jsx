@@ -341,10 +341,8 @@ export default function Landing() {
       {/* ✅ Subscription button */}
       <button
   type="button"
-  onClick={() => {
-    localStorage.setItem("post_login_redirect", "/payments");
-    navigate("/login?mode=signup");
-  }}
+ onClick={() => navigate("/payments")}
+
   className={`px-7 py-3 rounded-full font-bold text-black ${brandGradient}
   hover:shadow-[0_0_40px_rgba(34,211,238,0.6)] hover:scale-105
   transition-all duration-300 inline-flex items-center gap-2
@@ -459,7 +457,7 @@ export default function Landing() {
 
     {/* Text */}
     <span className="text-white/90 font-semibold tracking-wide">
-      9426817879 · neurocrest.app@gmail.com
+      9426001601 | neurocrest.app@gmail.com
     </span>
   </a>
 </div>
