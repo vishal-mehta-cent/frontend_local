@@ -80,11 +80,16 @@ export default function App() {
   const handleLoginSuccess = (user) => {
   setUsername(user);
 
-  const redirect = localStorage.getItem("post_login_redirect") || "/menu";
-  localStorage.removeItem("post_login_redirect");
+  const redirectTo = localStorage.getItem("post_login_redirect");
+  if (redirectTo) {
+    localStorage.removeItem("post_login_redirect");
+    window.location.href = redirectTo;
+    return;
+  }
 
-  window.location.href = redirect;
+  window.location.href = "/menu";
 };
+
 
 
   const handleLogout = () => {
@@ -295,10 +300,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
         <Route path="/profile/funds" element={<Funds username={username} />} />
 
-        <Route
-          path="/payments"
-          element={username ? <Payments /> : <Navigate to="/" replace />}
-        />
+        <Route path="/payments" element={<Payments username={username} />} />
+
 
         <Route
           path="/history"
