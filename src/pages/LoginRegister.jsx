@@ -283,12 +283,14 @@ const fpSuccess = (msg) => {
 
 const openForgot = () => {
   fpClear();
+  setIsLogin(true);          // ✅ force Sign In tab
   setFpOpen(true);
   setFpStage("input");
   setFpEmail("");
   setFpPhone("");
   setFpOtpDigits(["", "", "", ""]);
 };
+
 
 const closeForgot = () => {
   setFpOpen(false);
@@ -490,18 +492,20 @@ const verifyForgotOtp = async () => {
               Sign In
             </button>
             <button
-              type="button"
-              onClick={() => {
-                setIsLogin(false);
-                clearMessage();
-                resetSignupState();
-              }}
-              className={`flex-1 py-2 rounded-full font-semibold transition-all ${
-                !isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
-              }`}
-            >
-              Sign Up
-            </button>
+  type="button"
+  onClick={() => {
+    closeForgot(); // ✅ Important
+    setIsLogin(false);
+    clearMessage();
+    resetSignupState();
+  }}
+  className={`flex-1 py-2 rounded-full font-semibold transition-all ${
+    !isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
+  }`}
+>
+  Sign Up
+</button>
+
           </div>
 
           {/* message */}
@@ -649,150 +653,7 @@ const verifyForgotOtp = async () => {
                   {showPwd2 ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {fpOpen && (
-  <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4">
-    {/* Backdrop */}
-    <div
-      className="absolute inset-0 bg-black/50"
-      onClick={() => (fpLoading ? null : closeForgot())}
-    />
-
-    {/* Modal */}
-    <div className={`relative w-full max-w-md rounded-3xl ${glassClass} shadow-2xl p-6`}>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-extrabold">Forgot Password</h3>
-        <button
-          type="button"
-          onClick={() => (fpLoading ? null : closeForgot())}
-          className={`${textSecondaryClass} hover:opacity-80`}
-        >
-          ✕
-        </button>
-      </div>
-
-      {fpMsg && (
-        <div
-          className={`mb-4 text-sm text-center ${
-            fpMsgType === "success"
-              ? isDark
-                ? "text-emerald-400"
-                : "text-emerald-700"
-              : isDark
-              ? "text-rose-400"
-              : "text-rose-700"
-          }`}
-        >
-          {fpMsg}
-        </div>
-      )}
-
-      {fpStage === "input" && (
-        <div className="space-y-3">
-          <input
-            type="tel"
-            placeholder="Mobile No. (optional)"
-            value={fpPhone}
-            onChange={(e) => setFpPhone(e.target.value)}
-            className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
-          />
-
-          <input
-            type="email"
-            placeholder="Email ID (optional)"
-            value={fpEmail}
-            onChange={(e) => setFpEmail(e.target.value)}
-            className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
-          />
-
-          <div className={`text-xs ${textSecondaryClass}`}>
-            Enter <b>either</b> Mobile No. or Email ID. OTP will be sent on Email.
-          </div>
-
-          <button
-            type="button"
-            disabled={fpLoading}
-            onClick={requestForgotOtp}
-            className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
-          >
-            {fpLoading ? "Please wait..." : "Send OTP"}
-          </button>
-        </div>
-      )}
-
-      {fpStage === "otp" && (
-        <div className="space-y-4">
-          <div className={`text-sm ${textSecondaryClass}`}>
-            Enter the 4-digit OTP sent to your email.
-          </div>
-
-          <div className="flex justify-center gap-3">
-            {fpOtpDigits.map((d, idx) => (
-              <input
-                key={idx}
-                ref={(el) => (fpOtpRefs.current[idx] = el)}
-                value={d}
-                inputMode="numeric"
-                maxLength={1}
-                onChange={(e) => {
-                  const v = (e.target.value || "").replace(/\D/g, "");
-                  const next = [...fpOtpDigits];
-                  next[idx] = v;
-                  setFpOtpDigits(next);
-                  if (v && idx < 3) fpOtpRefs.current[idx + 1]?.focus?.();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Backspace" && !fpOtpDigits[idx] && idx > 0) {
-                    fpOtpRefs.current[idx - 1]?.focus?.();
-                  }
-                }}
-                className={[
-                  "w-14 h-14 text-center text-xl font-extrabold rounded-xl outline-none border shadow-lg transition-all",
-                  inputClass,
-                ].join(" ")}
-              />
-            ))}
-          </div>
-
-          <button
-            type="button"
-            disabled={fpLoading}
-            onClick={verifyForgotOtp}
-            className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
-          >
-            {fpLoading ? "Please wait..." : "Verify OTP"}
-          </button>
-
-          <button
-            type="button"
-            disabled={fpLoading}
-            onClick={requestForgotOtp}
-            className={`w-full py-3 rounded-xl font-bold ${
-              isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-slate-900 hover:bg-black/10"
-            } shadow-xl`}
-          >
-            Resend OTP
-          </button>
-        </div>
-      )}
-
-      {fpStage === "done" && (
-        <div className="space-y-4">
-          <div className={`text-sm ${textSecondaryClass} text-center`}>
-            Password has been sent to your email.
-          </div>
-
-          <button
-            type="button"
-            onClick={closeForgot}
-            className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} shadow-xl`}
-          >
-            OK
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+        
     
               {/* Details */}
               <input
@@ -832,7 +693,7 @@ const verifyForgotOtp = async () => {
                   }`}
                 />
                 <div className={`text-xs ${isDark ? "text-amber-300" : "text-amber-700"}`}>
-                  ⚠️ Please enter your WhatsApp number. Once OTP is sent, this mobile number can’t be changed.
+                  ⚠️ Please enter your WhatsApp number. Once this mobile number is saved then can’t be changed.
                 </div>
               </div>
 
@@ -929,12 +790,161 @@ const verifyForgotOtp = async () => {
               <p className={`mt-2 text-xs text-center ${textSecondaryClass}`}>
                 By continuing, you agree to our Terms of Service and Privacy Policy
               </p>
+              
             </div>
           )}
         </div>
+            {/* ✅ Forgot Password Modal (ONLY for Sign In) */}
+      {isLogin && fpOpen && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => (fpLoading ? null : closeForgot())}
+          />
+
+          {/* Modal */}
+          <div className={`relative w-full max-w-md rounded-3xl ${glassClass} shadow-2xl p-6`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-extrabold">Forgot Password</h3>
+              <button
+                type="button"
+                onClick={() => (fpLoading ? null : closeForgot())}
+                className={`${textSecondaryClass} hover:opacity-80`}
+              >
+                ✕
+              </button>
+            </div>
+
+            {fpMsg && (
+              <div
+                className={`mb-4 text-sm text-center ${
+                  fpMsgType === "success"
+                    ? isDark
+                      ? "text-emerald-400"
+                      : "text-emerald-700"
+                    : isDark
+                    ? "text-rose-400"
+                    : "text-rose-700"
+                }`}
+              >
+                {fpMsg}
+              </div>
+            )}
+
+            {fpStage === "input" && (
+              <div className="space-y-3">
+                <input
+                  type="tel"
+                  placeholder="Mobile No. (optional)"
+                  value={fpPhone}
+                  onChange={(e) => setFpPhone(e.target.value)}
+                  className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
+                />
+
+                <input
+                  type="email"
+                  placeholder="Email ID (optional)"
+                  value={fpEmail}
+                  onChange={(e) => setFpEmail(e.target.value)}
+                  className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
+                />
+
+                <div className={`text-xs ${textSecondaryClass}`}>
+                  Enter <b>either</b> Mobile No. or Email ID. OTP will be sent on Email.
+                </div>
+
+                <button
+                  type="button"
+                  disabled={fpLoading}
+                  onClick={requestForgotOtp}
+                  className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
+                >
+                  {fpLoading ? "Please wait..." : "Send OTP"}
+                </button>
+              </div>
+            )}
+
+            {fpStage === "otp" && (
+              <div className="space-y-4">
+                <div className={`text-sm ${textSecondaryClass}`}>
+                  Enter the 4-digit OTP sent to your email.
+                </div>
+
+                <div className="flex justify-center gap-3">
+                  {fpOtpDigits.map((d, idx) => (
+                    <input
+                      key={idx}
+                      ref={(el) => (fpOtpRefs.current[idx] = el)}
+                      value={d}
+                      inputMode="numeric"
+                      maxLength={1}
+                      onChange={(e) => {
+                        const v = (e.target.value || "").replace(/\D/g, "");
+                        const next = [...fpOtpDigits];
+                        next[idx] = v;
+                        setFpOtpDigits(next);
+                        if (v && idx < 3) fpOtpRefs.current[idx + 1]?.focus?.();
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Backspace" && !fpOtpDigits[idx] && idx > 0) {
+                          fpOtpRefs.current[idx - 1]?.focus?.();
+                        }
+                      }}
+                      className={[
+                        "w-14 h-14 text-center text-xl font-extrabold rounded-xl outline-none border shadow-lg transition-all",
+                        inputClass,
+                      ].join(" ")}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={fpLoading}
+                  onClick={verifyForgotOtp}
+                  className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
+                >
+                  {fpLoading ? "Please wait..." : "Verify OTP"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={fpLoading}
+                  onClick={requestForgotOtp}
+                  className={`w-full py-3 rounded-xl font-bold ${
+                    isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-slate-900 hover:bg-black/10"
+                  } shadow-xl`}
+                >
+                  Resend OTP
+                </button>
+              </div>
+            )}
+
+            {fpStage === "done" && (
+              <div className="space-y-4">
+                <div className={`text-sm ${textSecondaryClass} text-center`}>
+                  Password has been sent to your email.
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeForgot}
+                  className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} shadow-xl`}
+                >
+                  OK
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       </div>
+      
     </div>
   );
+  
 
   return createPortal(ui, document.body);
 }
