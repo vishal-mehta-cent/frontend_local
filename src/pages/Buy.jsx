@@ -326,6 +326,56 @@ export default function Buy() {
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
       const qtyNum = isFNO ? Number(lotQty) : Number(qty);
+      // ✅ EXIT (Buy-to-cover for SHORT positions)
+      if (isExit) {
+        const exitPayload = {
+          username,
+          script: symbol.toUpperCase(),
+          order_type: "BUY",                 // ✅ REQUIRED
+          qty: qtyNum,
+          exchange: (exchange || "NSE").toUpperCase(),
+          segment: (segment || "delivery").toLowerCase(),
+
+          // safe optional fields
+          price: null,
+          stoploss: null,
+          target: null,
+          allow_short: false,
+        };
+
+        const res = await fetch(`${API}/orders/exit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(exitPayload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg =
+            typeof data?.detail === "string"
+              ? data.detail
+              : data?.detail?.message || data?.message || "Exit failed";
+          throw new Error(msg);
+        }
+
+        setSuccessText("Exit Successful ✅");
+        setSuccessModal(true);
+
+        setTimeout(() => {
+          setSuccessModal(false);
+
+          // ✅ respect returnTo (same as your existing logic)
+          if (returnTo === "/portfolio") {
+            nav("/portfolio", { state: { refresh: true } });
+            return;
+          }
+
+          nav("/orders", { state: { refresh: true, tab: "positions" } });
+        }, 1200);
+
+        return; // ✅ IMPORTANT: stop here, don't create/modify orders
+      }
+
 
       if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
         throw new Error("❌ Please enter a valid quantity (> 0).");
@@ -542,7 +592,11 @@ export default function Buy() {
         <div className="sticky top-3 z-40">
           <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-2xl`}>
             <div className="flex items-center justify-between">
-              <BackButton to={isAddMode ? "/portfolio" : "/orders"} />
+              <BackButton
+                to={returnTo || "/orders"}
+                state={returnTo === "/orders" ? { tab: returnTab || "positions", refresh: true } : { refresh: true }}
+              />
+
 
               <div className="flex items-center space-x-3">
                 <div className="relative">
@@ -709,12 +763,12 @@ export default function Buy() {
           {/* Order Type */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => !isPositionModify && !lockTradeControls && setOrderMode("MARKET")}
-              disabled={isPositionModify || lockTradeControls}
+              onClick={() => !isPureModify && !lockTradeControls && setOrderMode("MARKET")}
+              disabled={isPureModify || lockTradeControls}
               className={`py-4 rounded-xl font-semibold transition-all transform ${orderMode === "MARKET"
                 ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/40"
                 : `${glassClass} ${cardHoverClass}`
-                } ${isPositionModify || lockTradeControls
+                } ${isPureModify || lockTradeControls
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:scale-105"
                 }`}
@@ -726,17 +780,12 @@ export default function Buy() {
             </button>
 
             <button
-              onClick={() =>
-                !isPositionModify &&
-                !lockTradeControls &&
-                marketOpen &&
-                setOrderMode("LIMIT")
-              }
-              disabled={!marketOpen || isPositionModify || lockTradeControls}
+              onClick={() => !isPureModify && !lockTradeControls && marketOpen && setOrderMode("LIMIT")}
+              disabled={!marketOpen || isPureModify || lockTradeControls}
               className={`py-4 rounded-xl font-semibold transition-all transform ${orderMode === "LIMIT"
                 ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/40"
                 : `${glassClass} ${cardHoverClass}`
-                } ${!marketOpen || isPositionModify || lockTradeControls
+                } ${!marketOpen || isPureModify || lockTradeControls
                   ? "opacity-50 cursor-not-allowed"
                   : "hover:scale-105"
                 }`}
@@ -813,9 +862,7 @@ export default function Buy() {
               type="number"
               value={orderMode === "LIMIT" ? price : ""}
               onChange={handlePriceChange}
-              disabled={
-                orderMode === "MARKET" || !marketOpen || isPositionModify || lockTradeControls
-              }
+              disabled={orderMode === "MARKET" || !marketOpen || isPureModify || lockTradeControls}
               placeholder={
                 lockTradeControls
                   ? "Disabled in EXIT"
@@ -823,10 +870,7 @@ export default function Buy() {
                     ? "Limit orders disabled after market close"
                     : "Enter limit price"
               }
-              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${orderMode === "MARKET" ||
-                !marketOpen ||
-                isPositionModify ||
-                lockTradeControls
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500/40 transition-all ${orderMode === "MARKET" || !marketOpen || isPureModify || lockTradeControls
                 ? "cursor-not-allowed opacity-50"
                 : ""
                 }`}
@@ -836,23 +880,23 @@ export default function Buy() {
           {/* Segment */}
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => !isPositionModify && !lockTradeControls && setSegment("intraday")}
-              disabled={isPositionModify || lockTradeControls}
+              onClick={() => !isPureModify && !lockTradeControls && setSegment("intraday")}
+              disabled={isPureModify || lockTradeControls}
               className={`py-4 rounded-xl font-semibold transition-all transform ${segment === "intraday"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
-                } ${isPositionModify || lockTradeControls ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
+                } ${isPureModify || lockTradeControls ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
             >
               Intraday
             </button>
 
             <button
-              onClick={() => !isPositionModify && !lockTradeControls && setSegment("delivery")}
-              disabled={isPositionModify || lockTradeControls}
+              onClick={() => !isPureModify && !lockTradeControls && setSegment("delivery")}
+              disabled={isPureModify || lockTradeControls}
               className={`py-4 rounded-xl font-semibold transition-all transform ${segment === "delivery"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
-                } ${isPositionModify || lockTradeControls ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
+                } ${isPureModify || lockTradeControls ? "opacity-50 cursor-not-allowed" : "hover:scale-105"}`}
             >
               Delivery
             </button>
