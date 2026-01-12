@@ -21,7 +21,7 @@ const items = [
   // ✅ DISABLE Recommendations (grey + SOON badge)
 {
   label: "Recommendations",
-  path: "/recommendations",
+  //path: "/recommendations",
   disabled: true, // ✅ grey + disabled
   disabledNote: "Contact support to activate", // ✅ small note under text
   icon: <Lightbulb size={28} />,
@@ -82,17 +82,35 @@ export default function Menu({ logout }) {
       </div>
 
       <div className="w-full max-w-5xl relative z-10">
+        {/* Brand (above menu box) */}
+<div className="flex flex-col items-center text-center mb-5">
+  <img
+    src="/logo1.png"
+    alt="NeuroCrest"
+    className="h-14 w-14 mb-2 select-none"
+    draggable="false"
+    onError={(e) => {
+      e.currentTarget.style.display = "none";
+    }}
+  />
+  <div className="text-4xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]">
+    NEUROCREST
+  </div>
+  <div className={`text-sm mt-1 ${textSecondaryClass}`}>
+    Your All-in-One AI Trading Mentor
+  </div>
+</div>
+
         {/* Main Container */}
         <div className={`${glassClass} rounded-3xl shadow-2xl overflow-hidden`}>
           {/* Header */}
           <div className={`relative ${headerClass} px-8 py-6`}>
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg`}>
-                  <Sparkles className="text-white" size={24} />
-                </div>
+
+
                 <div>
-                  <h2 className="text-3xl font-bold text-white tracking-tight">Main Menu</h2>
+                  <h2 className="text-3xl font-bold text-white tracking-tight"> Menu</h2>
                   <p className="text-white/70 text-sm mt-0.5">Choose your destination</p>
                 </div>
               </div>
