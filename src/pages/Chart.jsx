@@ -23,7 +23,7 @@ import {
   PencilRuler, AlignHorizontalJustifyStart, AlignHorizontalSpaceAround,
   AlignVerticalJustifyStart, Moon, Sun, Sparkles, TrendingUp, Zap, Bell,
   ArrowUpRight, ArrowDownRight,
-   Search, X
+  Search, X
 } from "lucide-react";
 
 const TF_SECONDS = {
@@ -86,39 +86,35 @@ function AlertModal({ open, title, message, onClose, isDark, glassClass }) {
   return (
     <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
       <div
-        className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
-          isDark ? "bg-[#0b1220] border border-white/10" : "bg-white border border-black/10"
-        }`}
+        className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${isDark ? "bg-[#0b1220] border border-white/10" : "bg-white border border-black/10"
+          }`}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
           <div>
             <div
-  className={`text-[17px] font-semibold tracking-tight ${
-    isDark ? "text-blue-300" : "text-blue-700"
-  }`}
- style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+              className={`text-[17px] font-semibold tracking-tight ${isDark ? "text-blue-300" : "text-blue-700"
+                }`}
+              style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
 
->
-  {title || "Alert"}
-</div>
+            >
+              {title || "Alert"}
+            </div>
 
             <div
-  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
-    isDark ? "text-slate-300" : "text-slate-600"
-  }`}
-  style={{ fontFamily: "Inter, system-ui, sans-serif" }}
->
-  {message}
-</div>
+              className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${isDark ? "text-slate-300" : "text-slate-600"
+                }`}
+              style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+            >
+              {message}
+            </div>
 
           </div>
 
           <button
             onClick={onClose}
-            className={`w-9 h-9 rounded-xl grid place-items-center ${
-              isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
-            } transition`}
+            className={`w-9 h-9 rounded-xl grid place-items-center ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+              } transition`}
             title="Close"
           >
             ✕
@@ -643,19 +639,19 @@ export default function ChartPage() {
 
   const [isDark, setIsDark] = useState(false);
   // ✅ Premium popup state (replaces alert())
-const [popup, setPopup] = useState({
-  open: false,
-  title: "",
-  message: "",
-});
+  const [popup, setPopup] = useState({
+    open: false,
+    title: "",
+    message: "",
+  });
 
-const showPopup = useCallback((title, message) => {
-  setPopup({ open: true, title: title || "Alert", message: message || "" });
-}, []);
+  const showPopup = useCallback((title, message) => {
+    setPopup({ open: true, title: title || "Alert", message: message || "" });
+  }, []);
 
-const closePopup = useCallback(() => {
-  setPopup((p) => ({ ...p, open: false }));
-}, []);
+  const closePopup = useCallback(() => {
+    setPopup((p) => ({ ...p, open: false }));
+  }, []);
 
   const bgClass = isDark
     ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
@@ -667,7 +663,7 @@ const closePopup = useCallback(() => {
   const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
 
 
-  
+
   // 🔁 auto-follow latest candle
   const [autoFollow, setAutoFollow] = useState(true);
   const autoFollowRef = useRef(true);
@@ -751,7 +747,7 @@ const closePopup = useCallback(() => {
 
   const [tf, setTf] = useState("1m");
 
-    function openBuyPage() {
+  function openBuyPage() {
     navigate(`/buy/${symbol}`, {
       state: { symbol, from: "chart", tf, lastPrice },
     });
@@ -2142,14 +2138,14 @@ const closePopup = useCallback(() => {
     const pickType = (it) => { if (!it.supported) return; setChartType({ type: it.type }); setCtOpen(false); };
     return (
       <div ref={ctWrapRef} className="relative">
-      <button
-  onClick={() => { setCtOpen(o => !o); setTimeout(updateCtPos, 0); }}
-  className={`w-9 h-9 flex items-center justify-center rounded-lg
+        <button
+          onClick={() => { setCtOpen(o => !o); setTimeout(updateCtPos, 0); }}
+          className={`w-9 h-9 flex items-center justify-center rounded-lg
               ${glassClass} hover:scale-105 transition-transform`}
-  title={currentLabel}
->
-  <CandlestickChart className="w-5 h-5" />
-</button>
+          title={currentLabel}
+        >
+          <CandlestickChart className="w-5 h-5" />
+        </button>
 
 
         {ctOpen && (
@@ -2795,12 +2791,12 @@ const closePopup = useCallback(() => {
     // -------------------------------------
     // ⭐ 3. ON MODE (FIRST CLICK)
     // -------------------------------------
-   showPopup(
-  "Signal Generation",
-  "• Signal generation started.\n" +
-  "• Displaying signals shortly.\n" +
-  "• Click again to stop continuous updates."
-);
+    showPopup(
+      "Signal Generation",
+      "• Signal generation started.\n" +
+      "• Displaying signals shortly.\n" +
+      "• Click again to stop continuous updates."
+    );
 
 
     isRunningRef.current = true;
@@ -2929,12 +2925,12 @@ const closePopup = useCallback(() => {
     // 🌟 START MODE
     // -----------------------
     showPopup(
-  "Recommendations",
-  "• Recommendation Signals Started.\n" +
-  "• Updating every 20 seconds.\n" +
-  "• If no data exists for the script, nothing will show.\n" +
-  "• Click again to stop."
-);
+      "Recommendations",
+      "• Recommendation Signals Started.\n" +
+      "• Updating every 20 seconds.\n" +
+      "• If no data exists for the script, nothing will show.\n" +
+      "• Click again to stop."
+    );
 
 
     recoModeRef.current = true;
@@ -3027,218 +3023,218 @@ const closePopup = useCallback(() => {
 
       {/* Header */}
       {/* Header (Sticky + 2 rows for mobile/tablet) */}
-<div className={`sticky top-0 z-[10020] ${glassClass} shadow-xl pointer-events-auto`}>
+      <div className={`sticky top-0 z-[10020] ${glassClass} shadow-xl pointer-events-auto`}>
 
-  {/* Row 1: Back + Symbol/TF/Price + Search/WA/Theme */}
-  <div className="flex items-center justify-between gap-2 px-3 py-2">
-    <button
-      onClick={() => navigate(-1)}
-      className={`text-xl px-3 py-1  ${glassClass} hover:scale-105 transition-transform`}
-    >
-      ← 
-    </button>
+        {/* Row 1: Back + Symbol/TF/Price + Search/WA/Theme */}
+        <div className="flex items-center justify-between gap-2 px-3 py-2">
+          <button
+            onClick={() => navigate(-1)}
+            className={`text-xl px-3 py-1  ${glassClass} hover:scale-105 transition-transform`}
+          >
+            ←
+          </button>
 
-    <div className="flex items-center gap-2 min-w-0">
-         <button
-    type="button"
-    onClick={() => setOpenSearch(true)}
-    className={`w-9 h-9 grid place-items-center rounded-lg ${glassClass} hover:scale-105 transition-transform relative z-[10030] pointer-events-auto`}
-    title="Search Script"
-  >
-    <Search size={18} />
-  </button>
-      <TrendingUp className="w-5 h-5 text-blue-500" />
-      <div className="font-bold text-center truncate bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-        {symbol} • {tf.toUpperCase()}
-      </div>
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              onClick={() => setOpenSearch(true)}
+              className={`w-9 h-9 grid place-items-center rounded-lg ${glassClass} hover:scale-105 transition-transform relative z-[10030] pointer-events-auto`}
+              title="Search Script"
+            >
+              <Search size={18} />
+            </button>
+            <TrendingUp className="w-5 h-5 text-blue-500" />
+            <div className="font-bold text-center truncate bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+              {symbol} • {tf.toUpperCase()}
+            </div>
 
-      {lastPrice && (
-        <div className="text-sm font-semibold px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-lg">
-          ₹{Number(lastPrice).toLocaleString("en-IN")}
+            {lastPrice && (
+              <div className="text-sm font-semibold px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-lg">
+                ₹{Number(lastPrice).toLocaleString("en-IN")}
+              </div>
+
+            )}
+
+          </div>
+
+          <div className="flex items-center gap-2">
+
+
+
+
+            <button
+              onClick={() => setIsDark(!isDark)}
+              className={`w-9 h-9 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all`}
+              title="Toggle theme"
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-yellow-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-blue-600" />
+              )}
+            </button>
+          </div>
         </div>
-        
-      )}
-   
-    </div>
 
-    <div className="flex items-center gap-2">
-     
+        {/* Row 2: Controls (scrollable on small screens) */}
+        <div className="px-3 pb-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar whitespace-nowrap
+                lg:justify-center lg:overflow-visible"
+          >
 
-      
+            {["1m", "2m", "15m", "1h", "1d"].map((k) => (
+              <button
+                key={k}
+                onClick={() => setTf(k)}
+                className={`text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap shrink-0 transition-all ${tf === k
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50 scale-105"
+                  : `${glassClass} hover:scale-105`
+                  }`}
+              >
+                {k}
+              </button>
+            ))}
 
-      <button
-        onClick={() => setIsDark(!isDark)}
-        className={`w-9 h-9 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all`}
-        title="Toggle theme"
-      >
-        {isDark ? (
-          <Sun className="w-4 h-4 text-yellow-400" />
-        ) : (
-          <Moon className="w-4 h-4 text-blue-600" />
-        )}
-      </button>
-    </div>
-  </div>
+            <div className="shrink-0">
+              <ChartTypeDropdown />
+            </div>
 
-  {/* Row 2: Controls (scrollable on small screens) */}
-  <div className="px-3 pb-2">
-  <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap
-                  lg:justify-center lg:overflow-visible"
-  >
-    {["1m", "2m", "15m", "1h", "1d"].map((k) => (
-      <button
-        key={k}
-        onClick={() => setTf(k)}
-        className={`text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap shrink-0 transition-all ${
-          tf === k
-            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50 scale-105"
-            : `${glassClass} hover:scale-105`
-        }`}
-      >
-        {k}
-      </button>
-    ))}
+            <button
+              onClick={() => setOpenIndModal(true)}
+              className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg ${glassClass} hover:scale-105 transition-transform`}
+              title="Indicators"
+            >
+              <SlidersHorizontal size={18} />
+            </button>
 
-    <div className="shrink-0">
-      <ChartTypeDropdown />
-    </div>
-
-    <button
-      onClick={() => setOpenIndModal(true)}
-      className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg ${glassClass} hover:scale-105 transition-transform`}
-      title="Indicators"
-    >
-      <SlidersHorizontal size={18} />
-    </button>
-
-    <button
-      onClick={openBuyPage}
-      className="shrink-0 text-xs px-3 py-1.5 rounded-lg font-bold text-white
+            <button
+              onClick={openBuyPage}
+              className="shrink-0 text-xs px-3 py-1.5 rounded-lg font-bold text-white
                  bg-gradient-to-r from-green-500 to-emerald-500
                  shadow-lg hover:shadow-green-500/40 hover:scale-105 transition-all
                  flex items-center gap-1 whitespace-nowrap"
-      title={`Buy ${symbol}`}
-    >
-      <ArrowUpRight className="w-3 h-3" />
-      BUY
-    </button>
+              title={`Buy ${symbol}`}
+            >
+              <ArrowUpRight className="w-3 h-3" />
+              BUY
+            </button>
 
-    <button
-      onClick={openSellPage}
-      className="shrink-0 text-xs px-3 py-1.5 rounded-lg font-bold text-white
+            <button
+              onClick={openSellPage}
+              className="shrink-0 text-xs px-3 py-1.5 rounded-lg font-bold text-white
                  bg-gradient-to-r from-red-500 to-rose-500
                  shadow-lg hover:shadow-red-500/40 hover:scale-105 transition-all
                  flex items-center gap-1 whitespace-nowrap"
-      title={`Sell ${symbol}`}
-    >
-      <ArrowDownRight className="w-3 h-3" />
-      SELL
-    </button>
-
-    <button
-      id="genBtn"
-      onClick={generateSignal}
-      className={`shrink-0 text-xs px-3 py-1.5 rounded-lg ${glassClass}
-                  font-semibold whitespace-nowrap hover:scale-105 transition-all
-                  flex items-center gap-1`}
-    >
-      <Zap className="w-3 h-3" />
-      Generate Signal
-    </button>
-
-    <button
-      id="recoBtn"
-      onClick={openRecommendations}
-      className={`shrink-0 text-xs px-3 py-1.5 rounded-lg ${glassClass}
-                  font-semibold whitespace-nowrap hover:scale-105 transition-all
-                  flex items-center gap-1`}
-    >
-      <Sparkles className="w-3 h-3" />
-      Recommendation
-    </button>
-    <button
-        onClick={openWhatsappPage}
-        title="Open WhatsApp Alerts"
-        className="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 hover:scale-110 transition-all"
-      >
-        <FaWhatsapp className="w-4 h-4" />
-      </button>
-  </div>
-</div>
-</div>
-
-{/* ================= SEARCH MODAL ================= */}
-{openSearch && (
-  <div
-    className="fixed inset-0 z-[10060] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-20 px-3"
-    onMouseDown={() => setOpenSearch(false)}
-  >
-    <div
-      className={`w-full max-w-xl rounded-2xl shadow-2xl ${glassClass} p-4`}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-center gap-2">
-        <div className={`flex-1 flex items-center gap-2 rounded-xl px-3 py-2 ${isDark ? "bg-white/10" : "bg-white/80"}`}>
-          <Search className="w-4 h-4 opacity-70" />
-          <input
-            ref={searchInputRef}
-            value={searchQ}
-            onChange={(e) => setSearchQ(e.target.value)}
-            placeholder="Search script (e.g., TCS, RELIANCE...)"
-            className={`w-full bg-transparent outline-none text-sm ${isDark ? "text-white placeholder:text-slate-300" : "text-slate-900 placeholder:text-slate-500"}`}
-          />
-          {searchQ && (
-            <button
-              type="button"
-              onClick={() => setSearchQ("")}
-              className="w-8 h-8 grid place-items-center rounded-lg hover:bg-black/10"
-              title="Clear"
+              title={`Sell ${symbol}`}
             >
-              <X className="w-4 h-4" />
+              <ArrowDownRight className="w-3 h-3" />
+              SELL
             </button>
-          )}
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setOpenSearch(false)}
-          className={`w-10 h-10 grid place-items-center rounded-xl ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"}`}
-          title="Close"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
+            <button
+              id="genBtn"
+              onClick={generateSignal}
+              className={`shrink-0 text-xs px-3 py-1.5 rounded-lg ${glassClass}
+                  font-semibold whitespace-nowrap hover:scale-105 transition-all
+                  flex items-center gap-1`}
+            >
+              <Zap className="w-3 h-3" />
+              Generate Signal
+            </button>
 
-      <div className="mt-3 max-h-[55vh] overflow-auto">
-        {searchLoading ? (
-          <div className={`py-6 text-center text-sm ${textSecondaryClass}`}>Searching…</div>
-        ) : searchItems.length === 0 ? (
-          <div className={`py-6 text-center text-sm ${textSecondaryClass}`}>No results</div>
-        ) : (
-          <div className="space-y-2">
-            {searchItems.map((it, idx) => {
-              const sym = (it.symbol || it.tradingsymbol || it.name || it).toString();
-              const exch = it.exchange || it.exch || "";
-              return (
-                <button
-                  key={`${sym}-${idx}`}
-                  type="button"
-                  onClick={() => onPickScript(sym)}
-                  className={`w-full text-left px-3 py-2 rounded-xl ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-white/70 hover:bg-white"} transition`}
-                >
-                  <div className="font-semibold text-sm">{sym}</div>
-                  {exch ? <div className={`text-xs ${textSecondaryClass}`}>{exch}</div> : null}
-                </button>
-              );
-            })}
+            <button
+              id="recoBtn"
+              onClick={openRecommendations}
+              className={`shrink-0 text-xs px-3 py-1.5 rounded-lg ${glassClass}
+                  font-semibold whitespace-nowrap hover:scale-105 transition-all
+                  flex items-center gap-1`}
+            >
+              <Sparkles className="w-3 h-3" />
+              Recommendation
+            </button>
+            <button
+              onClick={openWhatsappPage}
+              title="Open WhatsApp Alerts"
+              className="w-6 h-5 flex items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 hover:scale-110 transition-all"
+            >
+              <FaWhatsapp className="w-4 h-4" />
+            </button>
           </div>
-        )}
+        </div>
       </div>
-    </div>
-  </div>
-)}
 
-     
+      {/* ================= SEARCH MODAL ================= */}
+      {openSearch && (
+        <div
+          className="fixed inset-0 z-[10060] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-20 px-3"
+          onMouseDown={() => setOpenSearch(false)}
+        >
+          <div
+            className={`w-full max-w-xl rounded-2xl shadow-2xl ${glassClass} p-4`}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <div className={`flex-1 flex items-center gap-2 rounded-xl px-3 py-2 ${isDark ? "bg-white/10" : "bg-white/80"}`}>
+                <Search className="w-4 h-4 opacity-70" />
+                <input
+                  ref={searchInputRef}
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                  placeholder="Search script (e.g., TCS, RELIANCE...)"
+                  className={`w-full bg-transparent outline-none text-sm ${isDark ? "text-white placeholder:text-slate-300" : "text-slate-900 placeholder:text-slate-500"}`}
+                />
+                {searchQ && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQ("")}
+                    className="w-8 h-8 grid place-items-center rounded-lg hover:bg-black/10"
+                    title="Clear"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setOpenSearch(false)}
+                className={`w-10 h-10 grid place-items-center rounded-xl ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"}`}
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mt-3 max-h-[55vh] overflow-auto">
+              {searchLoading ? (
+                <div className={`py-6 text-center text-sm ${textSecondaryClass}`}>Searching…</div>
+              ) : searchItems.length === 0 ? (
+                <div className={`py-6 text-center text-sm ${textSecondaryClass}`}>No results</div>
+              ) : (
+                <div className="space-y-2">
+                  {searchItems.map((it, idx) => {
+                    const sym = (it.symbol || it.tradingsymbol || it.name || it).toString();
+                    const exch = it.exchange || it.exch || "";
+                    return (
+                      <button
+                        key={`${sym}-${idx}`}
+                        type="button"
+                        onClick={() => onPickScript(sym)}
+                        className={`w-full text-left px-3 py-2 rounded-xl ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-white/70 hover:bg-white"} transition`}
+                      >
+                        <div className="font-semibold text-sm">{sym}</div>
+                        {exch ? <div className={`text-xs ${textSecondaryClass}`}>{exch}</div> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
 
       {/* Left toolbar */}
@@ -3350,9 +3346,8 @@ const closePopup = useCallback(() => {
                   {latestRecoDesc.slice(0, 4).map((row, idx) => (
                     <div
                       key={`reco-${idx}`}
-                      className={`${glassClass} rounded-2xl p-4 hover:scale-[1.02] transition-transform shadow-lg border-l-4 ${
-                        row.signal_type === "BUY" ? "border-green-500" : "border-red-500"
-                      }`}
+                      className={`${glassClass} rounded-2xl p-4 hover:scale-[1.02] transition-transform shadow-lg border-l-4 ${row.signal_type === "BUY" ? "border-green-500" : "border-red-500"
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -3363,11 +3358,10 @@ const closePopup = useCallback(() => {
                         </div>
 
                         <div
-                          className={`px-3 py-1 rounded-lg font-bold text-sm ${
-                            row.signal_type === "BUY"
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                              : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
-                          } shadow-lg`}
+                          className={`px-3 py-1 rounded-lg font-bold text-sm ${row.signal_type === "BUY"
+                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                            : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+                            } shadow-lg`}
                         >
                           {[row.Strategy, row.signal_type, row.close_price]
                             .filter(v => v !== undefined && v !== null && v !== "")
@@ -3422,9 +3416,8 @@ const closePopup = useCallback(() => {
                   {latestSignals.map((sig, idx) => (
                     <div
                       key={`gen-${idx}`}
-                      className={`${glassClass} rounded-2xl p-4 hover:scale-[1.02] transition-transform shadow-lg border-l-4 ${
-                        sig.signal === "BUY" ? "border-green-500" : "border-red-500"
-                      }`}
+                      className={`${glassClass} rounded-2xl p-4 hover:scale-[1.02] transition-transform shadow-lg border-l-4 ${sig.signal === "BUY" ? "border-green-500" : "border-red-500"
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -3435,11 +3428,10 @@ const closePopup = useCallback(() => {
                         </div>
 
                         <div
-                          className={`px-3 py-1 rounded-lg font-bold text-sm ${
-                            sig.signal === "BUY"
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
-                              : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
-                          } shadow-lg`}
+                          className={`px-3 py-1 rounded-lg font-bold text-sm ${sig.signal === "BUY"
+                            ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white"
+                            : "bg-gradient-to-r from-red-500 to-rose-500 text-white"
+                            } shadow-lg`}
                         >
                           {sig.signal} | {sig.tf} | {Number(sig.close_price).toFixed(2)}
                         </div>
@@ -3487,14 +3479,14 @@ const closePopup = useCallback(() => {
       <IndicatorToolbar />
 
       {/* ✅ Premium Popup Modal (replaces alert()) */}
-<AlertModal
-  open={popup.open}
-  title={popup.title}
-  message={popup.message}
-  onClose={closePopup}
-  isDark={isDark}
-  glassClass={glassClass}
-/>
+      <AlertModal
+        open={popup.open}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        isDark={isDark}
+        glassClass={glassClass}
+      />
 
 
       {/* ---------------- RECOMMENDATION MODAL ---------------- */}
