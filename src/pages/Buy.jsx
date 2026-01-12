@@ -258,18 +258,57 @@ export default function Buy() {
       }
 
       if (isModify && prefill.modifyId && orderMode === "MARKET") {
-        const res = await fetch(
-          `${API}/orders/convert-to-market/${prefill.modifyId}`,
-          { method: "POST" }
-        );
+        // 1) First update the OPEN order row with the new segment (and other fields)
+        const updatePayload = {
+          username,
+          script: symbol,
+          order_type: "BUY",
+          qty: Number(qty),
+          // keep existing limit price as stored trigger (important) – don't overwrite it with blank
+          price: Number(prefill.price || prefill.trigger_price || price || 0),
+          exchange,
+          segment, // ✅ this is what you changed (delivery/intraday)
+          stoploss: Number(stoploss || 0),
+          target: Number(target || 0),
+          is_short: 0,
+        };
 
-        const data = await res.json().catch(() => ({}));
+        const up = await fetch(`${API}/orders/${prefill.modifyId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+
+        const upJson = await up.json().catch(() => ({}));
+        if (!up.ok) throw new Error(upJson?.detail || "Failed to update order before convert");
+
+        // 2) Now convert to market and execute
+        const res = await fetch(`${API}/orders/convert-to-market/${prefill.modifyId}`, {
+          method: "POST",
+        });
+
+        const json = await res.json().catch(() => ({}));
+
         if (!res.ok) {
-          throw new Error(
-            data?.detail || "Failed to convert to market order"
-          );
+          const detail = String(json?.detail || json?.message || "");
+
+          // ✅ If it says Open order not found, it most likely already triggered & moved to Positions
+          if (res.status === 404 && detail.toLowerCase().includes("open order not found")) {
+            setSuccessText("Order already executed ✅ (updated to Delivery)");
+            setSuccessModal(true);
+
+            setTimeout(() => {
+              setSuccessModal(false);
+              nav("/orders", { state: { refresh: true, tab: "positions" } });
+            }, 1200);
+
+            return;
+          }
+
+          throw new Error(detail || "Convert-to-market failed");
         }
 
+        // ✅ Success
         setSuccessText("Order executed at Market price ✅");
         setSuccessModal(true);
 
@@ -278,14 +317,11 @@ export default function Buy() {
           nav("/orders", { state: { refresh: true, tab: "positions" } });
         }, 1200);
 
-        setSubmitting(false);
         return;
+
+
       }
 
-      if (!username) {
-        nav("/login");
-        return;
-      }
 
       if (!symbol) throw new Error("❌ Invalid symbol.");
 
@@ -378,9 +414,15 @@ export default function Buy() {
         }
 
         if (returnTo === "/orders") {
-          nav("/orders", { state: { refresh: true, tab: returnTab || "positions" } });
+          // ✅ If you came from OpenTrades tab, returnTab will be "open"
+          // ✅ If order triggered (executed), always go Positions
+          const tabToGo =
+            (data && data.triggered) ? "positions" : (returnTab || "open");
+
+          nav("/orders", { state: { refresh: true, tab: tabToGo } });
           return;
         }
+
 
         // ✅ fallback (old behavior)
         if (data && data.triggered) {
@@ -439,9 +481,10 @@ export default function Buy() {
           return;
         }
         if (returnTo === "/orders") {
-          nav("/orders", { state: { refresh: true, tab: returnTab || "positions" } });
+          nav("/orders", { state: { refresh: true, tab: "positions" } });
           return;
         }
+
 
         // fallback
         nav("/orders", { state: { refresh: true, tab: "positions" } });
@@ -525,33 +568,33 @@ export default function Buy() {
               </div>
 
               {!isExit && !isModify && !isPositionModify && (
-  <button
-    type="button"
-    onClick={() =>
-      nav(`/sell/${symbol}`, {
-        state: {
-          ...prefill,
-          qty,
-          exchange,
-          segment,
-          stoploss,
-          target,
-          orderMode,
-          price,
-        },
-      })
-    }
-    className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
+                <button
+                  type="button"
+                  onClick={() =>
+                    nav(`/sell/${symbol}`, {
+                      state: {
+                        ...prefill,
+                        qty,
+                        exchange,
+                        segment,
+                        stoploss,
+                        target,
+                        orderMode,
+                        price,
+                      },
+                    })
+                  }
+                  className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
     ${isDark
-      ? "bg-rose-500/15 border-rose-400/25 text-rose-100 hover:bg-rose-500/25"
-      : "bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200"
-    }`}
->
-    
-  
-    SELL
-  </button>
-)}
+                      ? "bg-rose-500/15 border-rose-400/25 text-rose-100 hover:bg-rose-500/25"
+                      : "bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200"
+                    }`}
+                >
+
+
+                  SELL
+                </button>
+              )}
 
             </div>
           </div>
@@ -630,9 +673,9 @@ export default function Buy() {
                 <div className="relative w-full h-2 bg-white/10 rounded-full overflow-hidden">
                   <div className="absolute top-0 left-0 h-full w-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 opacity-40" />
                   <div
-  className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-xl ring-2 ring-white/40 transition-all duration-300"
-  style={{ left: `calc(${dayRange}% - 8px)` }}
-/>
+                    className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white shadow-xl ring-2 ring-white/40 transition-all duration-300"
+                    style={{ left: `calc(${dayRange}% - 8px)` }}
+                  />
 
                 </div>
               </div>
