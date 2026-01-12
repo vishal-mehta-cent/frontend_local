@@ -456,30 +456,28 @@ export default function Orders({ username }) {
   };
 
   const handleModify = (order) => {
-    const side = order.type || order.order_type; // BUY / SELL
+    const side = order.type || order.order_type;
+
+    const limitPx = toNum(order.trigger_price) ?? toNum(order.price); // ✅ use trigger_price first
+    const mode = limitPx != null ? "LIMIT" : "MARKET";
 
     navigate(
-      side === "SELL"
-        ? `/sell/${order.script}`
-        : `/buy/${order.script}`,
+      side === "SELL" ? `/sell/${order.script}` : `/buy/${order.script}`,
       {
         state: {
           modifyId: order.id,
 
-          // 🔑 PREFILL
           qty: order.qty,
-          price: order.price,
+          price: limitPx ?? "",            // ✅ correct prefill
+          trigger_price: limitPx ?? null,  // ✅ optional, helps Buy.jsx
           exchange: order.exchange || "NSE",
           segment: order.segment || "intraday",
           stoploss: order.stoploss,
           target: order.target,
-
-          // 🔒 MODE FLAGS
-          orderMode: order.price ? "LIMIT" : "MARKET",
+          orderMode: mode,
           fromModify: true,
           returnTo: "/orders",
-          returnTab: "positions",
-
+          returnTab: tab === "open" ? "open" : "positions",
         },
       }
     );
@@ -857,15 +855,19 @@ export default function Orders({ username }) {
                       </div>
 
                     </div>
-                    {isOrdersTab && o.status_msg && (
+                    {isOrdersTab && (
                       <div className="text-right mt-5">
-                        {/* Yet to trigger */}
-                        <div
-                          className={`text-xs ${isDark ? "text-slate-200/70" : "text-slate-500"
-                            }`}
-                        >
-                          {o.status_msg}
+                        {/* ✅ Buy/Sell Date ABOVE "Yet to trigger" */}
+                        <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
+                          {isBuy ? "Buy Date" : "Sell Date"} • {fmtDate(dt)} {fmtTime(dt)}
                         </div>
+
+                        {/* Yet to trigger */}
+                        {o.status_msg && (
+                          <div className={`mt-1 text-xs ${isDark ? "text-slate-200/70" : "text-slate-500"}`}>
+                            {o.status_msg}
+                          </div>
+                        )}
 
                         {/* Live price BELOW */}
                         <div
@@ -880,25 +882,25 @@ export default function Orders({ username }) {
                                   : "text-sky-600",
                           ].join(" ")}
                         >
-                          {/* Arrow */}
                           {priceFlash[script] === "up" && <span className="text-xs">▲</span>}
                           {priceFlash[script] === "down" && <span className="text-xs">▼</span>}
-
-                          {/* Label */}
                           <span className="opacity-80">Live:</span>
-
-                          {/* Price */}
                           <span className="tabular-nums">{money(live)}</span>
                         </div>
-
                       </div>
                     )}
+
 
                     {/* ✅ RIGHT: P&L exactly like Image-2 */}
                     {!isOrdersTab && (
                       <div className="text-right">
+                        {/* ✅ Buy/Sell Date ABOVE P&L */}
+                        <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
+                          {isBuy ? "Buy Date" : "Sell Date"} • {fmtDate(dt)} {fmtTime(dt)}
+                        </div>
+
                         {/* P&L */}
-                        <div className={`flex items-baseline justify-end gap-2 ${pnlColor}`}>
+                        <div className={`mt-2 flex items-baseline justify-end gap-2 ${pnlColor}`}>
                           {pnlUp ? <TrendingUp size={26} /> : <TrendingDown size={26} />}
                           <div className="text-3xl font-extrabold leading-none">
                             {money(total)}
@@ -910,15 +912,13 @@ export default function Orders({ username }) {
                           {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%
                         </div>
 
-                        {/* ✅ Live price (same as Open Trades) */}
-                        <div
-                          className={`mt-2 text-sm font-bold ${isDark ? "text-cyan-200" : "text-sky-600"
-                            }`}
-                        >
+                        {/* Live */}
+                        <div className={`mt-2 text-sm font-bold ${isDark ? "text-cyan-200" : "text-sky-600"}`}>
                           Live: {money(o.inactive && o.exit_price != null ? o.exit_price : live)}
                         </div>
                       </div>
                     )}
+
 
 
                   </div>
@@ -972,23 +972,7 @@ export default function Orders({ username }) {
                       </div>
                     </div>
 
-                    {/* ✅ Buy/Sell Date + Time */}
-                    <div>
-                      <div
-                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
-                          }`}
-                      >
-                        {isBuy ? "Buy Date" : "Sell Date"}
-                      </div>
 
-                      <div className={`mt-1 text-sm font-extrabold ${textClass}`}>
-                        {fmtDate(dt)}
-                      </div>
-
-                      <div className={`text-xs font-semibold ${textSecondaryClass}`}>
-                        {fmtTime(dt)}
-                      </div>
-                    </div>
 
                     {/* ✅ Exit Price — SAME ROW (only for inactive rows) */}
                     {o.inactive && o.exit_price != null && (
@@ -1165,15 +1149,16 @@ export default function Orders({ username }) {
 
                           <button
                             disabled={busy}
-                            onClick={handleClose}
+                            onClick={() => handleCancel(selectedOrder.id)}   // ✅ correct
                             className={`py-3 rounded-xl font-semibold
-                        bg-white/10 hover:bg-white/15 border border-white/10
-                        shadow-lg transition
-                        ${busy ? "opacity-60 cursor-not-allowed" : ""}`}
+    bg-white/10 hover:bg-white/15 border border-white/10
+    shadow-lg transition
+    ${busy ? "opacity-60 cursor-not-allowed" : ""}`}
                             title="Cancel"
                           >
                             Cancel
                           </button>
+
                         </div>
                       ) : (
                         <div className="grid grid-cols-3 gap-3">
