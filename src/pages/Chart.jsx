@@ -75,7 +75,8 @@ const API =
     .trim()
     .replace(/\/+$/, "");
 
-const HEADER_H = 56;
+const HEADER_H = 96; // 2-row sticky header height
+
 const TF_MIN = { "1m": 1, "2m": 2, "5m": 5, "15m": 15, "1h": 60, "1d": 1440 };
 
 // ✅ PREMIUM ALERT MODAL (Option-1) — inside Chart.jsx (no new file needed)
@@ -2088,7 +2089,8 @@ const closePopup = useCallback(() => {
 
   /* ---------------- Left toolbar ---------------- */
   const LeftRail = () => (
-    <div className="fixed left-2 top-[72px] z-[9993] select-none">
+    <div className="fixed left-2 z-[9993] select-none" style={{ top: HEADER_H + 16 }}>
+
       <div className="bg-white/95 border rounded-xl shadow-lg p-1 flex flex-col gap-1">
         <button
           className={`w-9 h-9 grid place-items-center rounded-md hover:bg-gray-100 ${drawerOpen ? "bg-gray-100" : ""}`}
@@ -3024,218 +3026,219 @@ const closePopup = useCallback(() => {
       </div>
 
       {/* Header */}
-      <div className={`fixed top-0 left-0 right-0 z-[9990] flex items-center justify-between px-3 py-2 h-14 ${glassClass} shadow-xl pr-28 md:pr-36 transition-all`}>
-        <button onClick={() => navigate(-1)} className={`text-sm px-3 py-1 rounded-lg ${glassClass} hover:scale-105 transition-transform`}>
-          ← Back
-        </button>
+      {/* Header (Sticky + 2 rows for mobile/tablet) */}
+<div className={`sticky top-0 z-[10020] ${glassClass} shadow-xl pointer-events-auto`}>
 
-        <div className="flex items-center gap-2">
-          <TrendingUp className="w-5 h-5 text-blue-500" />
-          <div className="font-bold text-center truncate bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-            {symbol} • {tf.toUpperCase()}
-          </div>
-          {lastPrice && (
-            <div className="text-sm font-semibold px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-lg">
-              ₹{Number(lastPrice).toLocaleString("en-IN")}
-            </div>
-          )}
-        </div>
-       <button
-  onClick={() => setOpenSearch(true)}
- className={`w-medium pl-5 pr-10 py-2 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
-  title="Search Script"
->
-  <Search size={16} />
-</button>
+  {/* Row 1: Back + Symbol/TF/Price + Search/WA/Theme */}
+  <div className="flex items-center justify-between gap-2 px-3 py-2">
+    <button
+      onClick={() => navigate(-1)}
+      className={`text-xl px-3 py-1  ${glassClass} hover:scale-105 transition-transform`}
+    >
+      ← 
+    </button>
 
-
-
-        <div className="flex items-center gap-2 flex-wrap justify-center">
-          {["1m", "2m", "15m", "1h", "1d"].map((k) => (
-            <button
-              key={k}
-              onClick={() => setTf(k)}
-              className={`text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap transition-all ${
-                tf === k
-                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50 scale-105"
-                  : `${glassClass} hover:scale-105`
-              }`}
-            >
-              {k}
-            </button>
-          ))}
-
-          
-
-          <ChartTypeDropdown />
-
-          
-
-
+    <div className="flex items-center gap-2 min-w-0">
          <button
-  onClick={() => setOpenIndModal(true)}
-  className={`flex items-center justify-center w-9 h-9 rounded-lg ${glassClass}
-              hover:scale-105 transition-transform`}
-  title="Indicators"
->
-  <SlidersHorizontal size={18} />
-</button>
-          {/* BUY / SELL buttons */}
-          <button
-            onClick={openBuyPage}
-            className="text-xs px-3 py-1.5 rounded-lg font-bold text-white
-                       bg-gradient-to-r from-green-500 to-emerald-500
-                       shadow-lg hover:shadow-green-500/40 hover:scale-105 transition-all
-                       flex items-center gap-1 whitespace-nowrap"
-            title={`Buy ${symbol}`}
-          >
-            <ArrowUpRight className="w-3 h-3" />
-            BUY
-          </button>
-
-          <button
-            onClick={openSellPage}
-            className="text-xs px-3 py-1.5 rounded-lg font-bold text-white
-                       bg-gradient-to-r from-red-500 to-rose-500
-                       shadow-lg hover:shadow-red-500/40 hover:scale-105 transition-all
-                       flex items-center gap-1 whitespace-nowrap"
-            title={`Sell ${symbol}`}
-          >
-            <ArrowDownRight className="w-3 h-3" />
-            SELL
-          </button>
-
-          <button
-  id="genBtn"
-  onClick={generateSignal}
-  className={`text-xs px-3 py-1.5 rounded-lg 
-    ${glassClass} 
-    font-semibold whitespace-nowrap
-    hover:scale-105 transition-all
-    flex items-center gap-1`}
->
-
-            <Zap className="w-3 h-3" />
-            Generate Signal
-          </button>
-
-          <button
-  id="recoBtn"
-  onClick={openRecommendations}
-  className={`text-xs px-3 py-1.5 rounded-lg 
-    ${glassClass}
-    font-semibold whitespace-nowrap
-    hover:scale-105 transition-all
-    flex items-center gap-1`}
->
-
-            <Sparkles className="w-3 h-3" />
-            Recommendation
-          </button>
-
-          <button
-            onClick={openWhatsappPage}
-            title="Open WhatsApp Alerts"
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 hover:scale-110 transition-all"
-          >
-            <FaWhatsapp className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => setIsDark(!isDark)}
-            className={`w-8 h-8 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all`}
-            title="Toggle theme"
-          >
-            {isDark ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-blue-600" />}
-          </button>
-
-
-
-
-          {/* Go Live button - jump to latest bar & re-enable auto-follow */}
-
-
-
-        </div>
-        <div className="w-12 md:w-20 shrink-0" />
+    type="button"
+    onClick={() => setOpenSearch(true)}
+    className={`w-9 h-9 grid place-items-center rounded-lg ${glassClass} hover:scale-105 transition-transform relative z-[10030] pointer-events-auto`}
+    title="Search Script"
+  >
+    <Search size={18} />
+  </button>
+      <TrendingUp className="w-5 h-5 text-blue-500" />
+      <div className="font-bold text-center truncate bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+        {symbol} • {tf.toUpperCase()}
       </div>
 
-      <div style={{ height: HEADER_H }} />
-
-      {/* Search Modal */}
-      {openSearch && (
-        <div
-          className="fixed inset-0 z-[10060] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-20 px-3"
-          onMouseDown={() => setOpenSearch(false)}
-        >
-          <div
-            className={`w-full max-w-xl rounded-2xl shadow-2xl p-4 ${glassClass}`}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-60" />
-                <input
-                  ref={searchInputRef}
-                  value={searchQ}
-                  onChange={(e) => setSearchQ(e.target.value)}
-                  placeholder="Search script (e.g. TCS, INFY, BANKNIFTY...)"
-                  className={`w-full pl-9 pr-3 py-2 rounded-xl outline-none ${
-                    isDark
-                      ? "bg-black/30 text-white placeholder:text-white/50"
-                      : "bg-white/70 text-slate-900 placeholder:text-slate-500"
-                  }`}
-                />
-              </div>
-
-              <button
-                onClick={() => setOpenSearch(false)}
-                className={`w-10 h-10 rounded-xl grid place-items-center ${glassClass}
-                            hover:scale-105 transition-transform`}
-                title="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="mt-3 max-h-[360px] overflow-auto rounded-xl">
-              {searchLoading ? (
-                <div className={`p-4 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                  Loading...
-                </div>
-              ) : searchItems.length === 0 ? (
-                <div className={`p-4 text-sm ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                  No results
-                </div>
-              ) : (
-                <div className="divide-y divide-white/10">
-                  {searchItems.map((it, idx) => (
-                    <button
-                      key={`${it.symbol}-${idx}`}
-                      onClick={() => onPickScript(it.symbol)}
-                      className={`w-full text-left px-4 py-3 hover:opacity-90 transition ${
-                        isDark ? "hover:bg-white/10" : "hover:bg-black/5"
-                      }`}
-                    >
-                      <div className="font-semibold">
-                        {it.symbol}
-                        <span className={`ml-2 text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                          {it.exchange ? `(${it.exchange})` : ""}
-                        </span>
-                      </div>
-                      {it.display_name && (
-                        <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                          {it.display_name}
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+      {lastPrice && (
+        <div className="text-sm font-semibold px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-lg">
+          ₹{Number(lastPrice).toLocaleString("en-IN")}
         </div>
+        
       )}
+   
+    </div>
+
+    <div className="flex items-center gap-2">
+     
+
+      
+
+      <button
+        onClick={() => setIsDark(!isDark)}
+        className={`w-9 h-9 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all`}
+        title="Toggle theme"
+      >
+        {isDark ? (
+          <Sun className="w-4 h-4 text-yellow-400" />
+        ) : (
+          <Moon className="w-4 h-4 text-blue-600" />
+        )}
+      </button>
+    </div>
+  </div>
+
+  {/* Row 2: Controls (scrollable on small screens) */}
+  <div className="px-3 pb-2">
+  <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap
+                  lg:justify-center lg:overflow-visible"
+  >
+    {["1m", "2m", "15m", "1h", "1d"].map((k) => (
+      <button
+        key={k}
+        onClick={() => setTf(k)}
+        className={`text-xs px-3 py-1.5 rounded-lg font-semibold whitespace-nowrap shrink-0 transition-all ${
+          tf === k
+            ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/50 scale-105"
+            : `${glassClass} hover:scale-105`
+        }`}
+      >
+        {k}
+      </button>
+    ))}
+
+    <div className="shrink-0">
+      <ChartTypeDropdown />
+    </div>
+
+    <button
+      onClick={() => setOpenIndModal(true)}
+      className={`shrink-0 flex items-center justify-center w-9 h-9 rounded-lg ${glassClass} hover:scale-105 transition-transform`}
+      title="Indicators"
+    >
+      <SlidersHorizontal size={18} />
+    </button>
+
+    <button
+      onClick={openBuyPage}
+      className="shrink-0 text-xs px-3 py-1.5 rounded-lg font-bold text-white
+                 bg-gradient-to-r from-green-500 to-emerald-500
+                 shadow-lg hover:shadow-green-500/40 hover:scale-105 transition-all
+                 flex items-center gap-1 whitespace-nowrap"
+      title={`Buy ${symbol}`}
+    >
+      <ArrowUpRight className="w-3 h-3" />
+      BUY
+    </button>
+
+    <button
+      onClick={openSellPage}
+      className="shrink-0 text-xs px-3 py-1.5 rounded-lg font-bold text-white
+                 bg-gradient-to-r from-red-500 to-rose-500
+                 shadow-lg hover:shadow-red-500/40 hover:scale-105 transition-all
+                 flex items-center gap-1 whitespace-nowrap"
+      title={`Sell ${symbol}`}
+    >
+      <ArrowDownRight className="w-3 h-3" />
+      SELL
+    </button>
+
+    <button
+      id="genBtn"
+      onClick={generateSignal}
+      className={`shrink-0 text-xs px-3 py-1.5 rounded-lg ${glassClass}
+                  font-semibold whitespace-nowrap hover:scale-105 transition-all
+                  flex items-center gap-1`}
+    >
+      <Zap className="w-3 h-3" />
+      Generate Signal
+    </button>
+
+    <button
+      id="recoBtn"
+      onClick={openRecommendations}
+      className={`shrink-0 text-xs px-3 py-1.5 rounded-lg ${glassClass}
+                  font-semibold whitespace-nowrap hover:scale-105 transition-all
+                  flex items-center gap-1`}
+    >
+      <Sparkles className="w-3 h-3" />
+      Recommendation
+    </button>
+    <button
+        onClick={openWhatsappPage}
+        title="Open WhatsApp Alerts"
+        className="w-9 h-9 flex items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 hover:scale-110 transition-all"
+      >
+        <FaWhatsapp className="w-4 h-4" />
+      </button>
+  </div>
+</div>
+</div>
+
+{/* ================= SEARCH MODAL ================= */}
+{openSearch && (
+  <div
+    className="fixed inset-0 z-[10060] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-20 px-3"
+    onMouseDown={() => setOpenSearch(false)}
+  >
+    <div
+      className={`w-full max-w-xl rounded-2xl shadow-2xl ${glassClass} p-4`}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center gap-2">
+        <div className={`flex-1 flex items-center gap-2 rounded-xl px-3 py-2 ${isDark ? "bg-white/10" : "bg-white/80"}`}>
+          <Search className="w-4 h-4 opacity-70" />
+          <input
+            ref={searchInputRef}
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder="Search script (e.g., TCS, RELIANCE...)"
+            className={`w-full bg-transparent outline-none text-sm ${isDark ? "text-white placeholder:text-slate-300" : "text-slate-900 placeholder:text-slate-500"}`}
+          />
+          {searchQ && (
+            <button
+              type="button"
+              onClick={() => setSearchQ("")}
+              className="w-8 h-8 grid place-items-center rounded-lg hover:bg-black/10"
+              title="Clear"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setOpenSearch(false)}
+          className={`w-10 h-10 grid place-items-center rounded-xl ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"}`}
+          title="Close"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      <div className="mt-3 max-h-[55vh] overflow-auto">
+        {searchLoading ? (
+          <div className={`py-6 text-center text-sm ${textSecondaryClass}`}>Searching…</div>
+        ) : searchItems.length === 0 ? (
+          <div className={`py-6 text-center text-sm ${textSecondaryClass}`}>No results</div>
+        ) : (
+          <div className="space-y-2">
+            {searchItems.map((it, idx) => {
+              const sym = (it.symbol || it.tradingsymbol || it.name || it).toString();
+              const exch = it.exchange || it.exch || "";
+              return (
+                <button
+                  key={`${sym}-${idx}`}
+                  type="button"
+                  onClick={() => onPickScript(sym)}
+                  className={`w-full text-left px-3 py-2 rounded-xl ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-white/70 hover:bg-white"} transition`}
+                >
+                  <div className="font-semibold text-sm">{sym}</div>
+                  {exch ? <div className={`text-xs ${textSecondaryClass}`}>{exch}</div> : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
+     
 
 
       {/* Left toolbar */}
