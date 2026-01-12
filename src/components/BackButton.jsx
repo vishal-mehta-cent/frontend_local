@@ -3,10 +3,15 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-export default function BackButton({ inline = true, className = "" }) {
+export default function BackButton({
+  inline = true,
+  className = "",
+  to = null,          // ✅ NEW
+  state = undefined,  // ✅ NEW
+  replace = false,    // ✅ optional
+}) {
   const navigate = useNavigate();
 
-  // ✅ Dark theme = white, Light theme = black (auto via Tailwind dark: class)
   const base =
     "flex items-center transition text-slate-900 hover:text-slate-900 dark:text-white dark:hover:text-white";
 
@@ -14,6 +19,13 @@ export default function BackButton({ inline = true, className = "" }) {
   const cls = `${base} ${pos} ${className}`.trim();
 
   const handleBack = () => {
+    // ✅ If caller provided explicit target, go there
+    if (to) {
+      navigate(to, { state, replace });
+      return;
+    }
+
+    // ✅ Otherwise fallback to history
     if (window.history.length > 1) {
       navigate(-1);
     } else {
