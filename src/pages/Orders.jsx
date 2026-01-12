@@ -470,8 +470,9 @@ export default function Orders({ username }) {
           qty: order.qty,
           price: limitPx ?? "",            // ✅ correct prefill
           trigger_price: limitPx ?? null,  // ✅ optional, helps Buy.jsx
-          exchange: order.exchange || "NSE",
-          segment: order.segment || "intraday",
+          exchange: (order.exchange || "NSE").toUpperCase(),
+          segment: (order.segment || "intraday").toLowerCase(),
+
           stoploss: order.stoploss,
           target: order.target,
           orderMode: mode,
@@ -488,43 +489,62 @@ export default function Orders({ username }) {
 
   const handleExit = (pos) => {
     if (!pos) return;
+
+    const sym = pos.symbol || pos.script;
+
     if ((pos.type || pos.order_type) === "BUY") {
-      navigate(`/sell/${pos.symbol || pos.script}`, {
+      // BUY position -> EXIT means SELL page
+      navigate(`/sell/${sym}`, {
         state: {
           fromExit: true,
-          symbol: pos.symbol || pos.script,
+          fromPosition: true,        // ✅ ADD THIS (MOST IMPORTANT)
+          action: "EXIT",            // ✅ optional but recommended
+
+          symbol: sym,
           qty: pos.qty,
           price: pos.price,
           exchange: pos.exchange || "NSE",
-          segment: pos.segment || "intraday",
+          segment: (pos.segment || "delivery").toLowerCase(),
+
+          // EXIT must be MARKET only
+          orderMode: "MARKET",
+
+          // optional (Sell.jsx clears these on isExit anyway)
           stoploss: pos.stoploss,
           target: pos.target,
-          orderMode: "MARKET",
-          // ✅ ADD THESE:
+
           returnTo: "/orders",
           returnTab: "positions",
         },
       });
     } else {
-      navigate(`/buy/${pos.symbol || pos.script}`, {
+      // SELL position -> EXIT means BUY page
+      navigate(`/buy/${sym}`, {
         state: {
           fromExit: true,
-          symbol: pos.symbol || pos.script,
+          fromPosition: true,        // ✅ ADD THIS (MOST IMPORTANT)
+          action: "EXIT",            // ✅ optional but recommended
+
+          symbol: sym,
           qty: pos.qty,
           price: pos.price,
           exchange: pos.exchange || "NSE",
-          segment: pos.segment || "intraday",
+          segment: (pos.segment || "delivery").toLowerCase(),
+
+          orderMode: "MARKET",
+
           stoploss: pos.stoploss,
           target: pos.target,
-          orderMode: "MARKET",
-          // ✅ ADD THESE:
+
           returnTo: "/orders",
           returnTab: "positions",
         },
       });
     }
+
     setShowActions(false);
   };
+
 
   const handleAdd = (pos) => {
     const symbol = pos.symbol || pos.script;
@@ -544,8 +564,8 @@ export default function Orders({ username }) {
           price: pos.price,
           stoploss: pos.stoploss,
           target: pos.target,
-          segment: pos.segment,
-          exchange: pos.exchange || "NSE",
+          segment: (pos.segment || "delivery").toLowerCase(),
+          exchange: (pos.exchange || "NSE").toUpperCase(),
           orderMode: "MARKET",
         },
       }
@@ -839,7 +859,7 @@ export default function Orders({ username }) {
 
                           {/* INTRADAY / DELIVERY */}
                           <span
-                            className={`inline-block px-3 py-[2px] rounded-full text-[11px] font-semibold tracking-wide ${o.segment === "intraday"
+                            className={`inline-block px-3 py-[2px] rounded-full text-[11px] font-semibold tracking-wide ${(o.segment || "").toLowerCase() === "intraday"
                               ? isDark
                                 ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/20"
                                 : "bg-indigo-50 text-indigo-700 border border-indigo-200"
@@ -850,6 +870,7 @@ export default function Orders({ username }) {
                           >
                             {(o.segment || "delivery").toUpperCase()}
                           </span>
+
                         </div>
 
                       </div>
@@ -1191,8 +1212,9 @@ export default function Orders({ username }) {
                                     price: selectedOrder.price,
                                     stoploss: selectedOrder.stoploss,
                                     target: selectedOrder.target,
-                                    segment: selectedOrder.segment,
-                                    exchange: selectedOrder.exchange || "NSE",
+                                    segment: (selectedOrder.segment || "delivery").toLowerCase(),
+                                    exchange: (selectedOrder.exchange || "NSE").toUpperCase(),
+
                                     orderMode: "MARKET",
                                   },
                                 }
