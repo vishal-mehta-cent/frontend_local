@@ -61,6 +61,9 @@ export default function Sell() {
   const nav = useNavigate();
   const location = useLocation();
   const prefill = location.state || {};
+  // ✅ NEW: where to go back after ADD/EXIT/MODIFY (same pattern as Buy.jsx)
+  const returnTo = prefill.returnTo || "";      // "/orders" or "/portfolio"
+  const returnTab = prefill.returnTab || "";    // e.g. "positions"
 
   // ✅ MUST come first
   const [confirmedShort, setConfirmedShort] = useState(false);
@@ -225,6 +228,33 @@ export default function Sell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol, orderMode, price, livePrice]);
 
+  const goBack = (triggered = false) => {
+    // Priority-1: explicit return target (Orders/Portfolio/etc.)
+    if (returnTo) {
+      if (returnTo === "/orders") {
+        nav("/orders", {
+          state: {
+            refresh: true,
+            tab: returnTab || (triggered ? "positions" : "open"),
+          },
+        });
+        return;
+      }
+
+      nav(returnTo, { state: { refresh: true } });
+      return;
+    }
+
+    // Priority-2: fallback behaviour (same as Buy.jsx)
+    if (prefill.fromAdd === true && prefill.fromPosition === true) {
+      nav("/portfolio", { state: { refresh: true } });
+      return;
+    }
+
+    nav("/orders", { state: { refresh: true, tab: triggered ? "positions" : "open" } });
+  };
+
+
   // -------- Submit (MATCH Buy.jsx structure + endpoints) --------
   const handleSubmit = async () => {
     if (submitting) return;
@@ -249,27 +279,75 @@ export default function Sell() {
 
       // ✅ MATCH Buy.jsx: Open order modify (LIMIT → MARKET)
       if (isModify && prefill.modifyId && orderMode === "MARKET") {
-        const res = await fetch(
-          `${API}/orders/convert-to-market/${prefill.modifyId}`,
-          { method: "POST" }
-        );
+        // 1) First update the order row with the new segment (and other fields)
+        const updatePayload = {
+          username,
+          script: symbol,
+          order_type: "SELL", // ✅ FIX (was BUY)
+          qty: Number(qty),
 
-        const data = await res.json().catch(() => ({}));
+          // keep existing limit trigger if present (don’t overwrite with blank)
+          price: Number(prefill.price || prefill.trigger_price || price || 0),
+
+          exchange,
+          segment, // ✅ delivery / intraday
+          stoploss: stoploss !== "" ? Number(stoploss) : null,
+          target: target !== "" ? Number(target) : null,
+
+          // ✅ backend supports this (OrderData.allow_short)
+          allow_short: allowShort,
+        };
+
+        const up = await fetch(`${API}/orders/${prefill.modifyId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatePayload),
+        });
+
+        const upJson = await up.json().catch(() => ({}));
+        if (!up.ok) throw new Error(upJson?.detail || "Failed to update order before convert");
+
+        // 2) Now convert to market and execute
+        const res = await fetch(`${API}/orders/convert-to-market/${prefill.modifyId}`, {
+          method: "POST",
+        });
+
+        const json = await res.json().catch(() => ({}));
+
         if (!res.ok) {
-          throw new Error(data?.detail || "Failed to convert to market order");
+          const detail = String(json?.detail || json?.message || "");
+
+          // ✅ If it says Open order not found, most likely already triggered & moved to Positions
+          if (res.status === 404 && detail.toLowerCase().includes("open order not found")) {
+            setSuccessText(`Order already executed ✅ (segment: ${segment})`);
+            setSuccessModal(true);
+
+            setTimeout(() => {
+              setSuccessModal(false);
+              goBack(true); // executed => positions
+            }, 1200);
+
+            return;
+          }
+
+
+          throw new Error(detail || "Convert-to-market failed");
         }
 
+        // ✅ Success
         setSuccessText("Order executed at Market price ✅");
         setSuccessModal(true);
 
         setTimeout(() => {
           setSuccessModal(false);
-          nav("/orders", { state: { refresh: true, tab: "positions" } });
+          goBack(true); // executed => positions
         }, 1200);
 
-        setSubmitting(false);
+
         return;
       }
+
+
 
       // ✅ MATCH Buy.jsx: redirect to login if missing username
       if (!username) {
@@ -421,23 +499,12 @@ export default function Sell() {
 
       setSuccessModal(true);
 
-      const cameFromPortfolio =
-        prefill.fromAdd === true && prefill.fromPosition === true;
 
       setTimeout(() => {
         setSuccessModal(false);
-
-        if (cameFromPortfolio) {
-          nav("/portfolio", { state: { refresh: true } });
-          return;
-        }
-
-        if (data && data.triggered) {
-          nav("/orders", { state: { refresh: true, tab: "positions" } });
-        } else {
-          nav("/orders", { state: { refresh: true, tab: "open" } });
-        }
+        goBack(Boolean(data?.triggered));
       }, 1500);
+
     } catch (e) {
       setErrorMsg(e.message || "Server error");
     } finally {
@@ -484,12 +551,10 @@ export default function Sell() {
         prefill.fromAdd === true && prefill.fromPosition === true;
 
       setTimeout(() => {
-        if (cameFromPortfolio) {
-          nav("/portfolio", { state: { refresh: true } });
-        } else {
-          nav("/orders", { state: { refresh: true, tab: "positions" } });
-        }
+        setSuccessModal(false);
+        goBack(true); // position modify => positions
       }, 1500);
+
     } catch (err) {
       const msg =
         typeof err.message === "string"
@@ -542,7 +607,7 @@ export default function Sell() {
           className={`${glassClass} rounded-2xl p-4 mb-6 flex items-center justify-between shadow-2xl`}
         >
           {/* ✅ MATCH Buy.jsx back target */}
-          <BackButton to={isAddMode ? "/portfolio" : "/orders"} />
+          <BackButton to={returnTo || (isAddMode ? "/portfolio" : "/orders")} />
           <div className="flex items-center space-x-2">
             <TrendingDown className="w-5 h-5 text-red-400" />
             <h2 className="font-bold text-lg bg-gradient-to-r from-red-400 to-rose-400 bg-clip-text text-transparent">
@@ -550,31 +615,31 @@ export default function Sell() {
             </h2>
           </div>
           {!isModify && !isAdd && !isPositionModify && (
-  <button
-    type="button"
-    onClick={() =>
-      nav(`/buy/${symbol}`, {
-        state: {
-          ...prefill,
-          qty,
-          exchange,
-          segment,
-          stoploss,
-          target,
-          orderMode,
-          price,
-        },
-      })
-    }
-    className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
+            <button
+              type="button"
+              onClick={() =>
+                nav(`/buy/${symbol}`, {
+                  state: {
+                    ...prefill,
+                    qty,
+                    exchange,
+                    segment,
+                    stoploss,
+                    target,
+                    orderMode,
+                    price,
+                  },
+                })
+              }
+              className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
     ${isDark
-      ? "bg-emerald-500/15 border-emerald-400/25 text-emerald-100 hover:bg-emerald-500/25"
-      : "bg-emerald-100 border-emerald-200 text-emerald-700 hover:bg-emerald-200"
-    }`}
-  >
-    BUY
-  </button>
-)}
+                  ? "bg-emerald-500/15 border-emerald-400/25 text-emerald-100 hover:bg-emerald-500/25"
+                  : "bg-emerald-100 border-emerald-200 text-emerald-700 hover:bg-emerald-200"
+                }`}
+            >
+              BUY
+            </button>
+          )}
 
         </div>
 
