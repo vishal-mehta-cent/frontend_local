@@ -68,22 +68,37 @@ export default function Sell() {
   // ✅ MUST come first
   const [confirmedShort, setConfirmedShort] = useState(false);
 
-  // ✅ SAFE derived value
-  const allowShort = Boolean(confirmedShort && !prefill.skipSellFirstCheck);
-
   // Mode flags
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
   const isPositionModify = Boolean(prefill.fromPosition);
 
+  // ✅ define isExit BEFORE allowShort
+  const isExit = Boolean(
+    prefill.fromExit ||
+    prefill.exit === true ||
+    prefill.action === "EXIT" ||
+    prefill.mode === "EXIT"
+  );
+
   const isAddMode = isAdd && isPositionModify;
-  const isPureModify = isPositionModify && !isAdd;
+
+  // ✅ IMPORTANT: qty must be editable on EXIT
+  const isPureModify = isPositionModify && !isAdd && !isExit;
+
+  // ✅ NOW it’s safe
+  const allowShort = Boolean(!isExit && confirmedShort && !prefill.skipSellFirstCheck);
+
+
 
   // Prefill inputs if passed
   const [qty, setQty] = useState(prefill.qty || "");
   const [price, setPrice] = useState(prefill.price || "");
   const [exchange, setExchange] = useState(prefill.exchange || "NSE");
-  const [segment, setSegment] = useState(prefill.segment || "intraday");
+  const [segment, setSegment] = useState(
+    (prefill.segment || (isExit ? "delivery" : "intraday")).toLowerCase()
+  );
+
   const [stoploss, setStoploss] = useState(prefill.stoploss || "");
   const [target, setTarget] = useState(prefill.target || "");
 
@@ -99,6 +114,22 @@ export default function Sell() {
   const [totalInvestment, setTotalInvestment] = useState(0);
 
   const [orderMode, setOrderMode] = useState(prefill.orderMode || "MARKET");
+  useEffect(() => {
+    if (!isExit) return;
+
+    setErrorMsg("");
+    setConfirmedShort(false);
+
+    setOrderMode("MARKET");
+    setPrice("");
+    userEditedPrice.current = false;
+
+    setStoploss("");
+    setTarget("");
+  }, [isExit]);
+
+
+
   const [submitting, setSubmitting] = useState(false);
 
   // ✅ MATCH Buy.jsx username style (with safe fallback)
@@ -276,6 +307,60 @@ export default function Sell() {
       if (!marketOpen && orderMode === "LIMIT") {
         throw new Error("❌ Limit orders are not allowed after market close.");
       }
+      // ✅ MOST IMPORTANT: EXIT must use backend exit endpoint
+      if (isExit) {
+        if (!username) {
+          nav("/login");
+          return;
+        }
+
+        const qtyNum = isFNO ? Number(lotQty) : Number(qty);
+        if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
+          throw new Error("❌ Please enter a valid quantity (> 0).");
+        }
+
+        const exitPayload = {
+          username,
+          script: symbol.toUpperCase(),
+          order_type: "SELL",          // ✅ REQUIRED by backend OrderData
+          qty: qtyNum,
+          exchange: (exchange || "NSE").toUpperCase(),
+          segment: (segment || "delivery").toLowerCase(),
+
+          // ✅ optional but safe (matches OrderData fields)
+          price: null,
+          stoploss: null,
+          target: null,
+          allow_short: false,
+        };
+
+
+        const res = await fetch(`${API}/orders/exit`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(exitPayload),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg =
+            typeof data?.detail === "string"
+              ? data.detail
+              : data?.detail?.message || data?.message || "Exit failed";
+          throw new Error(msg);
+        }
+
+        setSuccessText("Exit Successful ✅");
+        setSuccessModal(true);
+
+        setTimeout(() => {
+          setSuccessModal(false);
+          goBack(true); // exit executed -> positions
+        }, 1200);
+
+        return;
+      }
+
 
       // ✅ MATCH Buy.jsx: Open order modify (LIMIT → MARKET)
       if (isModify && prefill.modifyId && orderMode === "MARKET") {
@@ -374,6 +459,12 @@ export default function Sell() {
         target: target !== "" ? Number(target) : null,
         allow_short: allowShort, // keep SELL-FIRST flow
       };
+      // ✅ EXIT: do not send SL/TG and never allow short
+      if (isExit) {
+        payload.stoploss = null;
+        payload.target = null;
+        payload.allow_short = false;
+      }
 
       if (orderMode === "LIMIT") {
         const px = Number(price);
@@ -405,34 +496,31 @@ export default function Sell() {
       // ================================
       // ✅ SELL validation: Stoploss & Target
       // ================================
-      const entryPrice =
-        orderMode === "LIMIT" ? Number(payload.price) : Number(livePrice);
+      // ✅ SELL validation: Stoploss & Target (skip for EXIT)
+      if (!isExit) {
+        const entryPrice =
+          orderMode === "LIMIT" ? Number(payload.price) : Number(livePrice);
 
-      if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
-        throw new Error("❌ Unable to determine entry price.");
-      }
+        if (!Number.isFinite(entryPrice) || entryPrice <= 0) {
+          throw new Error("❌ Unable to determine entry price.");
+        }
 
-      // STOPLOSS: must be ABOVE entry for SELL
-      if (stoploss !== "") {
-        const sl = Number(stoploss);
-        if (!Number.isFinite(sl)) {
-          throw new Error("❌ Invalid stoploss value.");
+        // STOPLOSS: must be ABOVE entry for SELL
+        if (stoploss !== "") {
+          const sl = Number(stoploss);
+          if (!Number.isFinite(sl)) throw new Error("❌ Invalid stoploss value.");
+          if (sl <= entryPrice) {
+            throw new Error("❌ Stoploss must be higher than entry price for SELL.");
+          }
         }
-        if (sl <= entryPrice) {
-          throw new Error(
-            "❌ Stoploss must be higher than entry price for SELL."
-          );
-        }
-      }
 
-      // TARGET: must be BELOW entry for SELL
-      if (target !== "") {
-        const tg = Number(target);
-        if (!Number.isFinite(tg)) {
-          throw new Error("❌ Invalid target value.");
-        }
-        if (tg >= entryPrice) {
-          throw new Error("❌ Target must be less than entry price for SELL.");
+        // TARGET: must be BELOW entry for SELL
+        if (target !== "") {
+          const tg = Number(target);
+          if (!Number.isFinite(tg)) throw new Error("❌ Invalid target value.");
+          if (tg >= entryPrice) {
+            throw new Error("❌ Target must be less than entry price for SELL.");
+          }
         }
       }
 
@@ -444,7 +532,7 @@ export default function Sell() {
       }
 
       // ✅ MATCH Buy.jsx: position modify path
-      if (isPositionModify && !isAdd) {
+      if (isPositionModify && !isAdd && !isExit) {
         await handleModifyPosition();
         return;
       }
@@ -475,11 +563,15 @@ export default function Sell() {
 
         // ✅ SELL FIRST confirmation (keep your existing backend flow)
         if (det?.code === "NEEDS_CONFIRM_SHORT") {
+          if (isExit) {
+            throw new Error("❌ EXIT failed: position not found / already closed.");
+          }
           setErrorMsg(det.message);
           setConfirmedShort(true);
           setSubmitting(false);
           return;
         }
+
 
         const msg =
           typeof det === "string" ? det : det?.message || "Order failed";
@@ -611,10 +703,10 @@ export default function Sell() {
           <div className="flex items-center space-x-2">
             <TrendingDown className="w-5 h-5 text-red-400" />
             <h2 className="font-bold text-lg bg-gradient-to-r from-red-400 to-rose-400 bg-clip-text text-transparent">
-              {isAdd ? `ADD ${symbol}` : isModify ? `MODIFY ${symbol}` : `SELL ${symbol}`}
+              {isExit ? `EXIT ${symbol}` : isAdd ? `ADD ${symbol}` : isModify ? `MODIFY ${symbol}` : `SELL ${symbol}`}
             </h2>
           </div>
-          {!isModify && !isAdd && !isPositionModify && (
+          {!isModify && !isAdd && !isPositionModify && !isExit && (
             <button
               type="button"
               onClick={() =>
@@ -772,7 +864,7 @@ export default function Sell() {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => !isPositionModify && setOrderMode("MARKET")}
-              disabled={isPositionModify}
+              disabled={isPositionModify || isExit}
               className={`py-4 rounded-xl font-semibold transition-all ${orderMode === "MARKET"
                 ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
                 : `${glassClass} ${cardHoverClass} ${isPositionModify ? "opacity-50 cursor-not-allowed" : ""}`
@@ -786,7 +878,7 @@ export default function Sell() {
 
             <button
               onClick={() => !isPositionModify && marketOpen && setOrderMode("LIMIT")}
-              disabled={!marketOpen || isPositionModify}
+              disabled={!marketOpen || isPositionModify || isExit}
               className={`py-4 rounded-xl font-semibold transition-all ${orderMode === "LIMIT"
                 ? "bg-gradient-to-r from-red-500 to-rose-500 text-white shadow-lg shadow-red-500/50"
                 : `${glassClass} ${cardHoverClass} ${(!marketOpen || isPositionModify) ? "opacity-50 cursor-not-allowed" : ""}`
@@ -848,11 +940,9 @@ export default function Sell() {
                 userEditedPrice.current = true;
               }}
               placeholder={orderMode === "LIMIT" ? "Enter Limit Price" : "Disabled for Market orders"}
-              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${orderMode === "MARKET" || isPureModify || !marketOpen
-                ? "cursor-not-allowed opacity-50"
-                : ""
-                }`}
-              disabled={orderMode === "MARKET" || !marketOpen || isPositionModify}
+              className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${orderMode === "MARKET" || isPureModify || !marketOpen || isExit ? "cursor-not-allowed opacity-50" : ""}
+`}
+              disabled={orderMode === "MARKET" || !marketOpen || isPositionModify || isExit}
             />
           </div>
 
@@ -860,7 +950,7 @@ export default function Sell() {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => !isPositionModify && setSegment("intraday")}
-              disabled={isPositionModify}
+              disabled={isPositionModify || isExit}
               className={`py-4 rounded-xl font-semibold transition-all ${segment === "intraday"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
@@ -871,7 +961,7 @@ export default function Sell() {
 
             <button
               onClick={() => !isPositionModify && setSegment("delivery")}
-              disabled={isPositionModify}
+              disabled={isPositionModify || isExit}
               className={`py-4 rounded-xl font-semibold transition-all ${segment === "delivery"
                 ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                 : `${glassClass} ${cardHoverClass}`
@@ -892,7 +982,7 @@ export default function Sell() {
                 type="number"
                 value={stoploss}
                 onChange={(e) => setStoploss(e.target.value)}
-                disabled={isAddMode}
+                disabled={isAddMode || isExit}
                 placeholder="Optional"
                 className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${isAddMode ? "cursor-not-allowed opacity-50" : ""
                   }`}
@@ -907,7 +997,7 @@ export default function Sell() {
                 type="number"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
-                disabled={isAddMode}
+                disabled={isAddMode || isExit}
                 placeholder="Optional"
                 className={`w-full px-4 py-3 ${glassClass} rounded-xl ${textClass} placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${isAddMode ? "cursor-not-allowed opacity-50" : ""
                   }`}
@@ -925,7 +1015,7 @@ export default function Sell() {
             : "bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 hover:shadow-red-500/50 hover:scale-[1.02]"
             }`}
         >
-          {submitting ? "Processing…" : isAdd ? "Add to Position" : isModify ? "Save Changes" : "SELL"}
+          {submitting ? "Processing…" : isExit ? "EXIT" : isAdd ? "Add to Position" : isModify ? "Save Changes" : "SELL"}
         </button>
       </div>
 
