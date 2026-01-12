@@ -1,7 +1,21 @@
+// frontend/src/pages/Trade.jsx
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-import { Search, ClipboardList, User, Briefcase, Clock, Lightbulb, Moon, Sun, Sparkles, ArrowLeft, RefreshCw, Activity } from "lucide-react";
+import {
+  Search,
+  ClipboardList,
+  User,
+  Briefcase,
+  Clock,
+  Lightbulb,
+  Moon,
+  Sun,
+  Sparkles,
+  ArrowLeft,
+  RefreshCw,
+  Activity,
+} from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
 import { moneyINR } from "../utils/format";
@@ -11,13 +25,13 @@ import SwipeNav from "../components/SwipeNav";
 import HeaderActions from "../components/HeaderActions";
 import { useTheme } from "../context/ThemeContext";
 
-
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
   "https://paper-trading-backend.onrender.com";
 
 export default function Trade({ username }) {
   const { isDark } = useTheme();
+
   const [tab, setTab] = useState("mylist");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
@@ -40,21 +54,56 @@ export default function Trade({ username }) {
 
   const intervalRef = useRef(null);
   const modalPollRef = useRef(null);
+  const sellPreviewGuardRef = useRef({});
   const nav = useNavigate();
   const location = useLocation();
 
-  const sellPreviewGuardRef = useRef({});
+  // ✅ define who BEFORE using it anywhere
   const who = username || localStorage.getItem("username") || "";
 
+  // ✅ MUST WATCH (stored locally per user)
+  const [mustWatchlist, setMustWatchlist] = useState([]);
+
+  const MUSTWATCH_KEY = useMemo(() => `mustwatch:${who || "guest"}`, [who]);
+
+  // Load Must Watch for this user
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(MUSTWATCH_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      setMustWatchlist(Array.isArray(arr) ? arr : []);
+    } catch {
+      setMustWatchlist([]);
+    }
+  }, [MUSTWATCH_KEY]);
+
+  // Save Must Watch for this user
+  useEffect(() => {
+    try {
+      localStorage.setItem(MUSTWATCH_KEY, JSON.stringify(mustWatchlist));
+    } catch {}
+  }, [MUSTWATCH_KEY, mustWatchlist]);
+
+  const addToMustWatch = (sym) => {
+    const s = String(sym || "").toUpperCase().trim();
+    if (!s) return;
+    setMustWatchlist((prev) => (prev.includes(s) ? prev : [s, ...prev]));
+  };
+
+  const removeFromMustWatch = (sym) => {
+    const s = String(sym || "").toUpperCase().trim();
+    setMustWatchlist((prev) => prev.filter((x) => x !== s));
+  };
+
   const bgClass = isDark
-    ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
-    : 'bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100';
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100";
   const glassClass = isDark
-    ? 'bg-white/5 backdrop-blur-xl border border-white/10'
-    : 'bg-white/60 backdrop-blur-xl border border-white/40';
-  const textClass = isDark ? 'text-white' : 'text-slate-900';
-  const textSecondaryClass = isDark ? 'text-slate-300' : 'text-slate-600';
-  const cardHoverClass = isDark ? 'hover:bg-white/10' : 'hover:bg-white/80';
+    ? "bg-white/5 backdrop-blur-xl border border-white/10"
+    : "bg-white/60 backdrop-blur-xl border border-white/40";
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+  const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
   const activeNavClass =
     "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg";
 
@@ -66,10 +115,10 @@ export default function Trade({ username }) {
     if (!who) return;
 
     fetch(`${API}/portfolio/${who}`)
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         const map = {};
-        (data?.open || []).forEach(p => {
+        (data?.open || []).forEach((p) => {
           if (Number(p.qty) > 0) {
             map[p.symbol.toUpperCase()] = true;
           }
@@ -138,48 +187,78 @@ export default function Trade({ username }) {
     }).then(() => fetchWatchlist());
   }
 
+  const combinedSymbols = useMemo(() => {
+    const all = [...(watchlist || []), ...(mustWatchlist || [])]
+      .map((s) => String(s || "").toUpperCase().trim())
+      .filter(Boolean);
+    return Array.from(new Set(all));
+  }, [watchlist, mustWatchlist]);
+
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (!watchlist.length) return;
+    if (!combinedSymbols.length) return;
 
     const fetchQuotes = () => {
-      fetch(`${API}/quotes?symbols=${encodeURIComponent(watchlist.join(","))}`)
+      fetch(
+        `${API}/quotes?symbols=${encodeURIComponent(combinedSymbols.join(","))}`
+      )
         .then((r) => r.json())
         .then((arr) => {
           const map = {};
           (arr || []).forEach((q) => (map[q.symbol] = q));
           setQuotes(map);
         })
-        .catch(() => { });
+        .catch(() => {});
     };
 
     fetchQuotes();
     intervalRef.current = setInterval(fetchQuotes, 2000);
 
     return () => clearInterval(intervalRef.current);
-  }, [watchlist]);
+  }, [combinedSymbols]);
 
   const MONTHS = [
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-    "JUL", "AUG", "SEP", "SEPT", "OCT", "NOV", "DEC"
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "SEPT",
+    "OCT",
+    "NOV",
+    "DEC",
   ];
   const normMonth = (m) => (m === "SEPT" ? "SEP" : m || "");
 
   function parseOptionish(q) {
     const Qraw = String(q || "").toUpperCase().replace(/\s+/g, "");
     if (!Qraw)
-      return { raw: "", underlying: "", year2: "", month: "", strike: "", deriv: "" };
+      return {
+        raw: "",
+        underlying: "",
+        year2: "",
+        month: "",
+        strike: "",
+        deriv: "",
+      };
 
     const derivMatch = Qraw.match(/(CE|PE|FUT)$/);
     const deriv = derivMatch ? derivMatch[1] : "";
     const Q = deriv ? Qraw.slice(0, -deriv.length) : Qraw;
 
-    let month = "", mIdx = -1;
+    let month = "",
+      mIdx = -1;
     for (const m of MONTHS) {
       const idx = Q.indexOf(m);
       if (
         idx >= 0 &&
-        (mIdx === -1 || idx < mIdx || (idx === mIdx && m.length > month.length))
+        (mIdx === -1 ||
+          idx < mIdx ||
+          (idx === mIdx && m.length > month.length))
       ) {
         month = normMonth(m);
         mIdx = idx;
@@ -239,7 +318,8 @@ export default function Trade({ username }) {
     if (!Q) return false;
 
     const hasDeriv = /(CE|PE|FUT)$/i.test(Q);
-    const hasMonth = /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)/i.test(Q);
+    const hasMonth =
+      /(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|SEPT|OCT|NOV|DEC)/i.test(Q);
 
     return !hasDeriv && !hasMonth;
   }
@@ -254,7 +334,7 @@ export default function Trade({ username }) {
         const res = await fetch(`${API}/search?q=${encodeURIComponent(seed)}`);
         const data = await res.json().catch(() => []);
         if (Array.isArray(data)) bag = bag.concat(data);
-      } catch { }
+      } catch {}
     }
 
     const seen = new Set();
@@ -269,7 +349,8 @@ export default function Trade({ username }) {
 
     let filtered = merged;
     if (month) filtered = filtered.filter((s) => symbolField(s).includes(month));
-    if (underlying) filtered = filtered.filter((s) => symbolField(s).includes(underlying));
+    if (underlying)
+      filtered = filtered.filter((s) => symbolField(s).includes(underlying));
     if (strike) {
       filtered = filtered.filter((s) => {
         const sym = symbolField(s);
@@ -324,7 +405,7 @@ export default function Trade({ username }) {
           Array.isArray(allScripts) &&
           allScripts.length
         ) {
-          const { raw, underlying, month, strike, deriv } = parts;
+          const { underlying, month, strike, deriv } = parts;
 
           finalList = allScripts
             .filter(allowedExchange)
@@ -388,7 +469,7 @@ export default function Trade({ username }) {
           const latestQuote = Array.isArray(arr) && arr[0] ? arr[0] : null;
           if (latestQuote) setSelectedQuote(latestQuote);
         })
-        .catch(() => { });
+        .catch(() => {});
     }, 2000);
   }
 
@@ -400,6 +481,19 @@ export default function Trade({ username }) {
   }, [selectedSymbol]);
 
   function handleAddToWatchlist() {
+    // ✅ If user is on Must Watch tab → save locally
+    if (tab === "mustwatch") {
+      addToMustWatch(selectedSymbol);
+      setSelectedSymbol(null);
+      setSelectedQuote(null);
+      if (modalPollRef.current) {
+        clearInterval(modalPollRef.current);
+        modalPollRef.current = null;
+      }
+      return;
+    }
+
+    // ✅ My List tab → use backend watchlist as before
     fetch(`${API}/watchlist/${who}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -407,6 +501,11 @@ export default function Trade({ username }) {
     }).then(() => {
       fetchWatchlist();
       setSelectedSymbol(null);
+      setSelectedQuote(null);
+      if (modalPollRef.current) {
+        clearInterval(modalPollRef.current);
+        modalPollRef.current = null;
+      }
     });
   }
 
@@ -451,8 +550,8 @@ export default function Trade({ username }) {
         nav(`/sell/${sym}`, {
           state: {
             preview: data,
-            allow_short: false
-          }
+            allow_short: false,
+          },
         });
         return;
       }
@@ -473,7 +572,7 @@ export default function Trade({ username }) {
       setSellPreviewData(data);
       setSellConfirmMsg(
         data?.message ||
-        `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
+          `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
       );
       setSellConfirmOpen(true);
     } catch (e) {
@@ -503,7 +602,9 @@ export default function Trade({ username }) {
   }
 
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}>
+    <div
+      className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}
+    >
       <ChartLauncher />
 
       {/* BACKGROUND BLUR EFFECTS */}
@@ -516,7 +617,6 @@ export default function Trade({ username }) {
       {/* HEADER */}
       <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
         <div className="w-full px-3 sm:px-4 md:px-6 py-4">
-
           {/* Top Row: Logo, Title, Theme Toggle, Profile */}
           <div className="relative flex items-start justify-between mb-4">
             {/* Left: Back ABOVE Title */}
@@ -524,7 +624,9 @@ export default function Trade({ username }) {
               <BackButton />
 
               <div className="mt-1">
-                <div className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
+                <div
+                  className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}
+                >
                   NEUROCREST
                 </div>
 
@@ -534,128 +636,250 @@ export default function Trade({ username }) {
               </div>
             </div>
 
-            {/* Right: Profile */}
             {/* Right: Theme + Profile (global) */}
-            <HeaderActions glassClass={glassClass} cardHoverClass={cardHoverClass} />
-
+            <HeaderActions
+              glassClass={glassClass}
+              cardHoverClass={cardHoverClass}
+            />
           </div>
 
           {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
           <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
-
-
         </div>
       </div>
 
-
-
       {/* MAIN CONTENT */}
       <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
-
-        {tab === "mylist" && (
-          <div className="space-y-6">
-
+        <div className="space-y-6">
+          {/* Tabs + Funds (same line) */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             {/* Tabs: My List / Must Watch */}
-            {/* Tabs + Funds (same line) */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              {/* Tabs: My List / Must Watch */}
-              <div className={`flex p-1.5 rounded-2xl ${glassClass} w-fit shadow-lg`}>
-                {["mylist", "mustwatch"].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTab(t)}
-                    className={`px-6 py-2.5 rounded-xl font-medium transition-all ${tab === t
+            <div
+              className={`flex p-1.5 rounded-2xl ${glassClass} w-fit shadow-lg`}
+            >
+              {["mylist", "mustwatch"].map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`px-6 py-2.5 rounded-xl font-medium transition-all ${
+                    tab === t
                       ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                       : textSecondaryClass
-                      }`}
+                  }`}
+                >
+                  {t === "mylist" ? "My List" : "Must Watch"}
+                </button>
+              ))}
+            </div>
+
+            {/* Funds on right side */}
+            <div
+              className={[
+                glassClass,
+                "rounded-2xl shadow-lg w-fit sm:ml-auto",
+                "px-4 py-3",
+              ].join(" ")}
+            >
+              <div className="flex items-center justify-between gap-3">
+                {/* Total Funds */}
+                <div>
+                  <div
+                    className={`text-[10px] tracking-widest font-semibold uppercase ${textSecondaryClass}`}
                   >
-                    {t === "mylist" ? "My List" : "Must Watch"}
-                  </button>
-                ))}
-              </div>
-
-              {/* Funds on right side (auto spacing) */}
-              <div
-                className={[
-                  glassClass,
-                  "rounded-2xl shadow-lg w-fit sm:ml-auto",
-                  "px-4 py-3",
-                ].join(" ")}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  {/* Total Funds */}
-                  <div>
-                    <div className={`text-[10px] tracking-widest font-semibold uppercase ${textSecondaryClass}`}>
-                      Total Funds
-                    </div>
-                    <div className="mt-1 text-base font-extrabold">
-                      {moneyINR(totalFunds, { decimals: 0 })}
-                    </div>
+                    Total Funds
                   </div>
-                  {/* ✅ Vertical divider */}
-                  <div className={`h-8 w-px ${isDark ? "bg-white/15" : "bg-slate-900/10"}`} />
+                  <div className="mt-1 text-base font-extrabold">
+                    {moneyINR(totalFunds, { decimals: 0 })}
+                  </div>
+                </div>
 
-                  {/* Available */}
-                  <div className="text-right">
-                    <div className={`text-[10px] tracking-widest font-semibold uppercase ${textSecondaryClass}`}>
-                      Available
-                    </div>
-                    <div className="mt-1 text-base font-extrabold text-cyan-400">
-                      {moneyINR(availableFunds, { decimals: 0 })}
-                    </div>
+                {/* Divider */}
+                <div
+                  className={`h-8 w-px ${
+                    isDark ? "bg-white/15" : "bg-slate-900/10"
+                  }`}
+                />
+
+                {/* Available */}
+                <div className="text-right">
+                  <div
+                    className={`text-[10px] tracking-widest font-semibold uppercase ${textSecondaryClass}`}
+                  >
+                    Available
+                  </div>
+                  <div className="mt-1 text-base font-extrabold text-cyan-400">
+                    {moneyINR(availableFunds, { decimals: 0 })}
                   </div>
                 </div>
               </div>
-
-
             </div>
+          </div>
 
-            {/* Search Bar */}
-            {/* Search Bar (centered + icon) */}
-            <div className="flex justify-left">
-              {/* Search Bar (aligned under tabs + icon) */}
-              <div className="relative w-full max-w-4xl">
-                <Search
-                  className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 z-10 ${isDark ? "text-slate-200" : "text-slate-500"
-                    }`}
-                />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={handleSearch}
-                  placeholder="Search & Add"
-                  className={`w-full pl-12 pr-4 py-3 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
-                />
-
-
-                {suggestions.length > 0 && (
-                  <ul className={`absolute left-0 right-0 ${glassClass} rounded-2xl shadow-2xl mt-3 max-h-80 overflow-auto z-10`}>
-                    {suggestions.map((s, i) => {
-                      const sym = s?.symbol || s?.tradingsymbol || "";
-                      return (
-                        <li
-                          key={`${sym}-${i}`}
-                          onClick={() => goDetail(sym)}
-                          className={`px-4 py-3 ${cardHoverClass} cursor-pointer transition-all ${i !== suggestions.length - 1
-                            ? `border-b ${isDark ? "border-white/10" : "border-white/40"}`
-                            : ""
-                            }`}
-                        >
-                          <div className="font-semibold text-lg">{highlightMatch(sym, query)}</div>
-                          <div className={`text-sm ${textSecondaryClass}`}>{highlightMatch(s.name, query)}</div>
-                          <div className={`text-xs ${textSecondaryClass} mt-1`}>
-                            {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+          {/* ✅ Note ONLY on Must Watch */}
+          {tab === "mustwatch" && (
+            <div className={`${glassClass} rounded-2xl p-4 shadow-lg`}>
+              <div className={`text-sm ${textSecondaryClass}`}>
+                * Enable automatic daily script additions from our recommendations —{" "}
+                <span
+                  className={`${
+                    isDark ? "text-cyan-300" : "text-blue-700"
+                  } font-semibold`}
+                >
+                  contact Support to activate.
+                </span>
               </div>
             </div>
+          )}
 
+          {/* Search Bar (shared) */}
+          <div className="flex justify-left">
+            <div className="relative w-full max-w-4xl">
+              <Search
+                className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 z-10 ${
+                  isDark ? "text-slate-200" : "text-slate-500"
+                }`}
+              />
+              <input
+                type="text"
+                value={query}
+                onChange={handleSearch}
+                placeholder="Search & Add"
+                className={`w-full pl-12 pr-4 py-3 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
+              />
 
-            {/* WATCHLIST LIST */}
+              {suggestions.length > 0 && (
+                <ul
+                  className={`absolute left-0 right-0 ${glassClass} rounded-2xl shadow-2xl mt-3 max-h-80 overflow-auto z-10`}
+                >
+                  {suggestions.map((s, i) => {
+                    const sym = s?.symbol || s?.tradingsymbol || "";
+                    return (
+                      <li
+                        key={`${sym}-${i}`}
+                        onClick={() => goDetail(sym)}
+                        className={`px-4 py-3 ${cardHoverClass} cursor-pointer transition-all ${
+                          i !== suggestions.length - 1
+                            ? `border-b ${
+                                isDark ? "border-white/10" : "border-white/40"
+                              }`
+                            : ""
+                        }`}
+                      >
+                        <div className="font-semibold text-lg">
+                          {highlightMatch(sym, query)}
+                        </div>
+                        <div className={`text-sm ${textSecondaryClass}`}>
+                          {highlightMatch(s.name, query)}
+                        </div>
+                        <div className={`text-xs ${textSecondaryClass} mt-1`}>
+                          {(s.exchange || "NSE")} | {s.segment} |{" "}
+                          {s.instrument_type}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {/* LIST AREA */}
+          {tab === "mustwatch" ? (
+            <div className="space-y-4">
+              {mustWatchlist.length === 0 ? (
+                <div className={`text-center ${textSecondaryClass} mt-20 text-lg`}>
+                  No scripts in your Must Watch list.
+                </div>
+              ) : (
+                mustWatchlist.map((sym) => {
+                  const q = quotes[sym] || {};
+                  const isPos = Number(q.change || 0) >= 0;
+
+                  return (
+                    <div
+                      key={sym}
+                      className={`${glassClass} p-5 rounded-3xl ${cardHoverClass} cursor-pointer transition-all duration-300 shadow-xl`}
+                      onClick={() => goDetail(sym)}
+                    >
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <div className="flex items-end h-full">
+                            <div className="flex items-end gap-2">
+                              <div className="text-2xl font-bold leading-none">
+                                {sym}
+                              </div>
+
+                              <span
+                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${
+                                  isDark
+                                    ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                    : "bg-blue-100 text-blue-700 border border-blue-200"
+                                }`}
+                              >
+                                {q.exchange || "NSE"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start justify-end gap-3">
+                          <div className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <div
+                                className={`text-3xl font-bold ${
+                                  isPos ? "text-emerald-400" : "text-rose-400"
+                                }`}
+                              >
+                                {q.price != null
+                                  ? Number(q.price).toLocaleString("en-IN", {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })
+                                  : "--"}
+                              </div>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeFromMustWatch(sym);
+                                }}
+                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${
+                                  isDark
+                                    ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
+                                    : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
+                                }`}
+                                title="Remove"
+                              >
+                                -
+                              </button>
+                            </div>
+
+                            <div
+                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${
+                                isPos ? "text-emerald-400" : "text-rose-400"
+                              }`}
+                            >
+                              {q.change != null && (
+                                <>
+                                  <span>
+                                    {isPos ? "+" : ""}
+                                    {Number(q.change).toFixed(2)}
+                                  </span>
+                                  <span>
+                                    ({Number(q.pct_change || 0).toFixed(2)}%)
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
             <div className="space-y-4">
               {watchlist.length === 0 ? (
                 <div className={`text-center ${textSecondaryClass} mt-20 text-lg`}>
@@ -673,39 +897,40 @@ export default function Trade({ username }) {
                       onClick={() => goDetail(sym)}
                     >
                       <div className="flex justify-between items-center mb-3">
-
                         <div>
                           <div className="flex items-end h-full">
                             <div className="flex items-end gap-2">
-                              <div className="text-2xl font-bold leading-none">{sym}</div>
+                              <div className="text-2xl font-bold leading-none">
+                                {sym}
+                              </div>
 
                               <span
-                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${isDark
-                                  ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
-                                  : "bg-blue-100 text-blue-700 border border-blue-200"
-                                  }`}
+                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${
+                                  isDark
+                                    ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                    : "bg-blue-100 text-blue-700 border border-blue-200"
+                                }`}
                               >
                                 {q.exchange || "NSE"}
                               </span>
                             </div>
                           </div>
-
-
                         </div>
 
                         <div className="flex items-start justify-end gap-3">
                           <div className="text-right">
-                            {/* ✅ Line 1: Live price + (-) */}
+                            {/* Line 1: Live price + (-) */}
                             <div className="flex items-center justify-end gap-2">
                               <div
-                                className={`text-3xl font-bold ${isPos ? "text-emerald-400" : "text-rose-400"
-                                  }`}
+                                className={`text-3xl font-bold ${
+                                  isPos ? "text-emerald-400" : "text-rose-400"
+                                }`}
                               >
                                 {q.price != null
                                   ? Number(q.price).toLocaleString("en-IN", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })
                                   : "--"}
                               </div>
 
@@ -714,24 +939,32 @@ export default function Trade({ username }) {
                                   e.stopPropagation();
                                   handleRemoveFromWatchlist(sym);
                                 }}
-                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${isDark
-                                  ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
-                                  : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
-                                  }`}
+                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${
+                                  isDark
+                                    ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
+                                    : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
+                                }`}
                                 title="Remove"
                               >
                                 -
                               </button>
                             </div>
-                            {/* ✅ Line 2: Change + % + WhatsApp */}
+
+                            {/* Line 2: Change + % + WhatsApp */}
                             <div
-                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${isPos ? "text-emerald-400" : "text-rose-400"
-                                }`}
+                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${
+                                isPos ? "text-emerald-400" : "text-rose-400"
+                              }`}
                             >
                               {q.change != null && (
                                 <>
-                                  <span>{isPos ? "+" : ""}{Number(q.change).toFixed(2)}</span>
-                                  <span>({Number(q.pct_change || 0).toFixed(2)}%)</span>
+                                  <span>
+                                    {isPos ? "+" : ""}
+                                    {Number(q.change).toFixed(2)}
+                                  </span>
+                                  <span>
+                                    ({Number(q.pct_change || 0).toFixed(2)}%)
+                                  </span>
                                 </>
                               )}
 
@@ -743,22 +976,16 @@ export default function Trade({ username }) {
                               )}
                             </div>
                           </div>
-
                         </div>
-
                       </div>
-
-
                     </div>
                   );
                 })
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-
-
 
       {/* SCRIPT DETAILS MODAL */}
       <ScriptDetailsModal
@@ -767,6 +994,7 @@ export default function Trade({ username }) {
         hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}
         onClose={() => {
           setSelectedSymbol(null);
+          setSelectedQuote(null);
           if (modalPollRef.current) {
             clearInterval(modalPollRef.current);
             modalPollRef.current = null;
@@ -777,6 +1005,7 @@ export default function Trade({ username }) {
         onSell={() => {
           const sym = selectedSymbol;
           setSelectedSymbol(null);
+          setSelectedQuote(null);
           if (modalPollRef.current) {
             clearInterval(modalPollRef.current);
             modalPollRef.current = null;
@@ -788,7 +1017,9 @@ export default function Trade({ username }) {
       {/* SELL CONFIRMATION MODAL */}
       {sellConfirmOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`${glassClass} p-8 rounded-3xl shadow-2xl text-center max-w-md w-full`}>
+          <div
+            className={`${glassClass} p-8 rounded-3xl shadow-2xl text-center max-w-md w-full`}
+          >
             <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/50">
               <Sparkles className="w-8 h-8 text-white" />
             </div>
@@ -798,10 +1029,11 @@ export default function Trade({ username }) {
             </p>
             <div className="flex justify-center gap-4">
               <button
-                className={`px-6 py-3 rounded-xl font-semibold transition-all shadow-lg ${isDark
-                  ? 'bg-white/10 hover:bg-white/20 text-white'
-                  : 'bg-slate-200 hover:bg-slate-300 text-slate-900'
-                  }`}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all shadow-lg ${
+                  isDark
+                    ? "bg-white/10 hover:bg-white/20 text-white"
+                    : "bg-slate-200 hover:bg-slate-300 text-slate-900"
+                }`}
                 onClick={() => setSellConfirmOpen(false)}
               >
                 NO
