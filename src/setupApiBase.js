@@ -34,17 +34,35 @@ import { API_BASE } from "../src/lib/api.js";
     }
   }
 
-  window.fetch = (input, init) => {
+  window.fetch = async (input, init) => {
     try {
+      let res;
+
       if (typeof input === "string") {
-        return origFetch(rewrite(input), init);
+        res = await origFetch(rewrite(input), init);
       } else if (input && typeof input.url === "string") {
         const req = new Request(rewrite(input.url), input);
-        return origFetch(req, init);
+        res = await origFetch(req, init);
+      } else {
+        res = await origFetch(input, init);
       }
+
+      // ✅ Debug: log backend "detail" for non-2xx responses (like 409)
+      if (!res.ok) {
+        try {
+          const clone = res.clone();
+          const data = await clone.json();
+          console.error("FETCH ERROR:", res.status, res.url, data);
+        } catch {
+          console.error("FETCH ERROR:", res.status, res.url);
+        }
+      }
+
+      return res;
     } catch (e) {
       // fall through
+      return origFetch(input, init);
     }
-    return origFetch(input, init);
   };
+
 })();
