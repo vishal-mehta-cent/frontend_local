@@ -635,22 +635,36 @@ const isSell = sideLabel.includes("SELL");
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <div
-                            className={[
-                              "w-12 h-12 rounded-2xl flex items-center justify-center",
-                              "text-white font-extrabold text-[16px] tracking-wide",
-                              isSell
-  ? "bg-gradient-to-br from-rose-500 to-red-600"
-  : "bg-gradient-to-br from-emerald-400 to-emerald-600",
-isSell
-  ? "shadow-[0_10px_26px_rgba(244,63,94,0.35)]"
-  : "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
+                          <div className="relative">
+  {/* main initials box */}
+  <div
+    className={[
+      "relative w-12 h-12 rounded-2xl flex items-center justify-center",
+      "text-white font-extrabold text-[16px] tracking-wide",
+      isSell
+        ? "bg-gradient-to-br from-rose-500 to-red-600"
+        : "bg-gradient-to-br from-emerald-400 to-emerald-600",
+      isSell
+        ? "shadow-[0_10px_26px_rgba(244,63,94,0.35)]"
+        : "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
+      "ring-1 ring-white/40",
+    ].join(" ")}
+  >
+    {getInitials(symbol)}
 
-                              "ring-1 ring-white/40",
-                            ].join(" ")}
-                          >
-                            {getInitials(symbol)}
-                          </div>
+    {/* ✅ BUY/SELL overlay (bottom-right like Orders.jsx) */}
+    <span
+      className={[
+        "absolute -bottom-2 right-0 translate-x-1 z-10",
+        "px-2 rounded-[8px] text-[11px] font-extrabold tracking-wide",
+        "text-white shadow-md",
+        isSell ? "bg-rose-600" : "bg-emerald-600",
+      ].join(" ")}
+    >
+      {isSell ? "SELL" : "BUY"}
+    </span>
+  </div>
+</div>
 
 
                           <div>
