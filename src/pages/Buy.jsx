@@ -334,7 +334,7 @@ export default function Buy() {
           order_type: "BUY",                 // ✅ REQUIRED
           qty: qtyNum,
           exchange: (exchange || "NSE").toUpperCase(),
-          segment: (segment || "delivery").toLowerCase(),
+          segment: (segment || prefill.segment || "intraday").toLowerCase(),
 
           // safe optional fields
           price: null,
