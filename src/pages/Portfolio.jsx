@@ -578,6 +578,15 @@ useEffect(() => {
                   const entry = toNum(p.entry_price) ?? toNum(p.avg_price) ?? 0;
                   const sl = toNum(p.stoploss) ?? 0;
                   const tgt = toNum(p.target) ?? 0;
+                  const dtRaw = pickDateTime(p);
+                  const dt = parseDate(dtRaw);
+
+                  // Decide label (BUY/SELL)
+const sideLabel = String(p.side || (qty < 0 ? "SELL" : "BUY")).toUpperCase();
+
+// ✅ Treat "SELL FIRST" also as SELL
+const isSell = sideLabel.includes("SELL");
+
 
                   const live =
                     toNum(p.current_price) ??
@@ -630,8 +639,13 @@ useEffect(() => {
                             className={[
                               "w-12 h-12 rounded-2xl flex items-center justify-center",
                               "text-white font-extrabold text-[16px] tracking-wide",
-                              "bg-gradient-to-br from-emerald-400 to-emerald-600",
-                              "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
+                              isSell
+  ? "bg-gradient-to-br from-rose-500 to-red-600"
+  : "bg-gradient-to-br from-emerald-400 to-emerald-600",
+isSell
+  ? "shadow-[0_10px_26px_rgba(244,63,94,0.35)]"
+  : "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
+
                               "ring-1 ring-white/40",
                             ].join(" ")}
                           >
@@ -655,15 +669,16 @@ useEffect(() => {
 
                               <span className="mx-1.5">•</span>
 
-                              {qty < 0 ? (
-                                <span className="text-orange-400 font-semibold">
-                                  SELL
-                                </span>
-                              ) : (
-                                <span className="font-semibold">
-                                  {p.side || "BUY"}
-                                </span>
-                              )}
+                              {isSell ? (
+  <span className="text-orange-400 font-semibold">
+    {p.side || "SELL"}
+  </span>
+) : (
+  <span className="font-semibold">
+    {p.side || "BUY"}
+  </span>
+)}
+
 
                               <span className="mx-2">•</span>
 
@@ -676,30 +691,35 @@ useEffect(() => {
                           </div>
                         </div>
 
-                        <div className="text-right">
-                          {/* P&L */}
-                          <div
-                            className={`flex items-baseline justify-end gap-2 ${pnlColor}`}
-                          >
-                            <div className="text-2xl font-extrabold leading-none">
-                              {money(total)}
-                            </div>
-                          </div>
+                    <div className="text-right">
+  {/* ✅ Buy/Sell Date ABOVE P&L (same as Positions UI) */}
+  <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
+    {isSell ? "Sell Date" : "Buy Date"} • {fmtDate(dt)} {fmtTime(dt)}
+  </div>
 
-                          {/* % */}
-                          <div className={`mt-1 text-sm font-bold ${pnlColor}`}>
-                            {signed(absPct, 2)}%
-                          </div>
+  {/* P&L */}
+  <div className={`mt-2 flex items-baseline justify-end gap-2 ${pnlColor}`}>
+    <div className="text-2xl font-extrabold leading-none">
+      {money(total)}
+    </div>
+  </div>
 
-                          {/* ✅ LIVE PRICE (same position as Orders page) */}
-                          <div
-                            className={`mt-2 flex items-baseline justify-end gap-1 text-sm font-bold ${isDark ? "text-cyan-200" : "text-sky-600"
-                              }`}
-                          >
-                            <span className="opacity-80">Live:</span>
-                            <span className="tabular-nums">{money(live)}</span>
-                          </div>
-                        </div>
+  {/* % */}
+  <div className={`mt-1 text-sm font-bold ${pnlColor}`}>
+    {signed(absPct, 2)}%
+  </div>
+
+  {/* Live */}
+  <div
+    className={`mt-2 flex items-baseline justify-end gap-1 text-sm font-bold ${
+      isDark ? "text-cyan-200" : "text-sky-600"
+    }`}
+  >
+    <span className="opacity-80">Live:</span>
+    <span className="tabular-nums">{money(live)}</span>
+  </div>
+</div>
+
 
                       </div>
 
@@ -728,28 +748,6 @@ useEffect(() => {
                             <div className={`text-lg font-extrabold ${textClass} tabular-nums`}>
                               {money(scriptCurrentValuation)}
                             </div>
-                          </div>
-
-                          {/* 3) Buy/Sell Date + Time (same row) */}
-                          <div className="flex flex-col">
-                            <div className={`text-xs ${textSecondaryClass} mb-1`}>
-                              {(p.side || (qty < 0 ? "SELL" : "BUY")) === "SELL" ? "Sell Date" : "Buy Date"}
-                            </div>
-
-                            {(() => {
-                              const dtRaw = pickDateTime(p);
-                              const dt = parseDate(dtRaw);
-                              return (
-                                <>
-                                  <div className={`text-sm font-extrabold ${textClass}`}>
-                                    {fmtDate(dt)}
-                                  </div>
-                                  <div className={`text-xs font-semibold ${textSecondaryClass}`}>
-                                    {fmtTime(dt)}
-                                  </div>
-                                </>
-                              );
-                            })()}
                           </div>
                         </div>
 
