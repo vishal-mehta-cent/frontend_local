@@ -96,7 +96,7 @@ export default function Sell() {
   const [price, setPrice] = useState(prefill.price || "");
   const [exchange, setExchange] = useState(prefill.exchange || "NSE");
   const [segment, setSegment] = useState(
-    (prefill.segment || (isExit ? "delivery" : "intraday")).toLowerCase()
+    (prefill.segment || "intraday").toLowerCase()
   );
 
   const [stoploss, setStoploss] = useState(prefill.stoploss || "");
@@ -325,7 +325,7 @@ export default function Sell() {
           order_type: "SELL",          // ✅ REQUIRED by backend OrderData
           qty: qtyNum,
           exchange: (exchange || "NSE").toUpperCase(),
-          segment: (segment || "delivery").toLowerCase(),
+          segment: (segment || prefill.segment || "intraday").toLowerCase(),
 
           // ✅ optional but safe (matches OrderData fields)
           price: null,
