@@ -1,7 +1,7 @@
 // frontend/src/pages/Portfolio.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import BackButton from "../components/BackButton";
-import { useNavigate } from "react-router-dom";
+
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -10,6 +10,8 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+
 
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
@@ -84,6 +86,8 @@ export default function Portfolio({ username }) {
   const [selected, setSelected] = useState(null);
   const [quotes, setQuotes] = useState({});
   const pollRef = useRef(null);
+  const location = useLocation();
+
   const navigate = useNavigate();
   const { isDark } = useTheme();
 
@@ -107,49 +111,50 @@ export default function Portfolio({ username }) {
   const hasLoadedOnce = useRef(false);
 
   // ------- load portfolio -------
-  const load = (ctrl) => {
-    setLoading(true);
-    setError("");
+const load = (ctrl) => {
+  setLoading(true);
+  setError("");
 
-    fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, {
-      signal: ctrl.signal,
+  const fetchOpts = {};
+  if (ctrl?.signal) fetchOpts.signal = ctrl.signal;
+
+  fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, fetchOpts)
+    .then(async (res) => {
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const j = await res.json();
+          detail = j?.detail || "";
+        } catch {}
+        throw new Error(detail || `HTTP ${res.status}`);
+      }
+      return res.json();
     })
-      .then(async (res) => {
-        if (!res.ok) {
-          let detail = "";
-          try {
-            const j = await res.json();
-            detail = j?.detail || "";
-          } catch { }
-          throw new Error(detail || `HTTP ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((result) => {
-        setData({
-          open: Array.isArray(result?.open) ? result.open : [],
-          closed: Array.isArray(result?.closed) ? result.closed : [],
-        });
-      })
-      .catch((err) => {
-        if (err.name === "AbortError") return;
-        setError(err.message || "Failed to load portfolio");
-        setData({ open: [], closed: [] });
-      })
-      .finally(() => {
-        setLoading(false);
-        hasLoadedOnce.current = true;
+    .then((result) => {
+      setData({
+        open: Array.isArray(result?.open) ? result.open : [],
+        closed: Array.isArray(result?.closed) ? result.closed : [],
       });
+    })
+    .catch((err) => {
+      if (err.name === "AbortError") return;
+      setError(err.message || "Failed to load portfolio");
+      setData({ open: [], closed: [] });
+    })
+    .finally(() => {
+      setLoading(false);
+      hasLoadedOnce.current = true;
+    });
+};
 
-  };
 
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    load(ctrl);
+useEffect(() => {
+  const ctrl = new AbortController();
+  load(ctrl);
+  return () => ctrl.abort();
+}, [username, location.key]);
 
-    return () => ctrl.abort();
-  }, [username]);
 
   const pickDateTime = (o) =>
     o?.datetime || o?.updated_at || o?.created_at || o?.time || o?.date || null;
