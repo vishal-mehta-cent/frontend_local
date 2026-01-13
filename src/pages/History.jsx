@@ -119,7 +119,6 @@ export default function History({ username }) {
 
   // -------------------- Helpers --------------------
   const asNum = (v) => {
-    // ✅ prevent Number(null) -> 0 issue
     if (v === null || v === undefined) return null;
     if (typeof v === "string" && v.trim() === "") return null;
     const n = Number(v);
@@ -237,17 +236,19 @@ export default function History({ username }) {
   const positionRows = useMemo(() => {
     return (positions || []).map((p) => {
       const sym = normSym(p.symbol || p.script || p.tradingsymbol);
-
       const dt = p.datetime || p.time || "";
 
       const qty = Number(p.qty ?? p.quantity ?? p.net_qty ?? 0);
       const price = Number(p.price ?? p.avg_price ?? p.average_price ?? 0);
 
       const invested = Number.isFinite(qty * price) ? qty * price : null;
-
       const pnlValue = Number(p.pnl_value ?? p.script_pnl ?? p.pnl ?? 0);
 
       const side = String(p.type || p.side || "").toUpperCase();
+
+      // carry exchange/segment if backend provides them
+      const exchange = p.exchange || p.market || p.exch || p.exc || "";
+      const segment = p.segment || p.product || "";
 
       if (side === "BUY" || side === "LONG") {
         return {
@@ -263,6 +264,8 @@ export default function History({ username }) {
           pnl: pnlValue,
           remaining_qty: qty,
           is_closed: false,
+          exchange,
+          segment,
         };
       }
 
@@ -279,6 +282,8 @@ export default function History({ username }) {
         pnl: pnlValue,
         remaining_qty: qty,
         is_closed: false,
+        exchange,
+        segment,
       };
     });
   }, [positions]);
@@ -301,10 +306,153 @@ export default function History({ username }) {
     return applyDateFilter(allHistoryRows || []);
   }, [allHistoryRows, startDate, endDate]);
 
+  // -------------------- Ledger view for "All History" (BUY/SELL rows only) --------------------
+  const normalizeMarket = (v) => {
+    const s = String(v || "").toUpperCase().trim();
+    if (!s) return "—";
+    if (s.includes("NSE")) return "NSE";
+    if (s.includes("BSE")) return "BSE";
+    return "—";
+  };
+
+  const normalizeSegment = (v) => {
+    const s = String(v || "").toLowerCase().trim();
+    if (!s) return "—";
+    if (s.includes("delivery") || s === "c" || s.includes("cnc")) return "Delivery";
+    if (s.includes("intraday") || s.includes("intra") || s.includes("mis")) return "Intraday";
+    return "—";
+  };
+
+  const pickExchange = (t) =>
+    t.exchange || t.market || t.exch || t.exc || t.Exchange || t.Market || "";
+
+  const pickSegment = (t) =>
+    t.segment || t.product || t.trade_segment || t.order_segment || t.Segment || "";
+
+  const pickAdditionalTax = (t) =>
+    asNum(
+      t.additional_tax ??
+        t.additionalTax ??
+        t.tax ??
+        t.taxes ??
+        t.charges ??
+        t.brokerage ??
+        t.fees ??
+        t.total_charges ??
+        null
+    );
+
+  const pickDateTimeAny = (s) => {
+    const str = String(s || "").trim();
+    return str || "";
+  };
+
+  const ledgerKey = (r) => {
+    const sym = normSym(r.symbol);
+    const dt = String(r.datetime || "").trim();
+    const side = String(r.side || "").toUpperCase();
+    const qty = asNum(r.qty) ?? "";
+    const price = asNum(r.price);
+    const ex = normalizeMarket(r.market);
+    const seg = normalizeSegment(r.segment);
+    const tax = asNum(r.additional_tax);
+    return [
+      sym,
+      dt,
+      side,
+      ex,
+      seg,
+      qty,
+      price !== null ? price.toFixed(6) : "",
+      tax !== null ? tax.toFixed(6) : "",
+    ].join("|");
+  };
+
+  const buildLedgerRows = (baseRows) => {
+    const out = [];
+
+    for (const t of baseRows || []) {
+      const symbol = normSym(t.symbol || t.script || t.tradingsymbol);
+      const market = normalizeMarket(pickExchange(t));
+      const segment = normalizeSegment(pickSegment(t));
+
+      const addTax = pickAdditionalTax(t);
+
+      const buyQty = asNum(t.buy_qty) ?? 0;
+      const buyPrice = asNum(t.buy_price);
+      const buyDT = pickDateTimeAny(t.buy_date || t.time || t.datetime || "");
+
+      const sellQty = asNum(t.sell_qty) ?? 0;
+      const sellPrice = asNum(t.sell_avg_price);
+      const sellDT = pickDateTimeAny(t.sell_date || t.time || t.datetime || "");
+
+      if (buyQty > 0 && buyPrice !== null) {
+        const inv = buyQty * buyPrice;
+        out.push({
+          datetime: buyDT,
+          symbol,
+          side: "BUY",
+          market,
+          segment,
+          qty: buyQty,
+          price: buyPrice,
+          additional_tax: addTax,
+          investment: Number.isFinite(inv) ? inv : null,
+        });
+      }
+
+      if (sellQty > 0 && sellPrice !== null) {
+        const inv = sellQty * sellPrice;
+        out.push({
+          datetime: sellDT,
+          symbol,
+          side: "SELL",
+          market,
+          segment,
+          qty: sellQty,
+          price: sellPrice,
+          additional_tax: addTax,
+          investment: Number.isFinite(inv) ? inv : null,
+        });
+      }
+    }
+
+    // dedupe + sort
+    const map = new Map();
+    for (const r of out) {
+      const k = ledgerKey(r);
+      if (!map.has(k)) map.set(k, r);
+    }
+
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => String(b.datetime || "").localeCompare(String(a.datetime || "")));
+    return arr;
+  };
+
+  const applyLedgerDateFilter = (rows) => {
+    if (!startDate && !endDate) return rows || [];
+
+    return (rows || []).filter((r) => {
+      const dt = String(r.datetime || "").trim();
+      const ymd = dt ? dt.split(" ")[0] : "";
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return false;
+      if (startDate && ymd < startDate) return false;
+      if (endDate && ymd > endDate) return false;
+      return true;
+    });
+  };
+
+  const allHistoryLedgerRows = useMemo(() => {
+    // IMPORTANT: use the already-filtered base rows so duplicates stay under control
+    const base = filteredAllHistory || [];
+    const ledger = buildLedgerRows(base);
+    return applyLedgerDateFilter(ledger);
+  }, [filteredAllHistory, startDate, endDate]);
+
   // -------------------- What to render --------------------
   const displayHistory = useMemo(() => {
-    return tab === "all" ? filteredAllHistory : filteredHistory;
-  }, [tab, filteredAllHistory, filteredHistory]);
+    return tab === "all" ? allHistoryLedgerRows : filteredHistory;
+  }, [tab, allHistoryLedgerRows, filteredHistory]);
 
   // -------------------- Excel export (exports current view) --------------------
   const escapeHTML = (s) =>
@@ -314,6 +462,98 @@ export default function History({ username }) {
       .replace(/>/g, "&gt;");
 
   const buildExcelHtml = () => {
+    // ✅ Export matches what user is seeing
+    if (tab === "all") {
+      const headers = [
+        "DateTime",
+        "Script",
+        "BUY/SELL",
+        "Market",
+        "Delivery/Intraday",
+        "QTY",
+        "PRICE",
+        "Additional tax",
+        "Investment",
+      ];
+
+      const rows =
+        displayHistory && displayHistory.length
+          ? displayHistory.map((r) => {
+              const dt = r.datetime || "";
+              const sym = normSym(r.symbol || "—");
+              const side = String(r.side || "—").toUpperCase();
+              const market = r.market || "—";
+              const seg = r.segment || "—";
+              const qty = asNum(r.qty) ?? "";
+              const price = asNum(r.price);
+              const tax = asNum(r.additional_tax);
+              const inv = asNum(r.investment);
+
+              return [
+                dt,
+                sym,
+                side,
+                market,
+                seg,
+                qty,
+                price !== null ? price.toFixed(2) : "",
+                tax !== null ? tax.toFixed(2) : "",
+                inv !== null ? inv.toFixed(2) : "",
+              ];
+            })
+          : [];
+
+      const thead =
+        "<tr>" +
+        headers
+          .map((h) => `<th style="font-weight:600">${escapeHTML(h)}</th>`)
+          .join("") +
+        "</tr>";
+
+      const tbody =
+        rows.length > 0
+          ? rows
+              .map(
+                (r) =>
+                  "<tr>" +
+                  r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
+                  "</tr>"
+              )
+              .join("")
+          : "";
+
+      return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:x="urn:schemas-microsoft-com:office:excel"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8" />
+<!--[if gte mso 9]><xml>
+ <x:ExcelWorkbook>
+  <x:ExcelWorksheets>
+   <x:ExcelWorksheet>
+    <x:Name>All_History</x:Name>
+    <x:WorksheetOptions><x:Print><x:ValidPrinterInfo/></x:Print></x:WorksheetOptions>
+   </x:ExcelWorksheet>
+  </x:ExcelWorksheets>
+ </x:ExcelWorkbook>
+</xml><![endif]-->
+<style>
+  table, td, th { border: 1px solid #ccc; border-collapse: collapse; }
+  td, th { padding: 4px 6px; font-family: Arial, sans-serif; font-size: 12px; }
+  th { background: #eef3ff; }
+</style>
+</head>
+<body>
+  <table>
+    ${thead}
+    ${tbody}
+  </table>
+</body>
+</html>`;
+    }
+
+    // existing History export (unchanged)
     const headers = [
       "Symbol",
       "Row Date",
@@ -330,28 +570,28 @@ export default function History({ username }) {
     const rows =
       displayHistory && displayHistory.length
         ? displayHistory.map((t) => {
-          const symbolUpper = normSym(t.symbol || "—");
-          const rowDate = pickRowDate(t) || "";
-          const buyQty = asNum(t.buy_qty) ?? "";
-          const buyPrice = asNum(t.buy_price);
-          const sellQty = asNum(t.sell_qty) ?? "";
-          const sellAvg = asNum(t.sell_avg_price);
-          const invested = asNum(t.invested_value);
-          const pnl = asNum(t.pnl);
+            const symbolUpper = normSym(t.symbol || "—");
+            const rowDate = pickRowDate(t) || "";
+            const buyQty = asNum(t.buy_qty) ?? "";
+            const buyPrice = asNum(t.buy_price);
+            const sellQty = asNum(t.sell_qty) ?? "";
+            const sellAvg = asNum(t.sell_avg_price);
+            const invested = asNum(t.invested_value);
+            const pnl = asNum(t.pnl);
 
-          return [
-            symbolUpper,
-            rowDate,
-            buyQty,
-            dateOnly(t.buy_date),
-            buyPrice !== null ? buyPrice.toFixed(2) : "",
-            sellQty,
-            sellAvg !== null ? sellAvg.toFixed(2) : "",
-            dateOnly(t.sell_date),
-            invested !== null ? invested.toFixed(2) : "",
-            pnl !== null ? pnl.toFixed(2) : "",
-          ];
-        })
+            return [
+              symbolUpper,
+              rowDate,
+              buyQty,
+              dateOnly(t.buy_date),
+              buyPrice !== null ? buyPrice.toFixed(2) : "",
+              sellQty,
+              sellAvg !== null ? sellAvg.toFixed(2) : "",
+              dateOnly(t.sell_date),
+              invested !== null ? invested.toFixed(2) : "",
+              pnl !== null ? pnl.toFixed(2) : "",
+            ];
+          })
         : [];
 
     const thead =
@@ -364,13 +604,13 @@ export default function History({ username }) {
     const tbody =
       rows.length > 0
         ? rows
-          .map(
-            (r) =>
-              "<tr>" +
-              r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
-              "</tr>"
-          )
-          .join("")
+            .map(
+              (r) =>
+                "<tr>" +
+                r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
+                "</tr>"
+            )
+            .join("")
         : "";
 
     return `<!DOCTYPE html>
@@ -479,20 +719,22 @@ export default function History({ username }) {
             <div className={`mt-4 inline-flex p-1 rounded-2xl ${glassClass}`}>
               <button
                 onClick={() => setTab("history")}
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "history"
+                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  tab === "history"
                     ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                     : `${textSecondaryClass} hover:opacity-90`
-                  }`}
+                }`}
               >
                 History
               </button>
 
               <button
                 onClick={() => setTab("all")}
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "all"
+                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  tab === "all"
                     ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                     : `${textSecondaryClass} hover:opacity-90`
-                  }`}
+                }`}
               >
                 All History
               </button>
@@ -541,7 +783,109 @@ export default function History({ username }) {
           <div className={`text-center ${textSecondaryClass} mt-20`}>
             No history available.
           </div>
+        ) : tab === "all" ? (
+          // ✅ NEW: All History ledger view (only requested columns)
+          <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
+            <div className="overflow-x-auto">
+              <div className="min-w-[1200px]">
+                <div className="grid grid-cols-9 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
+                  <div>Date &amp; Time</div>
+                  <div>Script</div>
+                  <div>BUY / SELL</div>
+                  <div>Market</div>
+                  <div>Delivery / Intraday</div>
+                  <div>QTY</div>
+                  <div>PRICE</div>
+                  <div>Additional tax</div>
+                  <div>Investment</div>
+                </div>
+
+                <div className="max-h-[60vh] overflow-y-auto">
+                  {displayHistory.map((r, idx) => {
+                    const side = String(r.side || "").toUpperCase();
+                    const isBuy = side === "BUY";
+
+                    return (
+                      <div
+                        key={`${ledgerKey(r)}-${idx}`}
+                        className={`grid grid-cols-9 items-center p-4 border-t ${
+                          isDark ? "border-white/10" : "border-white/40"
+                        }`}
+                      >
+                        <div className="text-center text-sm">
+                          <div className="font-medium">
+                            {r.datetime || "—"}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="font-bold text-lg">{r.symbol}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              goNotes(r.symbol || "");
+                            }}
+                            title="Notes"
+                            className={`p-1 rounded-lg ${cardHoverClass} ${textSecondaryClass} transition-all`}
+                          >
+                            <NotebookPen size={14} />
+                          </button>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <span
+                            className={[
+                              "px-3 py-1 rounded-xl text-xs font-extrabold tracking-wide",
+                              "ring-1 shadow-lg backdrop-blur-xl",
+                              isBuy
+                                ? isDark
+                                  ? "bg-emerald-500/15 ring-emerald-400/20 text-emerald-200"
+                                  : "bg-emerald-50 ring-emerald-200/70 text-emerald-700"
+                                : isDark
+                                ? "bg-rose-500/15 ring-rose-400/20 text-rose-200"
+                                : "bg-rose-50 ring-rose-200/70 text-rose-700",
+                            ].join(" ")}
+                          >
+                            {side || "—"}
+                          </span>
+                        </div>
+
+                        <div className="text-center font-medium">
+                          {r.market || "—"}
+                        </div>
+
+                        <div className="text-center font-medium">
+                          {r.segment || "—"}
+                        </div>
+
+                        <div className="text-center font-semibold">
+                          {asNum(r.qty) ?? "—"}
+                        </div>
+
+                        <div className="text-center font-medium">
+                          {asNum(r.price) !== null ? fmtMoney(r.price) : "—"}
+                        </div>
+
+                        <div className="text-center font-medium">
+                          {asNum(r.additional_tax) !== null
+                            ? fmtMoney(r.additional_tax)
+                            : "—"}
+                        </div>
+
+                        <div className="text-center font-extrabold">
+                          {asNum(r.investment) !== null
+                            ? fmtMoney(r.investment)
+                            : "—"}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
         ) : (
+          // Existing History view (unchanged)
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
             <div className="overflow-x-auto">
               <div className="min-w-[1100px]">
@@ -567,8 +911,9 @@ export default function History({ username }) {
                     return (
                       <div
                         key={`${dedupeKey(t)}-${idx}`}
-                        className={`grid grid-cols-5 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
-                          }`}
+                        className={`grid grid-cols-5 items-center p-4 border-t ${
+                          isDark ? "border-white/10" : "border-white/40"
+                        }`}
                       >
                         <div className="flex flex-col items-center text-center">
                           <div className="inline-flex items-center justify-center gap-2">
@@ -624,29 +969,25 @@ export default function History({ username }) {
                                   ? "bg-emerald-500/15 ring-emerald-400/20"
                                   : "bg-emerald-50 ring-emerald-200/70"
                                 : pnlNum < 0
-                                  ? isDark
-                                    ? "bg-rose-500/15 ring-rose-400/20"
-                                    : "bg-rose-50 ring-rose-200/70"
-                                  : isDark
-                                    ? "bg-white/8 ring-white/10"
-                                    : "bg-slate-100/80 ring-slate-200/70",
+                                ? isDark
+                                  ? "bg-rose-500/15 ring-rose-400/20"
+                                  : "bg-rose-50 ring-rose-200/70"
+                                : isDark
+                                ? "bg-white/8 ring-white/10"
+                                : "bg-slate-100/80 ring-slate-200/70",
                             ].join(" ")}
                           >
                             {pnlNum > 0 ? (
                               <ArrowUpRight
                                 size={18}
                                 className={
-                                  isDark
-                                    ? "text-emerald-300"
-                                    : "text-emerald-600"
+                                  isDark ? "text-emerald-300" : "text-emerald-600"
                                 }
                               />
                             ) : pnlNum < 0 ? (
                               <TrendingDown
                                 size={18}
-                                className={
-                                  isDark ? "text-rose-300" : "text-rose-600"
-                                }
+                                className={isDark ? "text-rose-300" : "text-rose-600"}
                               />
                             ) : (
                               <TrendingUp
@@ -667,12 +1008,12 @@ export default function History({ username }) {
                                     ? "text-emerald-300"
                                     : "text-emerald-600"
                                   : pnlNum < 0
-                                    ? isDark
-                                      ? "text-rose-300"
-                                      : "text-rose-600"
-                                    : isDark
-                                      ? "text-slate-200/70"
-                                      : "text-slate-600",
+                                  ? isDark
+                                    ? "text-rose-300"
+                                    : "text-rose-600"
+                                  : isDark
+                                  ? "text-slate-200/70"
+                                  : "text-slate-600",
                               ].join(" ")}
                             >
                               {fmtMoney(pnlNum)}
