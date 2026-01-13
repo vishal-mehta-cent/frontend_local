@@ -39,9 +39,11 @@ export default function useOpenTrades(username, {
         setData(json);
         sessionStorage.setItem(`open_trades_${username}`, JSON.stringify(json));
       }
-    } catch (err) {
-      console.warn("OpenTrades refresh failed:", err.message);
-    } finally {
+ } catch (err) {
+  if (err?.name === "AbortError") return; // ✅ ignore abort
+  console.warn("OpenTrades refresh failed:", err?.message || err);
+} finally {
+
       if (abortRef.current === ctl) abortRef.current = null;
       setRefreshing(false);
     }
@@ -83,4 +85,3 @@ export default function useOpenTrades(username, {
 
   return { data, isRefreshing, refresh: fetchNow };
 }
-
