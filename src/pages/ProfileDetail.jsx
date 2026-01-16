@@ -133,16 +133,10 @@ export default function ProfileDetail() {
         <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }}></div>
       </div>
 
-      <div className="relative z-10 max-w-4xl mx-auto p-4 sm:p-6">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between mb-6">
           <BackButton />
-          <button
-            onClick={() => setIsDark(!isDark)}
-            className={`w-10 h-10 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all shadow-lg`}
-            title="Toggle theme"
-          >
-            {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-600" />}
-          </button>
+          
         </div>
 
         <div className="text-center mb-8">
