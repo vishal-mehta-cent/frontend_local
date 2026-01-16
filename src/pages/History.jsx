@@ -21,10 +21,11 @@ export default function History({ username }) {
   const { isDark } = useTheme();
 
   const [loading, setLoading] = useState(true);
-  const [loadingPositions, setLoadingPositions] = useState(false);
+const [loadingActivity, setLoadingActivity] = useState(false);
 
-  const [history, setHistory] = useState([]);
-  const [positions, setPositions] = useState([]);
+const [history, setHistory] = useState([]);
+const [activity, setActivity] = useState([]); // ✅ all trade_activity rows
+
 
   const [error, setError] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -87,35 +88,35 @@ export default function History({ username }) {
   }, [who]);
 
   // -------------------- Fetch POSITIONS (so BUY shows in All History) --------------------
-  useEffect(() => {
-    if (!who) return;
+// -------------------- Fetch ACTIVITY (All trades + adds + exits + sell-first etc) --------------------
+useEffect(() => {
+  if (!who) return;
+  if (tab !== "all") return;
 
-    // Only needed for All History
-    if (tab !== "all") return;
+  setLoadingActivity(true);
 
-    setLoadingPositions(true);
+  const url = `${API}/orders/activity/${encodeURIComponent(who)}`;
 
-    const url = `${API}/orders/positions/${encodeURIComponent(who)}`;
+  fetch(url)
+    .then(async (res) => {
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(
+          `HTTP ${res.status}: ${txt || "Failed to fetch activity"}`
+        );
+      }
+      return res.json();
+    })
+    .then((data) => {
+      setActivity(Array.isArray(data) ? data : []);
+    })
+    .catch((e) => {
+      console.error("Activity fetch error:", e);
+      setActivity([]);
+    })
+    .finally(() => setLoadingActivity(false));
+}, [who, tab]);
 
-    fetch(url)
-      .then(async (res) => {
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(
-            `HTTP ${res.status}: ${txt || "Failed to fetch positions"}`
-          );
-        }
-        return res.json();
-      })
-      .then((data) => {
-        setPositions(Array.isArray(data) ? data : []);
-      })
-      .catch((e) => {
-        console.error("Positions fetch error:", e);
-        setPositions([]);
-      })
-      .finally(() => setLoadingPositions(false));
-  }, [who, tab]);
 
   // -------------------- Helpers --------------------
   const asNum = (v) => {
@@ -233,78 +234,12 @@ export default function History({ username }) {
   }, [history, startDate, endDate]);
 
   // -------------------- Convert POSITIONS -> rows that match your table --------------------
-  const positionRows = useMemo(() => {
-    return (positions || []).map((p) => {
-      const sym = normSym(p.symbol || p.script || p.tradingsymbol);
-      const dt = p.datetime || p.time || "";
-
-      const qty = Number(p.qty ?? p.quantity ?? p.net_qty ?? 0);
-      const price = Number(p.price ?? p.avg_price ?? p.average_price ?? 0);
-
-      const invested = Number.isFinite(qty * price) ? qty * price : null;
-      const pnlValue = Number(p.pnl_value ?? p.script_pnl ?? p.pnl ?? 0);
-
-      const side = String(p.type || p.side || "").toUpperCase();
-
-      // carry exchange/segment if backend provides them
-      const exchange = p.exchange || p.market || p.exch || p.exc || "";
-      const segment = p.segment || p.product || "";
-
-      if (side === "BUY" || side === "LONG") {
-        return {
-          symbol: sym,
-          time: dt,
-          buy_qty: qty,
-          buy_price: price,
-          buy_date: dt,
-          sell_qty: 0,
-          sell_avg_price: null,
-          sell_date: "",
-          invested_value: invested,
-          pnl: pnlValue,
-          remaining_qty: qty,
-          is_closed: false,
-          exchange,
-          segment,
-        };
-      }
-
-      return {
-        symbol: sym,
-        time: dt,
-        buy_qty: 0,
-        buy_price: null,
-        buy_date: "",
-        sell_qty: qty,
-        sell_avg_price: price,
-        sell_date: dt,
-        invested_value: invested,
-        pnl: pnlValue,
-        remaining_qty: qty,
-        is_closed: false,
-        exchange,
-        segment,
-      };
-    });
-  }, [positions]);
+  
 
   // -------------------- All History (positions + closed history) --------------------
-  const allHistoryRows = useMemo(() => {
-    const combined = [...(positionRows || []), ...(history || [])];
-    const cleaned = dedupePreferClosed(combined);
-
-    // sort latest first
-    const safeTime = (t) =>
-      String(t.sell_date || t.buy_date || t.time || t.datetime || "").trim();
-
-    cleaned.sort((a, b) => safeTime(b).localeCompare(safeTime(a)));
-    return cleaned;
-  }, [positionRows, history]);
 
   // ✅ Apply date filter to All History also
-  const filteredAllHistory = useMemo(() => {
-    return applyDateFilter(allHistoryRows || []);
-  }, [allHistoryRows, startDate, endDate]);
+  
 
   // -------------------- Ledger view for "All History" (BUY/SELL rows only) --------------------
   const normalizeMarket = (v) => {
@@ -442,12 +377,46 @@ export default function History({ username }) {
     });
   };
 
-  const allHistoryLedgerRows = useMemo(() => {
-    // IMPORTANT: use the already-filtered base rows so duplicates stay under control
-    const base = filteredAllHistory || [];
-    const ledger = buildLedgerRows(base);
-    return applyLedgerDateFilter(ledger);
-  }, [filteredAllHistory, startDate, endDate]);
+const allHistoryLedgerRows = useMemo(() => {
+  const rows = (activity || []).map((a) => {
+    const symbol = normSym(a.script || a.symbol || a.tradingsymbol);
+    const dt = String(a.datetime || a.time || "").trim();
+
+    // ✅ show activity_type (ADD / EXIT / SELL_FIRST etc) not only BUY/SELL
+    const type = String(a.activity_type || a.action || "").toUpperCase().trim();
+    const sideLabel = type || "—";
+
+    const qty = asNum(a.qty) ?? 0;
+    const price = asNum(a.price);
+
+    const market = normalizeMarket(a.exchange || a.market || a.exch || "");
+    const segment = normalizeSegment(a.segment || a.product || "");
+
+    const addTax = pickAdditionalTax(a);
+    const inv =
+      qty > 0 && price !== null && Number.isFinite(qty * price) ? qty * price : null;
+
+    return {
+      datetime: dt,
+      symbol,
+      side: sideLabel, // ✅ will show ADD/EXIT/SELL_FIRST too
+      market,
+      segment,
+      qty,
+      price,
+      additional_tax: addTax,
+      investment: inv,
+      notes: a.notes || "",
+    };
+  });
+
+  // sort latest first
+  rows.sort((x, y) => String(y.datetime || "").localeCompare(String(x.datetime || "")));
+
+  // date filter
+  return applyLedgerDateFilter(rows);
+}, [activity, startDate, endDate]);
+
 
   // -------------------- What to render --------------------
   const displayHistory = useMemo(() => {
@@ -667,7 +636,8 @@ export default function History({ username }) {
   const goNotes = (s) =>
     navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`);
 
-  const showLoading = loading || (tab === "all" && loadingPositions);
+ const showLoading = loading || (tab === "all" && loadingActivity);
+
 
   return (
     <div
@@ -803,7 +773,17 @@ export default function History({ username }) {
                 <div className="max-h-[60vh] overflow-y-auto">
                   {displayHistory.map((r, idx) => {
                     const side = String(r.side || "").toUpperCase();
-                    const isBuy = side === "BUY";
+const isBuy =
+  side.includes("BUY") ||
+  side === "ADD" ||
+  side.includes("COVER") ||
+  side.includes("LONG");
+
+const isSell =
+  side.includes("SELL") ||
+  side === "EXIT" ||
+  side.includes("SHORT");
+
 
                     return (
                       <div
