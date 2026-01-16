@@ -42,78 +42,20 @@ export default function Settings() {
         ></div>
       </div>
 
-      <div className="relative z-10 max-w-2xl mx-auto p-4 sm:p-6">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* ===== TOP BAR ===== */}
         <div className="flex items-center justify-between mb-6">
           <BackButton to="/profile" />
 
-          {/* 🌗 THEME TOGGLE */}
-          <button
-            onClick={toggle}
-            className={`w-10 h-10 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all shadow-lg`}
-            title="Toggle theme"
-          >
-            {isDark ? (
-              <Sun className="w-5 h-5 text-yellow-400" />
-            ) : (
-              <Moon className="w-5 h-5 text-blue-600" />
-            )}
-          </button>
         </div>
 
         {/* ===== HEADER ===== */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-2">
-            <SettingsIcon className="w-8 h-8 text-blue-500" />
+            
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              Settings
+              Change Password / Email
             </h1>
-          </div>
-          <p className={textSecondaryClass}>Customize your experience</p>
-        </div>
-
-        {/* ===== APPEARANCE ===== */}
-        <div className={`${glassClass} rounded-3xl shadow-2xl p-6 sm:p-8 mb-6`}>
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/10">
-            <Palette className="w-5 h-5 text-blue-500" />
-            <h3 className="text-xl font-bold">Appearance</h3>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <div className="font-semibold mb-1">Theme Mode</div>
-              <div className={`text-sm ${textSecondaryClass}`}>
-                Choose your preferred theme
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              {/* ☀️ LIGHT */}
-              <button
-                onClick={setLight}
-                className={`flex-1 py-4 rounded-2xl border-2 transition-all ${
-                  !isDark
-                    ? "border-blue-500 bg-blue-500/20"
-                    : "border-white/20 hover:border-white/40"
-                } flex flex-col items-center gap-2`}
-              >
-                <Sun className="w-6 h-6" />
-                <span className="font-semibold">Light</span>
-              </button>
-
-              {/* 🌙 DARK */}
-              <button
-                onClick={setDark}
-                className={`flex-1 py-4 rounded-2xl border-2 transition-all ${
-                  isDark
-                    ? "border-blue-500 bg-blue-500/20"
-                    : "border-white/20 hover:border-white/40"
-                } flex flex-col items-center gap-2`}
-              >
-                <Moon className="w-6 h-6" />
-                <span className="font-semibold">Dark</span>
-              </button>
-            </div>
           </div>
         </div>
 
