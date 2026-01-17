@@ -19,6 +19,11 @@ import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
 import { User } from "lucide-react";
 import HeaderActions from "../components/HeaderActions";
+import { formatToIST } from "../utils/time";
+
+
+
+
 
 
 
@@ -111,70 +116,80 @@ export default function Portfolio({ username }) {
   const hasLoadedOnce = useRef(false);
 
   // ------- load portfolio -------
-const load = (ctrl) => {
-  setLoading(true);
-  setError("");
+  const load = (ctrl) => {
+    setLoading(true);
+    setError("");
 
-  const fetchOpts = {};
-  if (ctrl?.signal) fetchOpts.signal = ctrl.signal;
+    const fetchOpts = {};
+    if (ctrl?.signal) fetchOpts.signal = ctrl.signal;
 
-  fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, fetchOpts)
-    .then(async (res) => {
-      if (!res.ok) {
-        let detail = "";
-        try {
-          const j = await res.json();
-          detail = j?.detail || "";
-        } catch {}
-        throw new Error(detail || `HTTP ${res.status}`);
-      }
-      return res.json();
-    })
-    .then((result) => {
-      setData({
-        open: Array.isArray(result?.open) ? result.open : [],
-        closed: Array.isArray(result?.closed) ? result.closed : [],
+    fetch(`${API_BASE}/portfolio/${encodeURIComponent(username)}`, fetchOpts)
+      .then(async (res) => {
+        if (!res.ok) {
+          let detail = "";
+          try {
+            const j = await res.json();
+            detail = j?.detail || "";
+          } catch { }
+          throw new Error(detail || `HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((result) => {
+        setData({
+          open: Array.isArray(result?.open) ? result.open : [],
+          closed: Array.isArray(result?.closed) ? result.closed : [],
+        });
+      })
+      .catch((err) => {
+        if (err.name === "AbortError") return;
+        setError(err.message || "Failed to load portfolio");
+        setData({ open: [], closed: [] });
+      })
+      .finally(() => {
+        setLoading(false);
+        hasLoadedOnce.current = true;
       });
-    })
-    .catch((err) => {
-      if (err.name === "AbortError") return;
-      setError(err.message || "Failed to load portfolio");
-      setData({ open: [], closed: [] });
-    })
-    .finally(() => {
-      setLoading(false);
-      hasLoadedOnce.current = true;
-    });
-};
+  };
 
 
 
-useEffect(() => {
-  const ctrl = new AbortController();
-  load(ctrl);
-  return () => ctrl.abort();
-}, [username, location.key]);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    load(ctrl);
+    return () => ctrl.abort();
+  }, [username, location.key]);
 
 
   const pickDateTime = (o) =>
     o?.datetime || o?.updated_at || o?.created_at || o?.time || o?.date || null;
 
+  const ASSUME_UTC_FOR_NAIVE = import.meta.env.PROD; // ✅ only on deployed build
+
   const parseDate = (s) => {
-    if (!s || typeof s !== "string") return null;
-    const safe = s.includes("T") ? s : s.replace(" ", "T");
+    if (!s) return null;
+    const raw = String(s).trim();
+    if (!raw) return null;
+
+    let isoLike = raw.includes("T") ? raw : raw.replace(" ", "T");
+
+    // trim microseconds -> milliseconds
+    isoLike = isoLike.replace(/(\.\d{3})\d+/, "$1");
+
+    const hasTZ = /[zZ]|[+\-]\d{2}:\d{2}$/.test(isoLike);
+
+    // ✅ prod: naive = UTC -> add Z
+    // ✅ local: naive = IST/local -> do NOT add Z
+    const safe = hasTZ ? isoLike : (ASSUME_UTC_FOR_NAIVE ? `${isoLike}Z` : isoLike);
+
     const d = new Date(safe);
-    return isNaN(d.getTime()) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   };
-  const toLocalYMD = (d) => {
-    if (!d) return null;
-    const yr = d.getFullYear();
-    const mo = String(d.getMonth() + 1).padStart(2, "0");
-    const da = String(d.getDate()).padStart(2, "0");
-    return `${yr}-${mo}-${da}`;
-  };
+
   const fmtTime = (d) =>
     d
       ? d.toLocaleTimeString("en-IN", {
+        timeZone: "Asia/Kolkata",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -185,11 +200,23 @@ useEffect(() => {
   const fmtDate = (d) =>
     d
       ? d.toLocaleDateString("en-IN", {
+        timeZone: "Asia/Kolkata",
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
       })
       : "—";
+  const toISTYMD = (d) => {
+    if (!d) return null;
+    // en-CA gives YYYY-MM-DD format
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d);
+  };
+
 
   const filteredOpen = useMemo(() => {
     if (!startDate && !endDate) return data.open;
@@ -198,7 +225,7 @@ useEffect(() => {
     return (data.open || []).filter((p) => {
       const dtRaw = pickDateTime(p);
       const dt = parseDate(dtRaw);
-      const ymd = toLocalYMD(dt);
+      const ymd = toISTYMD(dt);
       if (!ymd) return false;
       if (start && ymd < start) return false;
       if (end && ymd > end) return false;
@@ -582,10 +609,10 @@ useEffect(() => {
                   const dt = parseDate(dtRaw);
 
                   // Decide label (BUY/SELL)
-const sideLabel = String(p.side || (qty < 0 ? "SELL" : "BUY")).toUpperCase();
+                  const sideLabel = String(p.side || (qty < 0 ? "SELL" : "BUY")).toUpperCase();
 
-// ✅ Treat "SELL FIRST" also as SELL
-const isSell = sideLabel.includes("SELL");
+                  // ✅ Treat "SELL FIRST" also as SELL
+                  const isSell = sideLabel.includes("SELL");
 
 
                   const live =
@@ -636,35 +663,35 @@ const isSell = sideLabel.includes("SELL");
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex items-center gap-3">
                           <div className="relative">
-  {/* main initials box */}
-  <div
-    className={[
-      "relative w-12 h-12 rounded-2xl flex items-center justify-center",
-      "text-white font-extrabold text-[16px] tracking-wide",
-      isSell
-        ? "bg-gradient-to-br from-rose-500 to-red-600"
-        : "bg-gradient-to-br from-emerald-400 to-emerald-600",
-      isSell
-        ? "shadow-[0_10px_26px_rgba(244,63,94,0.35)]"
-        : "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
-      "ring-1 ring-white/40",
-    ].join(" ")}
-  >
-    {getInitials(symbol)}
+                            {/* main initials box */}
+                            <div
+                              className={[
+                                "relative w-12 h-12 rounded-2xl flex items-center justify-center",
+                                "text-white font-extrabold text-[16px] tracking-wide",
+                                isSell
+                                  ? "bg-gradient-to-br from-rose-500 to-red-600"
+                                  : "bg-gradient-to-br from-emerald-400 to-emerald-600",
+                                isSell
+                                  ? "shadow-[0_10px_26px_rgba(244,63,94,0.35)]"
+                                  : "shadow-[0_10px_26px_rgba(16,185,129,0.35)]",
+                                "ring-1 ring-white/40",
+                              ].join(" ")}
+                            >
+                              {getInitials(symbol)}
 
-    {/* ✅ BUY/SELL overlay (bottom-right like Orders.jsx) */}
-    <span
-      className={[
-        "absolute -bottom-2 right-0 translate-x-1 z-10",
-        "px-2 rounded-[8px] text-[11px] font-extrabold tracking-wide",
-        "text-white shadow-md",
-        isSell ? "bg-rose-600" : "bg-emerald-600",
-      ].join(" ")}
-    >
-      {isSell ? "SELL" : "BUY"}
-    </span>
-  </div>
-</div>
+                              {/* ✅ BUY/SELL overlay (bottom-right like Orders.jsx) */}
+                              <span
+                                className={[
+                                  "absolute -bottom-2 right-0 translate-x-1 z-10",
+                                  "px-2 rounded-[8px] text-[11px] font-extrabold tracking-wide",
+                                  "text-white shadow-md",
+                                  isSell ? "bg-rose-600" : "bg-emerald-600",
+                                ].join(" ")}
+                              >
+                                {isSell ? "SELL" : "BUY"}
+                              </span>
+                            </div>
+                          </div>
 
 
                           <div>
@@ -684,14 +711,14 @@ const isSell = sideLabel.includes("SELL");
                               <span className="mx-1.5">•</span>
 
                               {isSell ? (
-  <span className="text-orange-400 font-semibold">
-    {p.side || "SELL"}
-  </span>
-) : (
-  <span className="font-semibold">
-    {p.side || "BUY"}
-  </span>
-)}
+                                <span className="text-orange-400 font-semibold">
+                                  {p.side || "SELL"}
+                                </span>
+                              ) : (
+                                <span className="font-semibold">
+                                  {p.side || "BUY"}
+                                </span>
+                              )}
 
 
                               <span className="mx-2">•</span>
@@ -705,34 +732,34 @@ const isSell = sideLabel.includes("SELL");
                           </div>
                         </div>
 
-                    <div className="text-right">
-  {/* ✅ Buy/Sell Date ABOVE P&L (same as Positions UI) */}
-  <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
-    {isSell ? "Sell Date" : "Buy Date"} • {fmtDate(dt)} {fmtTime(dt)}
-  </div>
+                        <div className="text-right">
+                          {/* ✅ Buy/Sell Date ABOVE P&L (same as Positions UI) */}
+                          <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
+                            {isSell ? "Sell Date" : "Buy Date"} • {fmtDate(dt)} {fmtTime(dt)}
 
-  {/* P&L */}
-  <div className={`mt-2 flex items-baseline justify-end gap-2 ${pnlColor}`}>
-    <div className="text-2xl font-extrabold leading-none">
-      {money(total)}
-    </div>
-  </div>
+                          </div>
 
-  {/* % */}
-  <div className={`mt-1 text-sm font-bold ${pnlColor}`}>
-    {signed(absPct, 2)}%
-  </div>
+                          {/* P&L */}
+                          <div className={`mt-2 flex items-baseline justify-end gap-2 ${pnlColor}`}>
+                            <div className="text-2xl font-extrabold leading-none">
+                              {money(total)}
+                            </div>
+                          </div>
 
-  {/* Live */}
-  <div
-    className={`mt-2 flex items-baseline justify-end gap-1 text-sm font-bold ${
-      isDark ? "text-cyan-200" : "text-sky-600"
-    }`}
-  >
-    <span className="opacity-80">Live:</span>
-    <span className="tabular-nums">{money(live)}</span>
-  </div>
-</div>
+                          {/* % */}
+                          <div className={`mt-1 text-sm font-bold ${pnlColor}`}>
+                            {signed(absPct, 2)}%
+                          </div>
+
+                          {/* Live */}
+                          <div
+                            className={`mt-2 flex items-baseline justify-end gap-1 text-sm font-bold ${isDark ? "text-cyan-200" : "text-sky-600"
+                              }`}
+                          >
+                            <span className="opacity-80">Live:</span>
+                            <span className="tabular-nums">{money(live)}</span>
+                          </div>
+                        </div>
 
 
                       </div>
