@@ -42,32 +42,53 @@ const toNumOrNull = (v) =>
       : null;
 
 // Robust datetime utils (local timezone)
+// Robust datetime utils (FORCE IST, treat naive timestamps as UTC)
+// Robust datetime utils (IST display; treat PROD naive timestamps as UTC)
 const pickDateTime = (o) =>
   o?.datetime || o?.updated_at || o?.created_at || o?.time || o?.date || null;
 
+const ASSUME_UTC_FOR_NAIVE = import.meta.env.PROD; // ✅ production/deployed only
+
 const parseDate = (s) => {
-  if (!s || typeof s !== "string") return null;
-  const safe = s.includes("T") ? s : s.replace(" ", "T");
+  if (!s) return null;
+  const raw = String(s).trim();
+  if (!raw) return null;
+
+  // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm:ss"
+  let isoLike = raw.includes("T") ? raw : raw.replace(" ", "T");
+
+  // trim microseconds to milliseconds (Date() supports 3 digits)
+  isoLike = isoLike.replace(/(\.\d{3})\d+/, "$1");
+
+  // if timezone is missing, assume UTC only in production
+  const hasTZ = /[zZ]|[+\-]\d{2}:\d{2}$/.test(isoLike);
+  const safe = hasTZ ? isoLike : (ASSUME_UTC_FOR_NAIVE ? `${isoLike}Z` : isoLike);
+
   const d = new Date(safe);
-  return isNaN(d.getTime()) ? null : d;
+  return Number.isNaN(d.getTime()) ? null : d;
 };
+
 const fmtTime = (d) =>
   d
     ? d.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",   // ✅ force IST
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
       hour12: false,
     })
     : "—";
+
 const fmtDate = (d) =>
   d
     ? d.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",   // ✅ force IST
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
     })
     : "—";
+
 
 const Chip = ({ label, value, tone = "gray" }) => {
   const toneClass =
@@ -961,58 +982,58 @@ export default function Orders({ username }) {
 
                   </div>
 
-                 {/* ===== BOTTOM GLASS PANEL (mobile swipe) ===== */}
-<div
-  className={[
-    "mt-4 rounded-2xl px-3 sm:px-5 py-3",
-    // mobile swipe
-    "flex gap-3 overflow-x-auto hide-scrollbar",
-    // desktop grid (smaller gap than 8)
-    o.inactive && o.exit_price != null
-      ? "sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible"
-      : "sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible",
-    isDark
-      ? "bg-white/5 border border-white/10"
-      : "bg-slate-50/70 border border-slate-200/50",
-  ].join(" ")}
->
+                  {/* ===== BOTTOM GLASS PANEL (mobile swipe) ===== */}
+                  <div
+                    className={[
+                      "mt-4 rounded-2xl px-3 sm:px-5 py-3",
+                      // mobile swipe
+                      "flex gap-3 overflow-x-auto hide-scrollbar",
+                      // desktop grid (smaller gap than 8)
+                      o.inactive && o.exit_price != null
+                        ? "sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible"
+                        : "sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible",
+                      isDark
+                        ? "bg-white/5 border border-white/10"
+                        : "bg-slate-50/70 border border-slate-200/50",
+                    ].join(" ")}
+                  >
 
                     {/* Stop Loss */}
-<div className="flex-shrink-0 min-w-[140px] sm:min-w-0">
-  <div className={`text-xs font-semibold ${textSecondaryClass}`}>Stop Loss</div>
-  <div className="mt-1 text-lg sm:text-xl font-extrabold text-rose-400 whitespace-nowrap">
-    {money(sl ?? 0)}
-  </div>
-</div>
+                    <div className="flex-shrink-0 min-w-[140px] sm:min-w-0">
+                      <div className={`text-xs font-semibold ${textSecondaryClass}`}>Stop Loss</div>
+                      <div className="mt-1 text-lg sm:text-xl font-extrabold text-rose-400 whitespace-nowrap">
+                        {money(sl ?? 0)}
+                      </div>
+                    </div>
 
-{/* Target */}
-<div className="flex-shrink-0 min-w-[140px] sm:min-w-0">
-  <div className={`text-xs font-semibold ${textSecondaryClass}`}>Target</div>
-  <div className="mt-1 text-lg sm:text-xl font-extrabold text-emerald-400 whitespace-nowrap">
-    {money(tgt ?? 0)}
-  </div>
-</div>
+                    {/* Target */}
+                    <div className="flex-shrink-0 min-w-[140px] sm:min-w-0">
+                      <div className={`text-xs font-semibold ${textSecondaryClass}`}>Target</div>
+                      <div className="mt-1 text-lg sm:text-xl font-extrabold text-emerald-400 whitespace-nowrap">
+                        {money(tgt ?? 0)}
+                      </div>
+                    </div>
 
-{/* Investment */}
-<div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
-  <div className={`text-xs font-semibold ${textSecondaryClass}`}>Investment</div>
-  <div className={`mt-1 text-lg sm:text-xl font-extrabold ${textClass} whitespace-nowrap`}>
-    {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
-  </div>
-</div>
+                    {/* Investment */}
+                    <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
+                      <div className={`text-xs font-semibold ${textSecondaryClass}`}>Investment</div>
+                      <div className={`mt-1 text-lg sm:text-xl font-extrabold ${textClass} whitespace-nowrap`}>
+                        {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
+                      </div>
+                    </div>
 
 
 
 
                     {/* ✅ Exit Price — SAME ROW (only for inactive rows) */}
                     {o.inactive && o.exit_price != null && (
-  <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
-    <div className={`text-xs font-semibold ${textSecondaryClass}`}>Exit Price</div>
-    <div className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"} whitespace-nowrap`}>
-      {money(o.exit_price)}
-    </div>
-  </div>
-)}
+                      <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
+                        <div className={`text-xs font-semibold ${textSecondaryClass}`}>Exit Price</div>
+                        <div className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"} whitespace-nowrap`}>
+                          {money(o.exit_price)}
+                        </div>
+                      </div>
+                    )}
 
 
 
