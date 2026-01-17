@@ -1,6 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { Wallet, TrendingUp, TrendingDown, Plus, Minus, RefreshCw, Sun, Moon, AlertCircle, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Wallet,
+  TrendingUp,
+  Plus,
+  RefreshCw,
+  Sun,
+  Moon,
+  AlertCircle,
+  CheckCircle,
+  Home,
+} from "lucide-react";
 import BackButton from "../components/BackButton";
+
 
 const API = (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
   .trim()
@@ -18,7 +30,10 @@ const formatINR = (v, decimals = 0) => {
 
 const uncomma = (s) => (s || "").toString().replace(/,/g, "");
 
+
 export default function Funds({ username }) {
+  const nav = useNavigate();
+
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     return saved === "dark";
@@ -140,16 +155,42 @@ export default function Funds({ username }) {
       </div>
 
       <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center justify-between mb-6">
-          <BackButton to="/profile" />
-          <button
-            onClick={() => setIsDark(!isDark)}
-            className={`w-10 h-10 flex items-center justify-center rounded-full ${glassClass} hover:scale-110 transition-all shadow-lg`}
-            title="Toggle theme"
-          >
-            {isDark ? <Sun className="w-5 h-5 text-yellow-400" /> : <Moon className="w-5 h-5 text-blue-600" />}
-          </button>
-        </div>
+       <div className="flex items-center justify-between mb-6">
+  <BackButton to="/profile" />
+
+  <div className="flex items-center gap-3">
+    {/* Home Button */}
+    <button
+      type="button"
+      onClick={() => nav("/trade")}
+      className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95
+        ${
+          isDark
+            ? "bg-white/10 border border-white/20 text-white"
+            : "bg-white/70 border border-white text-slate-900"
+        }`}
+      title="Home"
+    >
+      <Home className="w-5 h-5" />
+    </button>
+
+    {/* Theme Toggle */}
+    <button
+      type="button"
+      onClick={() => setIsDark(!isDark)}
+      className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95
+        ${
+          isDark
+            ? "bg-white/10 border border-white/20 text-white"
+            : "bg-white/70 border border-white text-slate-900"
+        }`}
+      title={isDark ? "Light mode" : "Dark mode"}
+    >
+      {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+    </button>
+  </div>
+</div>
+
 
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-2">
