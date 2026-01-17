@@ -16,6 +16,8 @@ import { useTheme } from "../context/ThemeContext";
 
 import { loadStripe } from "@stripe/stripe-js";
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { Home, Sun, Moon, Clock } from "lucide-react";
+
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
@@ -91,7 +93,9 @@ function StripeCheckoutForm({ onSuccess, onError }) {
 
 export default function Profile({ username, logout }) {
   const nav = useNavigate();
-  const { isDark } = useTheme();
+  const { isDark, toggle } = useTheme();
+
+
 
   const bgClass = isDark
     ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
@@ -282,42 +286,53 @@ export default function Profile({ username, logout }) {
 
   // ✅ Menu-style tiles (right side)
   const tiles = [
-    {
-      label: "Reset",
-      note: "Restore account (delete trades & data)",
-      icon: <Sparkles size={28} />,
-      color: "from-red-500 to-rose-500",
-      onClick: handleResetAccount,
-    },
-    {
-      label: "Funds",
-      note: "Manage your wallet",
-      icon: <Wallet size={28} />,
-      color: "from-emerald-400 to-teal-500",
-      onClick: () => nav("/profile/funds"),
-    },
-    {
-      label: "Payment",
-      note: "Payment methods & history",
-      icon: <CreditCard size={28} />,
-      color: "from-blue-400 to-cyan-500",
-      onClick: () => nav("/payments"),
-    },
-    {
-      label: "Password / Email",
-      note: "Change password or email",
-      icon: <Lock size={28} />,
-      color: "from-slate-400 to-gray-500",
-      onClick: () => nav("/settings"),
-    },
-    {
-      label: "Logout",
-      note: "Sign out of your account",
-      icon: <LogOut size={28} />,
-      color: "from-red-500 to-rose-500",
-      onClick: () => setShowLogoutConfirm(true),
-    },
-  ];
+  {
+    label: "Funds",
+    note: "Manage your wallet",
+    icon: <Wallet size={28} />,
+    color: "from-emerald-400 to-teal-500",
+    onClick: () => nav("/profile/funds"),
+  },
+  {
+    label: "Payment",
+    note: "Payment methods & history",
+    icon: <CreditCard size={28} />,
+    color: "from-blue-400 to-cyan-500",
+    onClick: () => nav("/payments"),
+  },
+  {
+  label: "History",
+  note: "All trades & activity",
+  icon: <Clock size={28} />,
+  color: "from-purple-400 to-fuchsia-500",
+  onClick: () => nav("/history"),
+},
+
+  {
+    label: "Password / Email",
+    note: "Change password or email",
+    icon: <Lock size={28} />,
+    color: "from-slate-400 to-gray-500",
+    onClick: () => nav("/settings"),
+  },
+];
+
+const dangerTiles = [
+  {
+    label: "Reset",
+    note: "Restore account (delete trades & data)",
+    icon: <Sparkles size={28} />,
+    color: "from-red-500 to-rose-500",
+    onClick: handleResetAccount,
+  },
+  {
+    label: "Logout",
+    note: "Sign out of your account",
+    icon: <LogOut size={28} />,
+    color: "from-red-500 to-rose-500",
+    onClick: () => setShowLogoutConfirm(true),
+  },
+];
 
   // ================= UI =================
   return (
@@ -344,34 +359,78 @@ export default function Profile({ username, logout }) {
       </div>
 
       {/* Content Container */}
-<div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+<div className="relative z-10 w-full max-w-none mx-auto px-2 sm:px-3 lg:px-4 py-6">
+
+
+
 
   {/* ✅ GLOBAL HEADER (Back left + PROFILE centered on SAME LINE) */}
   
-    <div className="px-8 py-5">
-      <div className="grid grid-cols-3 items-center">
-        {/* Left */}
-        <div className="justify-self-start">
-          <BackButton to="/menu" className="text-white/90 hover:text-white" />
-        </div>
+   <div className="px-2 sm:px-4 py-5">
+  <div className="grid grid-cols-3 items-center">
+    {/* Left */}
+    <BackButton
+      to="/menu"
+      className={
+        isDark
+          ? "text-white/90 hover:text-white"
+          : "text-slate-900 hover:text-slate-700"
+      }
+    />
 
-        {/* Center */}
-        <div className="justify-self-center flex items-center gap-2">
-          
-          <h2 className="text-2xl font-bold text-white tracking-tight">PROFILE</h2>
-        </div>
+    {/* Center Title */}
+    <h2 className="justify-self-center text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+      PROFILE
+    </h2>
 
-        {/* Right empty (so title stays centered) */}
-        <div className="justify-self-end" />
-      </div>
+    {/* Right: Home + Theme Toggle */}
+    <div className="justify-self-end flex items-center gap-3">
+      {/* Home Button */}
+      <button
+        type="button"
+        onClick={() => nav("/trade")}
+        className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95
+          ${
+            isDark
+              ? "bg-white/10 border border-white/20 text-white"
+              : "bg-white/70 border border-white text-slate-900"
+          }`}
+        title="Home"
+      >
+        <Home className="w-5 h-5" />
+      </button>
+
+      {/* Light/Dark Toggle */}
+      <button
+        type="button"
+        onClick={toggle}
+
+        className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95
+          ${
+            isDark
+              ? "bg-white/10 border border-white/20 text-white"
+              : "bg-white/70 border border-white text-slate-900"
+          }`}
+        title={isDark ? "Light mode" : "Dark mode"}
+      >
+        {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+      </button>
     </div>
+  </div>
+</div>
+
  
 
         
         {/* ✅ 2 column layout (left profile, right tiles) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div className="grid grid-cols-1 gap-6 items-stretch">
+
+
+
           {/* ================= LEFT: Profile Card ================= */}
-          <div className={`${glassClass} rounded-3xl shadow-2xl overflow-hidden`}>
+          <div className={`${glassClass} rounded-3xl shadow-2xl overflow-hidden w-full`}>
+
+
             {/* Header (Menu style) */}
             
 
@@ -379,7 +438,8 @@ export default function Profile({ username, logout }) {
            
 
             {/* Body */}
-            <div className="p-10 relative overflow-hidden">
+            <div className="p-10 pb-24 relative overflow-hidden">
+
               
               {/* Edit */}
                 <div className="justify-self-end">
@@ -394,7 +454,8 @@ export default function Profile({ username, logout }) {
                           : "bg-white/20 hover:bg-white/30 border border-white/30"
                       }`}
                   >
-                    <Pencil className="w-5 h-5 text-white" />
+                    <Pencil className={`w-5 h-5 ${isDark ? "text-white" : "text-slate-900"}`} />
+
                   </button>
                 </div>
                   <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl pointer-events-none"></div>
@@ -416,16 +477,47 @@ export default function Profile({ username, logout }) {
                 <p className={`mt-2 text-sm ${textSecondaryClass}`}>
                   Manage your account settings and wallet
                 </p>
+               
+              
+
               </div>
+                          {/* ✅ Reset (left) + Logout (right) at TRUE bottom of the card */}
+              <div className="absolute bottom-1 left-8 right-8 flex justify-between items-center z-20">
+                {/* Reset - left */}
+                <button
+                  type="button"
+                  onClick={handleResetAccount}
+                  className={`px-5 py-3 rounded-2xl font-semibold text-sm shadow-lg transition-all hover:scale-105 active:scale-95
+                    ${isDark ? "bg-white/10 border border-white/20 text-white" : "bg-white/70 border border-white text-slate-900"}
+                  `}
+                  title="Reset"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-rose-500" />
+                    Reset
+                  </span>
+                </button>
+
+                {/* Logout - right */}
+                <button
+                  type="button"
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className="px-5 py-3 rounded-2xl font-semibold text-sm shadow-lg transition-all hover:scale-105 active:scale-95
+                    bg-gradient-to-r from-red-500 to-rose-500 text-white"
+                  title="Logout"
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </span>
+                </button>
+              </div>
+
             </div>
-          </div>
+           <div className="p-8">
+             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
 
-          {/* ================= RIGHT: Menu-style tiles ================= */}
-          <div className={`${glassClass} rounded-3xl shadow-2xl overflow-hidden`}>
-            
 
-            <div className="p-8">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 {tiles.map((t) => {
                   const enabledBg = isDark
                     ? "bg-gradient-to-br from-white/5 to-white/0"
@@ -490,8 +582,12 @@ export default function Profile({ username, logout }) {
                   );
                 })}
               </div>
-            </div>
+            </div> 
           </div>
+
+          
+
+          
         </div>
       </div>
 
