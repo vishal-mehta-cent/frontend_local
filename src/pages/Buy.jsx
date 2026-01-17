@@ -66,7 +66,10 @@ export default function Buy() {
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
   const isPositionModify = Boolean(prefill.fromPosition);
-  const isInactive = Boolean(selectedOrder?.inactive);
+  const isInactive = Boolean(prefill?.inactive);
+
+
+
 
 
   // ✅ NEW: EXIT mode (support multiple keys, but you should pass fromExit:true)
