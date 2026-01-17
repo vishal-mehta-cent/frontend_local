@@ -15,7 +15,7 @@ import {
   ArrowLeft,
   RefreshCw,
   Activity,
-  Linechart,
+  LineChart,
 } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
