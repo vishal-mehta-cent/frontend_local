@@ -66,6 +66,8 @@ export default function Buy() {
   const isModify = Boolean(prefill.modifyId || prefill.fromModify);
   const isAdd = Boolean(prefill.fromAdd);
   const isPositionModify = Boolean(prefill.fromPosition);
+  const isInactive = Boolean(selectedOrder?.inactive);
+
 
   // ✅ NEW: EXIT mode (support multiple keys, but you should pass fromExit:true)
   const isExit = Boolean(
@@ -391,6 +393,7 @@ export default function Buy() {
         price: orderMode === "LIMIT" ? Number(price) : null,
         stoploss: stoploss !== "" ? Number(stoploss) : null,
         target: target !== "" ? Number(target) : null,
+
       };
 
       if (orderMode === "LIMIT") {
@@ -503,6 +506,10 @@ export default function Buy() {
         target: target ? Number(target) : null,
         price_type: orderMode,
         limit_price: orderMode === "LIMIT" ? Number(price) : null,
+        // ✅ NEW
+        segment: (segment || prefill.segment || "intraday").toLowerCase(),
+        short_first: Boolean(prefill.short_first),
+        position_datetime: prefill.positionDatetime || prefill.position_datetime || null,
       };
 
       const res = await fetch(`${API}/orders/positions/modify`, {
