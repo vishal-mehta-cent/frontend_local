@@ -161,6 +161,8 @@ export default function Orders({ username }) {
   const who = username || localStorage.getItem("username");
   const prevPriceRef = useRef({});
   const [priceFlash, setPriceFlash] = useState({});
+  const isInactiveSel = Boolean(selectedOrder?.inactive);
+
 
   const { isDark } = useTheme();
 
@@ -479,6 +481,9 @@ export default function Orders({ username }) {
           fromModify: true,
           returnTo: "/orders",
           returnTab: tab === "open" ? "open" : "positions",
+          // ✅ REQUIRED for backend modify_position
+          short_first: Boolean(selectedOrder.short_first),
+          positionDatetime: selectedOrder.datetime, // ✅ anchor datetime
         },
       }
     );
@@ -488,7 +493,7 @@ export default function Orders({ username }) {
 
 
   const handleExit = (pos) => {
-    if (!pos) return;
+    if (!pos || pos.inactive) return;
 
     const sym = pos.symbol || pos.script;
 
@@ -515,6 +520,9 @@ export default function Orders({ username }) {
 
           returnTo: "/orders",
           returnTab: "positions",
+          short_first: Boolean(pos.short_first),
+          positionDatetime: pos.datetime,
+
         },
       });
     } else {
@@ -538,6 +546,9 @@ export default function Orders({ username }) {
 
           returnTo: "/orders",
           returnTab: "positions",
+          short_first: Boolean(pos.short_first),
+          positionDatetime: pos.datetime,
+
         },
       });
     }
@@ -547,6 +558,7 @@ export default function Orders({ username }) {
 
 
   const handleAdd = (pos) => {
+    if (!pos || pos.inactive) return;
     const symbol = pos.symbol || pos.script;
 
     const isSellFirst = Boolean(pos.short_first);
@@ -567,6 +579,9 @@ export default function Orders({ username }) {
           segment: (pos.segment || "delivery").toLowerCase(),
           exchange: (pos.exchange || "NSE").toUpperCase(),
           orderMode: "MARKET",
+          // ✅ NEW
+          short_first: Boolean(pos.short_first),
+          positionDatetime: pos.datetime,   // ✅ anchor
         },
       }
     );
@@ -1184,20 +1199,26 @@ export default function Orders({ username }) {
                       ) : (
                         <div className="grid grid-cols-3 gap-3">
                           <button
-                            className="py-3 rounded-xl font-semibold text-white
-                        bg-gradient-to-r from-emerald-500 to-green-600
-                        hover:from-emerald-600 hover:to-green-700
-                        shadow-lg hover:shadow-emerald-500/25 transition"
+                            disabled={isInactiveSel}
                             onClick={() => {
+                              if (isInactiveSel) return;
                               handleAdd(selectedOrder);
                               setShowActions(false);
                             }}
+                            className={`py-3 rounded-xl font-semibold text-white
+    bg-gradient-to-r from-emerald-500 to-green-600
+    hover:from-emerald-600 hover:to-green-700
+    shadow-lg hover:shadow-emerald-500/25 transition
+    ${isInactiveSel ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
                           >
                             Add
                           </button>
 
                           <button
+                            disabled={isInactiveSel}
                             onClick={() => {
+                              if (isInactiveSel) return;
+
                               const side = selectedOrder.type || selectedOrder.order_type;
 
                               navigate(
@@ -1208,37 +1229,51 @@ export default function Orders({ username }) {
                                   state: {
                                     fromPosition: true,
                                     fromModify: true,
+
+                                    short_first: Boolean(selectedOrder.short_first),
+                                    positionDatetime: selectedOrder.datetime,
+
                                     qty: selectedOrder.qty,
                                     price: selectedOrder.price,
                                     stoploss: selectedOrder.stoploss,
                                     target: selectedOrder.target,
                                     segment: (selectedOrder.segment || "delivery").toLowerCase(),
                                     exchange: (selectedOrder.exchange || "NSE").toUpperCase(),
-
                                     orderMode: "MARKET",
+
+                                    returnTo: "/orders",
+                                    returnTab: "positions",
                                   },
                                 }
                               );
 
                               setShowActions(false);
                             }}
-                            className="py-3 rounded-xl font-semibold text-white
-                        bg-gradient-to-r from-blue-500 to-indigo-600
-                        hover:from-blue-600 hover:to-indigo-700
-                        shadow-lg hover:shadow-blue-500/25 transition"
+                            className={`py-3 rounded-xl font-semibold text-white
+    bg-gradient-to-r from-blue-500 to-indigo-600
+    hover:from-blue-600 hover:to-indigo-700
+    shadow-lg hover:shadow-blue-500/25 transition
+    ${isInactiveSel ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
                           >
                             Modify
                           </button>
 
+
                           <button
-                            onClick={() => handleExit(selectedOrder)}
-                            className="py-3 rounded-xl font-semibold text-white
-                        bg-gradient-to-r from-rose-500 to-red-600
-                        hover:from-rose-600 hover:to-red-700
-                        shadow-lg hover:shadow-red-500/25 transition"
+                            disabled={isInactiveSel}
+                            onClick={() => {
+                              if (isInactiveSel) return;
+                              handleExit(selectedOrder);
+                            }}
+                            className={`py-3 rounded-xl font-semibold text-white
+    bg-gradient-to-r from-rose-500 to-red-600
+    hover:from-rose-600 hover:to-red-700
+    shadow-lg hover:shadow-red-500/25 transition
+    ${isInactiveSel ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
                           >
                             Exit
                           </button>
+
                         </div>
                       )}
                     </div>
