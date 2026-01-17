@@ -125,6 +125,7 @@ export default function ScriptDetailsModal({
 
     return data;
   };
+
   const handleBuyClick = () => {
     onClose && onClose();
 
@@ -284,6 +285,7 @@ export default function ScriptDetailsModal({
               Buy
             </button>
 
+
             <button
               onClick={handleSellClick}
               className="bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-red-500/50 transition-all hover:scale-105"
@@ -366,4 +368,3 @@ export default function ScriptDetailsModal({
 
   return target ? createPortal(body, target) : body;
 }
-
