@@ -42,7 +42,8 @@ export default function Settings() {
         ></div>
       </div>
 
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="relative z-10 w-full max-w-none mx-auto px-2 sm:px-3 lg:px-4 py-4">
+
         {/* ===== TOP BAR ===== */}
         <div className="flex items-center justify-between mb-6">
           <BackButton to="/profile" />
