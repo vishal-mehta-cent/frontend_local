@@ -41,6 +41,7 @@ function StripeCheckoutForm({ onSuccess, onError }) {
   const elements = useElements();
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState("");
+ 
 
   const handlePay = useCallback(async () => {
     if (!stripe || !elements) return;
@@ -115,6 +116,7 @@ export default function Profile({ username, logout }) {
   // existing state (kept)
   const [funds, setFunds] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+ const [hoveredTile, setHoveredTile] = useState(null);
 
   const safeUser = String(username || "");
   const userEmail = `${safeUser.toLowerCase().replace(/ /g, "")}@gmail.com`;
@@ -515,72 +517,69 @@ const dangerTiles = [
 
             </div>
            <div className="p-8">
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    {tiles.map((t, idx) => {
+      const isHovered = hoveredTile === idx;
 
+      const enabledBg = isDark
+        ? "bg-gradient-to-br from-white/5 to-white/0"
+        : "bg-gradient-to-br from-white to-slate-50";
 
-                {tiles.map((t) => {
-                  const enabledBg = isDark
-                    ? "bg-gradient-to-br from-white/5 to-white/0"
-                    : "bg-gradient-to-br from-white to-slate-50";
+      const borderClass = isDark
+        ? "border-white/10 hover:border-white/20"
+        : "border-white hover:border-slate-200";
 
-                  const borderClass = isDark
-                    ? "border-white/10 hover:border-white/20"
-                    : "border-white hover:border-slate-200";
+      return (
+        <button
+          key={t.label}
+          onClick={t.onClick}
+          onMouseEnter={() => setHoveredTile(idx)}
+          onMouseLeave={() => setHoveredTile(null)}
+          className={`group relative flex flex-col items-center p-6 rounded-2xl transition-all duration-300 border-2 overflow-hidden
+            cursor-pointer hover:scale-105 hover:-translate-y-1 active:scale-95 shadow-lg hover:shadow-2xl
+            ${enabledBg} ${borderClass}
+          `}
+          title={t.label}
+        >
+          {/* ✅ Menu-like hover glow (LIGHT ONLY, not full color) */}
+          {isHovered && (
+            <div
+              className={`absolute inset-0 bg-gradient-to-br ${t.color} ${
+                isDark ? "opacity-10" : "opacity-5"
+              } transition-opacity duration-300`}
+            />
+          )}
 
-                  return (
-                    <button
-                      key={t.label}
-                      onClick={t.onClick}
-                      className={`group relative flex flex-col items-center p-6 rounded-2xl transition-all duration-300 border-2 overflow-hidden
-                        cursor-pointer hover:scale-105 hover:-translate-y-1 active:scale-95 shadow-lg hover:shadow-2xl
-                        ${enabledBg} ${borderClass}
-                      `}
-                      title={t.label}
-                    >
-                      {/* Hover glow */}
-                      <div
-                        className={`absolute inset-0 bg-gradient-to-br ${t.color} ${
-                          isDark ? "opacity-10" : "opacity-5"
-                        } opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-                      ></div>
+          {/* Icon container */}
+          <div
+            className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300
+              bg-gradient-to-br ${t.color} group-hover:scale-110 group-hover:rotate-3 shadow-lg
+              ${isHovered ? "shadow-2xl" : ""}
+            `}
+          >
+            <div className="text-white transition-transform duration-300 group-hover:scale-110">
+              {t.icon}
+            </div>
 
-                      {/* Icon container (Menu style) */}
-                      <div
-                        className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-300
-                          bg-gradient-to-br ${t.color} group-hover:scale-110 group-hover:rotate-3 shadow-lg`}
-                      >
-                        <div className="text-white transition-transform duration-300 group-hover:scale-110">
-                          {t.icon}
-                        </div>
-                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/0 via-white/40 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      </div>
+            {/* Shine Effect */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-tr from-white/0 via-white/40 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </div>
 
-                      {/* Label */}
-                      <div className="mt-4 text-center relative z-10">
-                        <div
-                          className={`text-sm font-bold ${
-                            t.label === "Reset" || t.label === "Logout"
-                              ? "text-red-300"
-                              : isDark
-                              ? "text-white"
-                              : "text-slate-800"
-                          }`}
-                        >
-                          {t.label}
-                        </div>
+          {/* Label */}
+          <div className="mt-4 text-center relative z-10">
+            <div className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-800"}`}>
+              {t.label}
+            </div>
+            <div className={`mt-1 text-xs ${textSecondaryClass}`}>{t.note}</div>
+          </div>
 
-                        <div className={`mt-1 text-xs ${textSecondaryClass}`}>
-                          {t.note}
-                        </div>
-                      </div>
-
-                      {/* Bottom accent */}
-                      <div
-                        className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${t.color} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}
-                      ></div>
-                    </button>
-                  );
-                })}
+          {/* Bottom accent line */}
+          <div
+            className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${t.color} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}
+          />
+        </button>
+      );
+    })}
               </div>
             </div> 
           </div>
