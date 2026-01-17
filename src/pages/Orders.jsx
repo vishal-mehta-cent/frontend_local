@@ -676,7 +676,8 @@ export default function Orders({ username }) {
 
 
       {/* ✅ Main content */}
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 overflow-x-hidden">
+
 
         {/* Page header + Tabs + Refresh button */}
         <div className="flex items-start justify-between mb-6">
@@ -778,7 +779,8 @@ export default function Orders({ username }) {
                 <div
                   key={o.id ?? `${script}-${dtRaw ?? ""}-${i}`}
                   className={[
-                    "rounded-[30px] p-6 md:p-7 border",
+                    "rounded-[30px] p-4 sm:p-6 md:p-7 border",
+
                     "shadow-[0_18px_50px_rgba(0,0,0,0.28)]",
                     "transition",
                     disabledRow
@@ -959,75 +961,59 @@ export default function Orders({ username }) {
 
                   </div>
 
-                  {/* ===== BOTTOM GLASS PANEL ===== */}
-                  <div
-                    className={[
-                      "mt-6 rounded-2xl px-6 py-5",
-                      // ✅ +1 column for Date/Time
-                      o.inactive && o.exit_price != null
-                        ? "grid grid-cols-1 sm:grid-cols-5 gap-8"
-                        : "grid grid-cols-1 sm:grid-cols-4 gap-8",
-                      isDark
-                        ? "bg-white/5 border border-white/10"
-                        : "bg-slate-50/70 border border-slate-200/50",
-                    ].join(" ")}
-                  >
-                    <div>
-                      <div
-                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
-                          }`}
-                      >
-                        Stop Loss
-                      </div>
-                      <div className="mt-1 text-xl font-extrabold text-rose-400">
-                        {money(sl ?? 0)}
-                      </div>
-                    </div>
+                 {/* ===== BOTTOM GLASS PANEL (mobile swipe) ===== */}
+<div
+  className={[
+    "mt-4 rounded-2xl px-3 sm:px-5 py-3",
+    // mobile swipe
+    "flex gap-3 overflow-x-auto hide-scrollbar",
+    // desktop grid (smaller gap than 8)
+    o.inactive && o.exit_price != null
+      ? "sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible"
+      : "sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible",
+    isDark
+      ? "bg-white/5 border border-white/10"
+      : "bg-slate-50/70 border border-slate-200/50",
+  ].join(" ")}
+>
 
-                    <div>
-                      <div
-                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
-                          }`}
-                      >
-                        Target
-                      </div>
-                      <div className="mt-1 text-xl font-extrabold text-emerald-400">
-                        {money(tgt ?? 0)}
-                      </div>
-                    </div>
+                    {/* Stop Loss */}
+<div className="flex-shrink-0 min-w-[140px] sm:min-w-0">
+  <div className={`text-xs font-semibold ${textSecondaryClass}`}>Stop Loss</div>
+  <div className="mt-1 text-lg sm:text-xl font-extrabold text-rose-400 whitespace-nowrap">
+    {money(sl ?? 0)}
+  </div>
+</div>
 
-                    <div>
-                      <div
-                        className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
-                          }`}
-                      >
-                        Investment
-                      </div>
-                      <div className={`mt-1 text-xl font-extrabold ${textClass}`}>
-                        {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
-                      </div>
-                    </div>
+{/* Target */}
+<div className="flex-shrink-0 min-w-[140px] sm:min-w-0">
+  <div className={`text-xs font-semibold ${textSecondaryClass}`}>Target</div>
+  <div className="mt-1 text-lg sm:text-xl font-extrabold text-emerald-400 whitespace-nowrap">
+    {money(tgt ?? 0)}
+  </div>
+</div>
+
+{/* Investment */}
+<div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
+  <div className={`text-xs font-semibold ${textSecondaryClass}`}>Investment</div>
+  <div className={`mt-1 text-lg sm:text-xl font-extrabold ${textClass} whitespace-nowrap`}>
+    {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
+  </div>
+</div>
+
 
 
 
                     {/* ✅ Exit Price — SAME ROW (only for inactive rows) */}
                     {o.inactive && o.exit_price != null && (
-                      <div>
-                        <div
-                          className={`text-xs font-semibold ${isDark ? "text-slate-200/70" : "text-slate-500"
-                            }`}
-                        >
-                          Exit Price
-                        </div>
+  <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
+    <div className={`text-xs font-semibold ${textSecondaryClass}`}>Exit Price</div>
+    <div className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"} whitespace-nowrap`}>
+      {money(o.exit_price)}
+    </div>
+  </div>
+)}
 
-                        <div
-                          className={`mt-1 text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"
-                            }`}
-                        >
-                          {money(o.exit_price)}
-                        </div>
-                      </div>
-                    )}
 
 
                   </div>
