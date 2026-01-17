@@ -989,30 +989,36 @@ export default function Trade({ username }) {
 
       {/* SCRIPT DETAILS MODAL */}
       <ScriptDetailsModal
-        symbol={selectedSymbol}
-        quote={selectedQuote}
-        hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}
-        onClose={() => {
-          setSelectedSymbol(null);
-          setSelectedQuote(null);
-          if (modalPollRef.current) {
-            clearInterval(modalPollRef.current);
-            modalPollRef.current = null;
-          }
-        }}
-        onAdd={handleAddToWatchlist}
-        onBuy={handleBuy}
-        onSell={() => {
-          const sym = selectedSymbol;
-          setSelectedSymbol(null);
-          setSelectedQuote(null);
-          if (modalPollRef.current) {
-            clearInterval(modalPollRef.current);
-            modalPollRef.current = null;
-          }
-          previewThenSell(sym, 1, "intraday");
-        }}
-      />
+  symbol={selectedSymbol}
+  quote={selectedQuote}
+  hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}
+  glassClass={glassClass}
+  cardHoverClass={cardHoverClass}
+  textClass={textClass}
+  textSecondaryClass={textSecondaryClass}
+  isDark={isDark}
+  onClose={() => {
+    setSelectedSymbol(null);
+    setSelectedQuote(null);
+    if (modalPollRef.current) {
+      clearInterval(modalPollRef.current);
+      modalPollRef.current = null;
+    }
+  }}
+  onAdd={handleAddToWatchlist}
+  onBuy={handleBuy}
+  onSell={() => {
+    const sym = selectedSymbol;
+    setSelectedSymbol(null);
+    setSelectedQuote(null);
+    if (modalPollRef.current) {
+      clearInterval(modalPollRef.current);
+      modalPollRef.current = null;
+    }
+    previewThenSell(sym, 1, "intraday");
+  }}
+/>
+
 
       {/* SELL CONFIRMATION MODAL */}
       {sellConfirmOpen && (
