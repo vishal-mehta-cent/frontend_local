@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   RefreshCw,
   Activity,
+  Linechart,
 } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
@@ -81,7 +82,7 @@ export default function Trade({ username }) {
   useEffect(() => {
     try {
       localStorage.setItem(MUSTWATCH_KEY, JSON.stringify(mustWatchlist));
-    } catch {}
+    } catch { }
   }, [MUSTWATCH_KEY, mustWatchlist]);
 
   const addToMustWatch = (sym) => {
@@ -208,7 +209,7 @@ export default function Trade({ username }) {
           (arr || []).forEach((q) => (map[q.symbol] = q));
           setQuotes(map);
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchQuotes();
@@ -334,7 +335,7 @@ export default function Trade({ username }) {
         const res = await fetch(`${API}/search?q=${encodeURIComponent(seed)}`);
         const data = await res.json().catch(() => []);
         if (Array.isArray(data)) bag = bag.concat(data);
-      } catch {}
+      } catch { }
     }
 
     const seen = new Set();
@@ -439,6 +440,15 @@ export default function Trade({ username }) {
   function handleSearch(e) {
     setQuery(e.target.value);
   }
+  function openChart(e, sym) {
+    e?.stopPropagation?.();
+    const s = String(sym || "").toUpperCase().trim();
+    if (!s) return;
+
+    setQuery("");
+    setSuggestions([]);
+    nav(`/chart/${encodeURIComponent(s)}`);
+  }
 
   function goDetail(sym) {
     const s = String(sym || "").trim();
@@ -469,7 +479,7 @@ export default function Trade({ username }) {
           const latestQuote = Array.isArray(arr) && arr[0] ? arr[0] : null;
           if (latestQuote) setSelectedQuote(latestQuote);
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 2000);
   }
 
@@ -572,7 +582,7 @@ export default function Trade({ username }) {
       setSellPreviewData(data);
       setSellConfirmMsg(
         data?.message ||
-          `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
+        `You have 0 qty of ${String(sym || "").toUpperCase()}. Do you still want to sell first?`
       );
       setSellConfirmOpen(true);
     } catch (e) {
@@ -661,11 +671,10 @@ export default function Trade({ username }) {
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`px-6 py-2.5 rounded-xl font-medium transition-all ${
-                    tab === t
-                      ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                      : textSecondaryClass
-                  }`}
+                  className={`px-6 py-2.5 rounded-xl font-medium transition-all ${tab === t
+                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                    : textSecondaryClass
+                    }`}
                 >
                   {t === "mylist" ? "My List" : "Must Watch"}
                 </button>
@@ -695,9 +704,8 @@ export default function Trade({ username }) {
 
                 {/* Divider */}
                 <div
-                  className={`h-8 w-px ${
-                    isDark ? "bg-white/15" : "bg-slate-900/10"
-                  }`}
+                  className={`h-8 w-px ${isDark ? "bg-white/15" : "bg-slate-900/10"
+                    }`}
                 />
 
                 {/* Available */}
@@ -721,9 +729,8 @@ export default function Trade({ username }) {
               <div className={`text-sm ${textSecondaryClass}`}>
                 * Enable automatic daily script additions from our recommendations —{" "}
                 <span
-                  className={`${
-                    isDark ? "text-cyan-300" : "text-blue-700"
-                  } font-semibold`}
+                  className={`${isDark ? "text-cyan-300" : "text-blue-700"
+                    } font-semibold`}
                 >
                   contact Support to activate.
                 </span>
@@ -735,9 +742,8 @@ export default function Trade({ username }) {
           <div className="flex justify-left">
             <div className="relative w-full max-w-4xl">
               <Search
-                className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 z-10 ${
-                  isDark ? "text-slate-200" : "text-slate-500"
-                }`}
+                className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 z-10 ${isDark ? "text-slate-200" : "text-slate-500"
+                  }`}
               />
               <input
                 type="text"
@@ -757,25 +763,43 @@ export default function Trade({ username }) {
                       <li
                         key={`${sym}-${i}`}
                         onClick={() => goDetail(sym)}
-                        className={`px-4 py-3 ${cardHoverClass} cursor-pointer transition-all ${
-                          i !== suggestions.length - 1
-                            ? `border-b ${
-                                isDark ? "border-white/10" : "border-white/40"
-                              }`
-                            : ""
-                        }`}
+                        className={`px-4 py-3 ${cardHoverClass} cursor-pointer transition-all ${i !== suggestions.length - 1
+                          ? `border-b ${isDark ? "border-white/10" : "border-white/40"}`
+                          : ""
+                          }`}
                       >
-                        <div className="font-semibold text-lg">
-                          {highlightMatch(sym, query)}
-                        </div>
-                        <div className={`text-sm ${textSecondaryClass}`}>
-                          {highlightMatch(s.name, query)}
-                        </div>
-                        <div className={`text-xs ${textSecondaryClass} mt-1`}>
-                          {(s.exchange || "NSE")} | {s.segment} |{" "}
-                          {s.instrument_type}
+                        <div className="flex items-center justify-between gap-4">
+                          {/* Left: Symbol + name */}
+                          <div className="min-w-0">
+                            <div className="font-semibold text-lg truncate">
+                              {highlightMatch(sym, query)}
+                            </div>
+                            <div className={`text-sm ${textSecondaryClass} truncate`}>
+                              {highlightMatch(s.name, query)}
+                            </div>
+                            <div className={`text-xs ${textSecondaryClass} mt-1`}>
+                              {(s.exchange || "NSE")} | {s.segment} | {s.instrument_type}
+                            </div>
+                          </div>
+
+                          {/* Right: Chart icon */}
+                          <div className="shrink-0 self-center">
+                            <button
+                              title="Open chart"
+                              onClick={(e) => openChart(e, sym)}
+                              className={`p-2 rounded-xl transition-all shadow-lg ${isDark
+                                ? "bg-white/10 hover:bg-white/15 border border-white/10"
+                                : "bg-white/70 hover:bg-white border border-white/40"
+                                }`}
+                            >
+                              <LineChart
+                                className={`w-4 h-4 ${isDark ? "text-cyan-300" : "text-blue-700"}`}
+                              />
+                            </button>
+                          </div>
                         </div>
                       </li>
+
                     );
                   })}
                 </ul>
@@ -810,11 +834,10 @@ export default function Trade({ username }) {
                               </div>
 
                               <span
-                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${
-                                  isDark
-                                    ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
-                                    : "bg-blue-100 text-blue-700 border border-blue-200"
-                                }`}
+                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${isDark
+                                  ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                  : "bg-blue-100 text-blue-700 border border-blue-200"
+                                  }`}
                               >
                                 {q.exchange || "NSE"}
                               </span>
@@ -826,15 +849,14 @@ export default function Trade({ username }) {
                           <div className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <div
-                                className={`text-3xl font-bold ${
-                                  isPos ? "text-emerald-400" : "text-rose-400"
-                                }`}
+                                className={`text-3xl font-bold ${isPos ? "text-emerald-400" : "text-rose-400"
+                                  }`}
                               >
                                 {q.price != null
                                   ? Number(q.price).toLocaleString("en-IN", {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })
                                   : "--"}
                               </div>
 
@@ -843,11 +865,10 @@ export default function Trade({ username }) {
                                   e.stopPropagation();
                                   removeFromMustWatch(sym);
                                 }}
-                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${
-                                  isDark
-                                    ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
-                                    : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
-                                }`}
+                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${isDark
+                                  ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
+                                  : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
+                                  }`}
                                 title="Remove"
                               >
                                 -
@@ -855,9 +876,8 @@ export default function Trade({ username }) {
                             </div>
 
                             <div
-                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${
-                                isPos ? "text-emerald-400" : "text-rose-400"
-                              }`}
+                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${isPos ? "text-emerald-400" : "text-rose-400"
+                                }`}
                             >
                               {q.change != null && (
                                 <>
@@ -905,11 +925,10 @@ export default function Trade({ username }) {
                               </div>
 
                               <span
-                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${
-                                  isDark
-                                    ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
-                                    : "bg-blue-100 text-blue-700 border border-blue-200"
-                                }`}
+                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${isDark
+                                  ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
+                                  : "bg-blue-100 text-blue-700 border border-blue-200"
+                                  }`}
                               >
                                 {q.exchange || "NSE"}
                               </span>
@@ -922,15 +941,14 @@ export default function Trade({ username }) {
                             {/* Line 1: Live price + (-) */}
                             <div className="flex items-center justify-end gap-2">
                               <div
-                                className={`text-3xl font-bold ${
-                                  isPos ? "text-emerald-400" : "text-rose-400"
-                                }`}
+                                className={`text-3xl font-bold ${isPos ? "text-emerald-400" : "text-rose-400"
+                                  }`}
                               >
                                 {q.price != null
                                   ? Number(q.price).toLocaleString("en-IN", {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })
                                   : "--"}
                               </div>
 
@@ -939,11 +957,10 @@ export default function Trade({ username }) {
                                   e.stopPropagation();
                                   handleRemoveFromWatchlist(sym);
                                 }}
-                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${
-                                  isDark
-                                    ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
-                                    : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
-                                }`}
+                                className={`w-5 h-5 rounded-md font-extrabold flex items-center justify-center transition-all shadow-lg ${isDark
+                                  ? "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-400/30"
+                                  : "bg-rose-100 text-rose-600 hover:bg-rose-200 border border-rose-200"
+                                  }`}
                                 title="Remove"
                               >
                                 -
@@ -952,9 +969,8 @@ export default function Trade({ username }) {
 
                             {/* Line 2: Change + % + WhatsApp */}
                             <div
-                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${
-                                isPos ? "text-emerald-400" : "text-rose-400"
-                              }`}
+                              className={`mt-1 text-sm font-semibold flex items-center justify-end gap-2 ${isPos ? "text-emerald-400" : "text-rose-400"
+                                }`}
                             >
                               {q.change != null && (
                                 <>
@@ -989,35 +1005,35 @@ export default function Trade({ username }) {
 
       {/* SCRIPT DETAILS MODAL */}
       <ScriptDetailsModal
-  symbol={selectedSymbol}
-  quote={selectedQuote}
-  hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}
-  glassClass={glassClass}
-  cardHoverClass={cardHoverClass}
-  textClass={textClass}
-  textSecondaryClass={textSecondaryClass}
-  isDark={isDark}
-  onClose={() => {
-    setSelectedSymbol(null);
-    setSelectedQuote(null);
-    if (modalPollRef.current) {
-      clearInterval(modalPollRef.current);
-      modalPollRef.current = null;
-    }
-  }}
-  onAdd={handleAddToWatchlist}
-  onBuy={handleBuy}
-  onSell={() => {
-    const sym = selectedSymbol;
-    setSelectedSymbol(null);
-    setSelectedQuote(null);
-    if (modalPollRef.current) {
-      clearInterval(modalPollRef.current);
-      modalPollRef.current = null;
-    }
-    previewThenSell(sym, 1, "intraday");
-  }}
-/>
+        symbol={selectedSymbol}
+        quote={selectedQuote}
+        hasPosition={!!portfolioMap[selectedSymbol?.toUpperCase()]}
+        glassClass={glassClass}
+        cardHoverClass={cardHoverClass}
+        textClass={textClass}
+        textSecondaryClass={textSecondaryClass}
+        isDark={isDark}
+        onClose={() => {
+          setSelectedSymbol(null);
+          setSelectedQuote(null);
+          if (modalPollRef.current) {
+            clearInterval(modalPollRef.current);
+            modalPollRef.current = null;
+          }
+        }}
+        onAdd={handleAddToWatchlist}
+        onBuy={handleBuy}
+        onSell={() => {
+          const sym = selectedSymbol;
+          setSelectedSymbol(null);
+          setSelectedQuote(null);
+          if (modalPollRef.current) {
+            clearInterval(modalPollRef.current);
+            modalPollRef.current = null;
+          }
+          previewThenSell(sym, 1, "intraday");
+        }}
+      />
 
 
       {/* SELL CONFIRMATION MODAL */}
@@ -1035,11 +1051,10 @@ export default function Trade({ username }) {
             </p>
             <div className="flex justify-center gap-4">
               <button
-                className={`px-6 py-3 rounded-xl font-semibold transition-all shadow-lg ${
-                  isDark
-                    ? "bg-white/10 hover:bg-white/20 text-white"
-                    : "bg-slate-200 hover:bg-slate-300 text-slate-900"
-                }`}
+                className={`px-6 py-3 rounded-xl font-semibold transition-all shadow-lg ${isDark
+                  ? "bg-white/10 hover:bg-white/20 text-white"
+                  : "bg-slate-200 hover:bg-slate-300 text-slate-900"
+                  }`}
                 onClick={() => setSellConfirmOpen(false)}
               >
                 NO
