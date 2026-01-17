@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+
 import { moneyINR } from "../utils/format";
 import {
   NotebookPen,
@@ -19,12 +20,26 @@ const API =
 
 export default function History({ username }) {
   const { isDark } = useTheme();
+  // ✅ Desktop: convert vertical mouse wheel to horizontal scroll inside table
+  const handleHorizontalWheel = useCallback((e) => {
+    const el = e.currentTarget;
+    if (!el) return;
+
+    // only when horizontal scroll is possible
+    if (el.scrollWidth <= el.clientWidth) return;
+
+    // if user isn't already scrolling horizontally, use vertical wheel to scroll x
+    if (!e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }
+  }, []);
 
   const [loading, setLoading] = useState(true);
-const [loadingActivity, setLoadingActivity] = useState(false);
+  const [loadingActivity, setLoadingActivity] = useState(false);
 
-const [history, setHistory] = useState([]);
-const [activity, setActivity] = useState([]); // ✅ all trade_activity rows
+  const [history, setHistory] = useState([]);
+  const [activity, setActivity] = useState([]); // ✅ all trade_activity rows
 
 
   const [error, setError] = useState("");
@@ -53,6 +68,28 @@ const [activity, setActivity] = useState([]); // ✅ all trade_activity rows
 
   const brandGradient =
     "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
+  // ✅ Horizontal scroll ref (for desktop drag + wheel)
+  const xScrollRef = useRef(null);
+  const dragState = useRef({ down: false, startX: 0, startLeft: 0 });
+
+  const onDragStart = (e) => {
+    const el = xScrollRef.current;
+    if (!el) return;
+    dragState.current.down = true;
+    dragState.current.startX = e.clientX;
+    dragState.current.startLeft = el.scrollLeft;
+  };
+
+  const onDragMove = (e) => {
+    const el = xScrollRef.current;
+    if (!el || !dragState.current.down) return;
+    const dx = e.clientX - dragState.current.startX;
+    el.scrollLeft = dragState.current.startLeft - dx;
+  };
+
+  const onDragEnd = () => {
+    dragState.current.down = false;
+  };
 
   // -------------------- Fetch CLOSED history (BUY+SELL completed rows) --------------------
   useEffect(() => {
@@ -88,34 +125,34 @@ const [activity, setActivity] = useState([]); // ✅ all trade_activity rows
   }, [who]);
 
   // -------------------- Fetch POSITIONS (so BUY shows in All History) --------------------
-// -------------------- Fetch ACTIVITY (All trades + adds + exits + sell-first etc) --------------------
-useEffect(() => {
-  if (!who) return;
-  if (tab !== "all") return;
+  // -------------------- Fetch ACTIVITY (All trades + adds + exits + sell-first etc) --------------------
+  useEffect(() => {
+    if (!who) return;
+    if (tab !== "all") return;
 
-  setLoadingActivity(true);
+    setLoadingActivity(true);
 
-  const url = `${API}/orders/activity/${encodeURIComponent(who)}`;
+    const url = `${API}/orders/activity/${encodeURIComponent(who)}`;
 
-  fetch(url)
-    .then(async (res) => {
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(
-          `HTTP ${res.status}: ${txt || "Failed to fetch activity"}`
-        );
-      }
-      return res.json();
-    })
-    .then((data) => {
-      setActivity(Array.isArray(data) ? data : []);
-    })
-    .catch((e) => {
-      console.error("Activity fetch error:", e);
-      setActivity([]);
-    })
-    .finally(() => setLoadingActivity(false));
-}, [who, tab]);
+    fetch(url)
+      .then(async (res) => {
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(
+            `HTTP ${res.status}: ${txt || "Failed to fetch activity"}`
+          );
+        }
+        return res.json();
+      })
+      .then((data) => {
+        setActivity(Array.isArray(data) ? data : []);
+      })
+      .catch((e) => {
+        console.error("Activity fetch error:", e);
+        setActivity([]);
+      })
+      .finally(() => setLoadingActivity(false));
+  }, [who, tab]);
 
 
   // -------------------- Helpers --------------------
@@ -234,12 +271,12 @@ useEffect(() => {
   }, [history, startDate, endDate]);
 
   // -------------------- Convert POSITIONS -> rows that match your table --------------------
-  
+
 
   // -------------------- All History (positions + closed history) --------------------
 
   // ✅ Apply date filter to All History also
-  
+
 
   // -------------------- Ledger view for "All History" (BUY/SELL rows only) --------------------
   const normalizeMarket = (v) => {
@@ -267,14 +304,14 @@ useEffect(() => {
   const pickAdditionalTax = (t) =>
     asNum(
       t.additional_tax ??
-        t.additionalTax ??
-        t.tax ??
-        t.taxes ??
-        t.charges ??
-        t.brokerage ??
-        t.fees ??
-        t.total_charges ??
-        null
+      t.additionalTax ??
+      t.tax ??
+      t.taxes ??
+      t.charges ??
+      t.brokerage ??
+      t.fees ??
+      t.total_charges ??
+      null
     );
 
   const pickDateTimeAny = (s) => {
@@ -377,45 +414,45 @@ useEffect(() => {
     });
   };
 
-const allHistoryLedgerRows = useMemo(() => {
-  const rows = (activity || []).map((a) => {
-    const symbol = normSym(a.script || a.symbol || a.tradingsymbol);
-    const dt = String(a.datetime || a.time || "").trim();
+  const allHistoryLedgerRows = useMemo(() => {
+    const rows = (activity || []).map((a) => {
+      const symbol = normSym(a.script || a.symbol || a.tradingsymbol);
+      const dt = String(a.datetime || a.time || "").trim();
 
-    // ✅ show activity_type (ADD / EXIT / SELL_FIRST etc) not only BUY/SELL
-    const type = String(a.activity_type || a.action || "").toUpperCase().trim();
-    const sideLabel = type || "—";
+      // ✅ show activity_type (ADD / EXIT / SELL_FIRST etc) not only BUY/SELL
+      const type = String(a.activity_type || a.action || "").toUpperCase().trim();
+      const sideLabel = type || "—";
 
-    const qty = asNum(a.qty) ?? 0;
-    const price = asNum(a.price);
+      const qty = asNum(a.qty) ?? 0;
+      const price = asNum(a.price);
 
-    const market = normalizeMarket(a.exchange || a.market || a.exch || "");
-    const segment = normalizeSegment(a.segment || a.product || "");
+      const market = normalizeMarket(a.exchange || a.market || a.exch || "");
+      const segment = normalizeSegment(a.segment || a.product || "");
 
-    const addTax = pickAdditionalTax(a);
-    const inv =
-      qty > 0 && price !== null && Number.isFinite(qty * price) ? qty * price : null;
+      const addTax = pickAdditionalTax(a);
+      const inv =
+        qty > 0 && price !== null && Number.isFinite(qty * price) ? qty * price : null;
 
-    return {
-      datetime: dt,
-      symbol,
-      side: sideLabel, // ✅ will show ADD/EXIT/SELL_FIRST too
-      market,
-      segment,
-      qty,
-      price,
-      additional_tax: addTax,
-      investment: inv,
-      notes: a.notes || "",
-    };
-  });
+      return {
+        datetime: dt,
+        symbol,
+        side: sideLabel, // ✅ will show ADD/EXIT/SELL_FIRST too
+        market,
+        segment,
+        qty,
+        price,
+        additional_tax: addTax,
+        investment: inv,
+        notes: a.notes || "",
+      };
+    });
 
-  // sort latest first
-  rows.sort((x, y) => String(y.datetime || "").localeCompare(String(x.datetime || "")));
+    // sort latest first
+    rows.sort((x, y) => String(y.datetime || "").localeCompare(String(x.datetime || "")));
 
-  // date filter
-  return applyLedgerDateFilter(rows);
-}, [activity, startDate, endDate]);
+    // date filter
+    return applyLedgerDateFilter(rows);
+  }, [activity, startDate, endDate]);
 
 
   // -------------------- What to render --------------------
@@ -448,28 +485,28 @@ const allHistoryLedgerRows = useMemo(() => {
       const rows =
         displayHistory && displayHistory.length
           ? displayHistory.map((r) => {
-              const dt = r.datetime || "";
-              const sym = normSym(r.symbol || "—");
-              const side = String(r.side || "—").toUpperCase();
-              const market = r.market || "—";
-              const seg = r.segment || "—";
-              const qty = asNum(r.qty) ?? "";
-              const price = asNum(r.price);
-              const tax = asNum(r.additional_tax);
-              const inv = asNum(r.investment);
+            const dt = r.datetime || "";
+            const sym = normSym(r.symbol || "—");
+            const side = String(r.side || "—").toUpperCase();
+            const market = r.market || "—";
+            const seg = r.segment || "—";
+            const qty = asNum(r.qty) ?? "";
+            const price = asNum(r.price);
+            const tax = asNum(r.additional_tax);
+            const inv = asNum(r.investment);
 
-              return [
-                dt,
-                sym,
-                side,
-                market,
-                seg,
-                qty,
-                price !== null ? price.toFixed(2) : "",
-                tax !== null ? tax.toFixed(2) : "",
-                inv !== null ? inv.toFixed(2) : "",
-              ];
-            })
+            return [
+              dt,
+              sym,
+              side,
+              market,
+              seg,
+              qty,
+              price !== null ? price.toFixed(2) : "",
+              tax !== null ? tax.toFixed(2) : "",
+              inv !== null ? inv.toFixed(2) : "",
+            ];
+          })
           : [];
 
       const thead =
@@ -482,13 +519,13 @@ const allHistoryLedgerRows = useMemo(() => {
       const tbody =
         rows.length > 0
           ? rows
-              .map(
-                (r) =>
-                  "<tr>" +
-                  r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
-                  "</tr>"
-              )
-              .join("")
+            .map(
+              (r) =>
+                "<tr>" +
+                r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
+                "</tr>"
+            )
+            .join("")
           : "";
 
       return `<!DOCTYPE html>
@@ -539,28 +576,28 @@ const allHistoryLedgerRows = useMemo(() => {
     const rows =
       displayHistory && displayHistory.length
         ? displayHistory.map((t) => {
-            const symbolUpper = normSym(t.symbol || "—");
-            const rowDate = pickRowDate(t) || "";
-            const buyQty = asNum(t.buy_qty) ?? "";
-            const buyPrice = asNum(t.buy_price);
-            const sellQty = asNum(t.sell_qty) ?? "";
-            const sellAvg = asNum(t.sell_avg_price);
-            const invested = asNum(t.invested_value);
-            const pnl = asNum(t.pnl);
+          const symbolUpper = normSym(t.symbol || "—");
+          const rowDate = pickRowDate(t) || "";
+          const buyQty = asNum(t.buy_qty) ?? "";
+          const buyPrice = asNum(t.buy_price);
+          const sellQty = asNum(t.sell_qty) ?? "";
+          const sellAvg = asNum(t.sell_avg_price);
+          const invested = asNum(t.invested_value);
+          const pnl = asNum(t.pnl);
 
-            return [
-              symbolUpper,
-              rowDate,
-              buyQty,
-              dateOnly(t.buy_date),
-              buyPrice !== null ? buyPrice.toFixed(2) : "",
-              sellQty,
-              sellAvg !== null ? sellAvg.toFixed(2) : "",
-              dateOnly(t.sell_date),
-              invested !== null ? invested.toFixed(2) : "",
-              pnl !== null ? pnl.toFixed(2) : "",
-            ];
-          })
+          return [
+            symbolUpper,
+            rowDate,
+            buyQty,
+            dateOnly(t.buy_date),
+            buyPrice !== null ? buyPrice.toFixed(2) : "",
+            sellQty,
+            sellAvg !== null ? sellAvg.toFixed(2) : "",
+            dateOnly(t.sell_date),
+            invested !== null ? invested.toFixed(2) : "",
+            pnl !== null ? pnl.toFixed(2) : "",
+          ];
+        })
         : [];
 
     const thead =
@@ -573,13 +610,13 @@ const allHistoryLedgerRows = useMemo(() => {
     const tbody =
       rows.length > 0
         ? rows
-            .map(
-              (r) =>
-                "<tr>" +
-                r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
-                "</tr>"
-            )
-            .join("")
+          .map(
+            (r) =>
+              "<tr>" +
+              r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
+              "</tr>"
+          )
+          .join("")
         : "";
 
     return `<!DOCTYPE html>
@@ -636,7 +673,7 @@ const allHistoryLedgerRows = useMemo(() => {
   const goNotes = (s) =>
     navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`);
 
- const showLoading = loading || (tab === "all" && loadingActivity);
+  const showLoading = loading || (tab === "all" && loadingActivity);
 
 
   return (
@@ -689,22 +726,20 @@ const allHistoryLedgerRows = useMemo(() => {
             <div className={`mt-4 inline-flex p-1 rounded-2xl ${glassClass}`}>
               <button
                 onClick={() => setTab("history")}
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  tab === "history"
-                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                    : `${textSecondaryClass} hover:opacity-90`
-                }`}
+                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "history"
+                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                  : `${textSecondaryClass} hover:opacity-90`
+                  }`}
               >
                 History
               </button>
 
               <button
                 onClick={() => setTab("all")}
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  tab === "all"
-                    ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
-                    : `${textSecondaryClass} hover:opacity-90`
-                }`}
+                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "all"
+                  ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
+                  : `${textSecondaryClass} hover:opacity-90`
+                  }`}
               >
                 All History
               </button>
@@ -756,7 +791,18 @@ const allHistoryLedgerRows = useMemo(() => {
         ) : tab === "all" ? (
           // ✅ NEW: All History ledger view (only requested columns)
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
-            <div className="overflow-x-auto">
+            <div
+              ref={xScrollRef}
+              className="w-full max-w-full overflow-x-auto hide-scrollbar touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing"
+              onWheel={handleHorizontalWheel}
+              onMouseDown={onDragStart}
+              onMouseMove={onDragMove}
+              onMouseUp={onDragEnd}
+              onMouseLeave={onDragEnd}
+            >
+
+
+
               <div className="min-w-[1200px]">
                 <div className="grid grid-cols-9 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
                   <div>Date &amp; Time</div>
@@ -770,27 +816,27 @@ const allHistoryLedgerRows = useMemo(() => {
                   <div>Investment</div>
                 </div>
 
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div className="max-h-[60vh] overflow-y-auto hide-scrollbar">
+
                   {displayHistory.map((r, idx) => {
                     const side = String(r.side || "").toUpperCase();
-const isBuy =
-  side.includes("BUY") ||
-  side === "ADD" ||
-  side.includes("COVER") ||
-  side.includes("LONG");
+                    const isBuy =
+                      side.includes("BUY") ||
+                      side === "ADD" ||
+                      side.includes("COVER") ||
+                      side.includes("LONG");
 
-const isSell =
-  side.includes("SELL") ||
-  side === "EXIT" ||
-  side.includes("SHORT");
+                    const isSell =
+                      side.includes("SELL") ||
+                      side === "EXIT" ||
+                      side.includes("SHORT");
 
 
                     return (
                       <div
                         key={`${ledgerKey(r)}-${idx}`}
-                        className={`grid grid-cols-9 items-center p-4 border-t ${
-                          isDark ? "border-white/10" : "border-white/40"
-                        }`}
+                        className={`grid grid-cols-9 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
+                          }`}
                       >
                         <div className="text-center text-sm">
                           <div className="font-medium">
@@ -822,8 +868,8 @@ const isSell =
                                   ? "bg-emerald-500/15 ring-emerald-400/20 text-emerald-200"
                                   : "bg-emerald-50 ring-emerald-200/70 text-emerald-700"
                                 : isDark
-                                ? "bg-rose-500/15 ring-rose-400/20 text-rose-200"
-                                : "bg-rose-50 ring-rose-200/70 text-rose-700",
+                                  ? "bg-rose-500/15 ring-rose-400/20 text-rose-200"
+                                  : "bg-rose-50 ring-rose-200/70 text-rose-700",
                             ].join(" ")}
                           >
                             {side || "—"}
@@ -867,7 +913,18 @@ const isSell =
         ) : (
           // Existing History view (unchanged)
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
-            <div className="overflow-x-auto">
+            <div
+              ref={xScrollRef}
+              className="w-full max-w-full overflow-x-auto hide-scrollbar touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing"
+              onWheel={handleHorizontalWheel}
+              onMouseDown={onDragStart}
+              onMouseMove={onDragMove}
+              onMouseUp={onDragEnd}
+              onMouseLeave={onDragEnd}
+            >
+
+
+
               <div className="min-w-[1100px]">
                 <div className="grid grid-cols-5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
                   <div>Symbol & Time</div>
@@ -877,7 +934,8 @@ const isSell =
                   <div>Sell Details</div>
                 </div>
 
-                <div className="max-h-[60vh] overflow-y-auto">
+                <div className="max-h-[60vh] overflow-y-auto hide-scrollbar">
+
                   {displayHistory.map((t, idx) => {
                     const buyQty = asNum(t.buy_qty) ?? 0;
                     const pnlNum = asNum(t.pnl) ?? 0;
@@ -891,9 +949,8 @@ const isSell =
                     return (
                       <div
                         key={`${dedupeKey(t)}-${idx}`}
-                        className={`grid grid-cols-5 items-center p-4 border-t ${
-                          isDark ? "border-white/10" : "border-white/40"
-                        }`}
+                        className={`grid grid-cols-5 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
+                          }`}
                       >
                         <div className="flex flex-col items-center text-center">
                           <div className="inline-flex items-center justify-center gap-2">
@@ -949,12 +1006,12 @@ const isSell =
                                   ? "bg-emerald-500/15 ring-emerald-400/20"
                                   : "bg-emerald-50 ring-emerald-200/70"
                                 : pnlNum < 0
-                                ? isDark
-                                  ? "bg-rose-500/15 ring-rose-400/20"
-                                  : "bg-rose-50 ring-rose-200/70"
-                                : isDark
-                                ? "bg-white/8 ring-white/10"
-                                : "bg-slate-100/80 ring-slate-200/70",
+                                  ? isDark
+                                    ? "bg-rose-500/15 ring-rose-400/20"
+                                    : "bg-rose-50 ring-rose-200/70"
+                                  : isDark
+                                    ? "bg-white/8 ring-white/10"
+                                    : "bg-slate-100/80 ring-slate-200/70",
                             ].join(" ")}
                           >
                             {pnlNum > 0 ? (
@@ -988,12 +1045,12 @@ const isSell =
                                     ? "text-emerald-300"
                                     : "text-emerald-600"
                                   : pnlNum < 0
-                                  ? isDark
-                                    ? "text-rose-300"
-                                    : "text-rose-600"
-                                  : isDark
-                                  ? "text-slate-200/70"
-                                  : "text-slate-600",
+                                    ? isDark
+                                      ? "text-rose-300"
+                                      : "text-rose-600"
+                                    : isDark
+                                      ? "text-slate-200/70"
+                                      : "text-slate-600",
                               ].join(" ")}
                             >
                               {fmtMoney(pnlNum)}
