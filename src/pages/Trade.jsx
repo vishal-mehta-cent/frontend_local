@@ -787,10 +787,7 @@ export default function Trade({ username }) {
                             <button
                               title="Open chart"
                               onClick={(e) => openChart(e, sym)}
-                              className={`p-2 rounded-xl transition-all shadow-lg ${isDark
-                                ? "bg-white/10 hover:bg-white/15 border border-white/10"
-                                : "bg-white/70 hover:bg-white border border-white/40"
-                                }`}
+                              
                             >
                               <LineChart
                                 className={`w-4 h-4 ${isDark ? "text-cyan-300" : "text-blue-700"}`}
