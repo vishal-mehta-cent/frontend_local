@@ -125,6 +125,20 @@ export default function ScriptDetailsModal({
 
     return data;
   };
+  const handleBuyClick = () => {
+    onClose && onClose();
+
+    setTimeout(() => {
+      navigate(`/buy/${encodeURIComponent(sym)}`, {
+        state: {
+          exchange: "NSE",
+          segment: "intraday",
+          orderMode: "MARKET",
+          price: quote?.price ?? "",
+        },
+      });
+    }, 0);
+  };
 
 
   const handleSellClick = async () => {
@@ -208,13 +222,7 @@ export default function ScriptDetailsModal({
         <div className="relative z-10 p-6 border-b border-white/10">
           <div className="flex justify-between items-start">
             <div>
-              <h2
-  className={`text-2xl font-bold ${
-    isDark
-      ? "bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent"
-      : "bg-gradient-to-r from-blue-700 to-cyan-700 bg-clip-text text-transparent"
-  }`}
->
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
                 {sym}
               </h2>
               <p className={`text-sm ${textSecondaryClass} mt-1`}>Stock Details</p>
@@ -270,7 +278,7 @@ export default function ScriptDetailsModal({
             </button>
 
             <button
-              onClick={onBuy}
+              onClick={handleBuyClick}
               className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-3 rounded-xl font-semibold shadow-lg hover:shadow-green-500/50 transition-all hover:scale-105"
             >
               Buy
