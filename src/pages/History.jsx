@@ -800,7 +800,7 @@ export default function History({ username }) {
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
             <div
               ref={xScrollRef}
-              className="w-full max-w-full overflow-x-auto hide-scrollbar touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing"
+              className="w-full max-w-full overflow-x-auto nc-scrollbar touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing"
               onWheel={handleHorizontalWheel}
               onMouseDown={onDragStart}
               onMouseMove={onDragMove}
@@ -823,7 +823,7 @@ export default function History({ username }) {
                   <div>Investment</div>
                 </div>
 
-                <div className="max-h-[60vh] overflow-y-auto hide-scrollbar">
+                <div className="max-h-[60vh] overflow-y-auto nc-scrollbar nc-scrollbar-overlay pr-0">
 
                   {displayHistory.map((r, idx) => {
                     const side = String(r.side || "").toUpperCase();
@@ -922,7 +922,7 @@ export default function History({ username }) {
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
             <div
               ref={xScrollRef}
-              className="w-full max-w-full overflow-x-auto hide-scrollbar touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing"
+              className="w-full max-w-full overflow-x-auto nc-scrollbar touch-pan-x overscroll-x-contain cursor-grab active:cursor-grabbing"
               onWheel={handleHorizontalWheel}
               onMouseDown={onDragStart}
               onMouseMove={onDragMove}
@@ -941,7 +941,7 @@ export default function History({ username }) {
                   <div>Sell Details</div>
                 </div>
 
-                <div className="max-h-[60vh] overflow-y-auto hide-scrollbar">
+                <div className="max-h-[60vh] overflow-y-auto nc-scrollbar nc-scrollbar-overlay pr-0">
 
                   {displayHistory.map((t, idx) => {
                     const buyQty = asNum(t.buy_qty) ?? 0;
