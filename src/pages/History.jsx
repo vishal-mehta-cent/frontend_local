@@ -13,7 +13,8 @@ import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
 import BackButton from "../components/BackButton";
 import HeaderActions from "../components/HeaderActions";
-import { formatToIST } from "../utils/time";
+import { formatToIST_YMDHMS } from "../utils/time";
+
 
 
 const API =
@@ -491,7 +492,7 @@ export default function History({ username }) {
       const rows =
         displayHistory && displayHistory.length
           ? displayHistory.map((r) => {
-            const dt = r.datetime || "";
+            const dt = formatToIST_YMDHMS(r.datetime);
             const sym = normSym(r.symbol || "—");
             const side = String(r.side || "—").toUpperCase();
             const market = r.market || "—";
@@ -846,7 +847,7 @@ export default function History({ username }) {
                       >
                         <div className="text-center text-sm">
                           <div className="font-medium">
-                            {formatToIST(r.datetime)}
+                            {formatToIST_YMDHMS(r.datetime)}
                           </div>
                         </div>
 
@@ -975,7 +976,7 @@ export default function History({ username }) {
                             </button>
                           </div>
                           <span className={`text-xs ${textSecondaryClass} mt-1`}>
-                            {formatToIST(t.time || t.datetime)}
+                            {formatToIST_YMDHMS(t.time || t.datetime)}
                           </span>
                         </div>
 
