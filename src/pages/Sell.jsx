@@ -87,7 +87,8 @@ export default function Sell() {
   const isPureModify = isPositionModify && !isAdd && !isExit;
 
   // ✅ NOW it’s safe
-  const allowShort = Boolean(!isExit && confirmedShort && !prefill.skipSellFirstCheck);
+  const isAddToExistingShort = Boolean(prefill?.fromAdd && prefill?.fromPosition && prefill?.short_first);
+  const allowShort = Boolean(!isExit && (isAddToExistingShort || (confirmedShort && !prefill.skipSellFirstCheck)));
 
 
 
