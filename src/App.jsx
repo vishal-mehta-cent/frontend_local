@@ -105,7 +105,14 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <ToastContainer position="top-center" autoClose={2000} />
+       <ToastContainer
+        position="top-center"
+        autoClose={2000}
+        theme={isDark ? "dark" : "light"}   // ✅ THIS makes toast auto dark/light
+        newestOnTop
+        pauseOnHover
+        closeOnClick
+      />
 
       <AnimatedRoutes
         username={username}
