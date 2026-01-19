@@ -1,9 +1,11 @@
 // ✅ frontend/src/pages/ChangeEmail.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
 import { useNavigate } from "react-router-dom";
 import BackButton from "../components/BackButton";
 import { useTheme } from "../context/ThemeContext";
 import { Mail, AlertCircle, CheckCircle, Home, Sun, Moon, Send, BadgeCheck } from "lucide-react";
+
 
 const API = (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
   .trim()
@@ -108,6 +110,12 @@ export default function ChangeEmail({ username }) {
       setVerifying(false);
     }
   };
+useEffect(() => {
+  try {
+    const u = JSON.parse(localStorage.getItem("nc_user") || "{}");
+    if (u?.email && !currentEmail) setCurrentEmail(u.email);
+  } catch {}
+}, []);
 
   return (
     <div className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}>
