@@ -214,8 +214,14 @@ export default function ScriptDetailsModal({
   const target = typeof document !== "undefined" ? document.body : null;
 
   const body = (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-      <div className={`relative ${glassClass} w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden ${textClass}`}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fadeIn overflow-y-auto">
+  <div className="min-h-[100dvh] w-full flex items-start justify-center p-4 sm:items-center sm:p-6">
+
+      <div
+  className={`relative ${glassClass} w-full max-w-lg rounded-3xl shadow-2xl ${textClass} max-h-[90dvh] overflow-y-auto overscroll-contain`}
+  style={{ WebkitOverflowScrolling: "touch" }}
+>
+
         {/* Decorative gradient background */}
         <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-3xl"></div>
 
@@ -363,6 +369,7 @@ export default function ScriptDetailsModal({
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 
