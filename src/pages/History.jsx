@@ -13,6 +13,8 @@ import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
 import BackButton from "../components/BackButton";
 import HeaderActions from "../components/HeaderActions";
+import { formatToIST } from "../utils/time";
+
 
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
@@ -156,6 +158,8 @@ export default function History({ username }) {
 
 
   // -------------------- Helpers --------------------
+
+
   const asNum = (v) => {
     if (v === null || v === undefined) return null;
     if (typeof v === "string" && v.trim() === "") return null;
@@ -264,6 +268,8 @@ export default function History({ username }) {
       return true;
     });
   };
+
+
 
   // -------------------- Filtered history (date range) --------------------
   const filteredHistory = useMemo(() => {
@@ -840,7 +846,7 @@ export default function History({ username }) {
                       >
                         <div className="text-center text-sm">
                           <div className="font-medium">
-                            {r.datetime || "—"}
+                            {formatToIST(r.datetime)}
                           </div>
                         </div>
 
@@ -969,7 +975,7 @@ export default function History({ username }) {
                             </button>
                           </div>
                           <span className={`text-xs ${textSecondaryClass} mt-1`}>
-                            {t.time || t.datetime || ""}
+                            {formatToIST(t.time || t.datetime)}
                           </span>
                         </div>
 
