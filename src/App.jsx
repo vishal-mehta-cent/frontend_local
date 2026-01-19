@@ -317,7 +317,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
         <Route
           path="/settings/change-password"
-          element={username ? <PasswordChange /> : <Navigate to="/" replace />}
+          element={username ? <PasswordChange username={username} /> : <Navigate to="/" replace />}
+
         />
 
         <Route path="/profile/details" element={<ProfileDetail />} />
