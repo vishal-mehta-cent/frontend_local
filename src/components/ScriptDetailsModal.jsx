@@ -215,7 +215,8 @@ export default function ScriptDetailsModal({
 
   const body = (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-fadeIn overflow-y-auto">
-  <div className="min-h-[100dvh] w-full flex items-start justify-center p-4 sm:items-center sm:p-6">
+  <div className="min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6">
+
 
       <div
   className={`relative ${glassClass} w-full max-w-lg rounded-3xl shadow-2xl ${textClass} max-h-[90dvh] overflow-y-auto overscroll-contain`}
