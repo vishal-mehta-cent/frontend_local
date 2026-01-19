@@ -250,15 +250,75 @@ const [fpMsgType, setFpMsgType] = useState(""); // "success" | "error"
 
       const data = await res.json();
 
-      if (data.success) {
-        localStorage.setItem("user_id", data.username || username);
-        localStorage.setItem("session_id", data.session_id || "");
-        localStorage.setItem("email_id", data.email || "");
-        localStorage.setItem("username", data.username || username);
-        onLoginSuccess(data.username || username);
-      } else {
-        showError(data.message || "Invalid credentials");
-      }
+    if (data.success) {
+  const u = (data.username || username || "").trim();
+
+  localStorage.setItem("user_id", u);
+  localStorage.setItem("username", u);
+  localStorage.setItem("session_id", data.session_id || "");
+
+  // ✅ store email/phone in consistent keys (not only email_id)
+  localStorage.setItem("email", data.email || "");
+  localStorage.setItem("phone", data.phone || "");
+
+  // keep your old key too (optional)
+  localStorage.setItem("email_id", data.email || "");
+
+  // ✅ also fetch full profile (so allowlist users also get email/phone if stored)
+  try {
+    const pr = await fetch(`${backendBaseUrl}/users/${encodeURIComponent(u)}`);
+    if (pr.ok) {
+      const p = await pr.json();
+
+      const fullName =
+        (p.full_name || "").trim() ||
+        [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+
+      const ncUser = {
+        username: u,
+        email: (p.email || data.email || "").trim(),
+        phone: (p.phone || data.phone || "").trim(),
+        full_name: fullName,
+        first_name: (p.first_name || "").trim(),
+        last_name: (p.last_name || "").trim(),
+        city: (p.city || "").trim(),
+        created_at: (p.created_at || "").trim(),
+      };
+
+      localStorage.setItem("nc_user", JSON.stringify(ncUser));
+
+      // also mirror common keys for pages that read them
+      localStorage.setItem("full_name", ncUser.full_name);
+      localStorage.setItem("created_at", ncUser.created_at);
+      localStorage.setItem("email", ncUser.email);
+      localStorage.setItem("phone", ncUser.phone);
+    } else {
+      // fallback nc_user from login response only
+      localStorage.setItem(
+        "nc_user",
+        JSON.stringify({
+          username: u,
+          email: data.email || "",
+          phone: data.phone || "",
+        })
+      );
+    }
+  } catch {
+    localStorage.setItem(
+      "nc_user",
+      JSON.stringify({
+        username: u,
+        email: data.email || "",
+        phone: data.phone || "",
+      })
+    );
+  }
+
+  onLoginSuccess(u);
+} else {
+  showError(data.message || "Invalid credentials");
+}
+
     } catch (err) {
       showError("Cannot connect to server.");
     } finally {
