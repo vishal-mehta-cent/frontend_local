@@ -610,18 +610,45 @@ export default function Sell() {
     setErrorMsg("");
 
     try {
+      // ✅ Anchor datetime MUST be present for modify to work correctly
+      const anchor =
+        prefill?.positionDatetime ||
+        prefill?.position_datetime ||
+        prefill?.datetime ||
+        "";
+
+      if (!anchor) {
+        throw new Error(
+          "Missing position datetime for Modify. Please open Modify from the Positions card."
+        );
+      }
+
+      // ✅ Build payload WITHOUT sending nulls that cause FastAPI 422
       const payload = {
         username,
-        script: symbol,
-        new_qty: isFNO ? Number(lotQty) : Number(qty),
-        stoploss: stoploss ? Number(stoploss) : null,
-        target: target ? Number(target) : null,
-        price_type: orderMode,
-        limit_price: orderMode === "LIMIT" ? Number(price) : null,
-        // ✅ NEW
-        segment: (segment || prefill.segment || "intraday").toLowerCase(),
-        short_first: Boolean(prefill.short_first),
-        position_datetime: prefill.positionDatetime || prefill.position_datetime || null,
+        script: String(symbol || "").toUpperCase(),
+
+        // Only include new_qty for FNO; otherwise OMIT the key
+        ...(isFNO ? { new_qty: Number(lotQty) } : {}),
+
+        // stoploss/target: send only if user typed something, else omit
+        ...(stoploss !== "" && stoploss !== null && stoploss !== undefined
+          ? { stoploss: Number(stoploss) }
+          : {}),
+        ...(target !== "" && target !== null && target !== undefined
+          ? { target: Number(target) }
+          : {}),
+
+        // ✅ keep these if your backend model accepts them (safe if extra="ignore")
+        ...(orderMode ? { price_type: orderMode } : {}),
+        ...(orderMode === "LIMIT" && price !== "" && price !== null && price !== undefined
+          ? { limit_price: Number(price) }
+          : {}),
+
+        // ✅ segment + short_first + anchor
+        segment: String(segment || prefill?.segment || "intraday").toLowerCase(),
+        short_first: Boolean(prefill?.short_first),
+        position_datetime: anchor,
       };
 
       const res = await fetch(`${API}/orders/positions/modify`, {
@@ -630,40 +657,44 @@ export default function Sell() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      // ✅ Parse response safely (FastAPI sometimes returns non-JSON on error)
+      let data = {};
+      const text = await res.text();
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
+      }
+
       if (!res.ok) {
         const msg =
           typeof data?.detail === "string"
             ? data.detail
-            : data?.detail?.message || data?.message || "Error modifying position";
+            : data?.detail?.message ||
+            data?.message ||
+            `Error modifying position (${res.status})`;
         throw new Error(msg);
       }
 
       setSuccessText("Position modified successfully!");
       setSuccessModal(true);
 
-      // ✅ MATCH Buy.jsx: redirect based on portfolio origin
-      const cameFromPortfolio =
-        prefill.fromAdd === true && prefill.fromPosition === true;
-
+      // ✅ redirect back to positions after success
       setTimeout(() => {
         setSuccessModal(false);
-        goBack(true); // position modify => positions
+        goBack(true);
       }, 1500);
-
     } catch (err) {
       const msg =
-        typeof err.message === "string"
+        typeof err?.message === "string"
           ? err.message
-          : err?.message?.message ||
-          err?.detail?.message ||
-          "Server error";
-
+          : err?.detail?.message || "Server error";
       setErrorMsg(msg);
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const priceDirection =
     livePrice && prevPrice
