@@ -501,18 +501,45 @@ export default function Buy() {
     setErrorMsg("");
 
     try {
+      // ✅ Anchor datetime MUST be present for modify to work correctly
+      const anchor =
+        prefill?.positionDatetime ||
+        prefill?.position_datetime ||
+        prefill?.datetime ||
+        "";
+
+      if (!anchor) {
+        throw new Error(
+          "Missing position datetime for Modify. Please open Modify from the Positions card."
+        );
+      }
+
+      // ✅ Build payload WITHOUT sending nulls (avoids FastAPI 422)
       const payload = {
         username,
-        script: symbol,
-        new_qty: isFNO ? Number(lotQty) : Number(qty),
-        stoploss: stoploss ? Number(stoploss) : null,
-        target: target ? Number(target) : null,
-        price_type: orderMode,
-        limit_price: orderMode === "LIMIT" ? Number(price) : null,
-        // ✅ NEW
-        segment: (segment || prefill.segment || "intraday").toLowerCase(),
-        short_first: Boolean(prefill.short_first),
-        position_datetime: prefill.positionDatetime || prefill.position_datetime || null,
+        script: String(symbol || "").toUpperCase(),
+
+        // Only include new_qty for FNO; otherwise OMIT the key
+        ...(isFNO ? { new_qty: Number(lotQty) } : {}),
+
+        // stoploss/target: send only if user typed something, else omit
+        ...(stoploss !== "" && stoploss !== null && stoploss !== undefined
+          ? { stoploss: Number(stoploss) }
+          : {}),
+        ...(target !== "" && target !== null && target !== undefined
+          ? { target: Number(target) }
+          : {}),
+
+        // keep if backend accepts; safe if extra="ignore"
+        ...(orderMode ? { price_type: orderMode } : {}),
+        ...(orderMode === "LIMIT" && price !== "" && price !== null && price !== undefined
+          ? { limit_price: Number(price) }
+          : {}),
+
+        // ✅ segment + short_first + anchor
+        segment: String(segment || prefill?.segment || "intraday").toLowerCase(),
+        short_first: Boolean(prefill?.short_first),
+        position_datetime: anchor,
       };
 
       const res = await fetch(`${API}/orders/positions/modify`, {
@@ -521,14 +548,22 @@ export default function Buy() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      // ✅ Parse response safely (sometimes error bodies are not JSON)
+      let data = {};
+      const text = await res.text();
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
+      }
+
       if (!res.ok) {
         const msg =
           typeof data?.detail === "string"
             ? data.detail
             : data?.detail?.message ||
             data?.message ||
-            "Error modifying position";
+            `Error modifying position (${res.status})`;
         throw new Error(msg);
       }
 
@@ -544,25 +579,20 @@ export default function Buy() {
           nav("/orders", { state: { refresh: true, tab: "positions" } });
           return;
         }
-
-
         // fallback
         nav("/orders", { state: { refresh: true, tab: "positions" } });
       }, 1500);
-
     } catch (err) {
       const msg =
-        typeof err.message === "string"
+        typeof err?.message === "string"
           ? err.message
-          : err?.message?.message ||
-          err?.detail?.message ||
-          "Server error";
-
+          : err?.detail?.message || "Server error";
       setErrorMsg(msg);
     } finally {
       setSubmitting(false);
     }
   };
+
 
   const handlePriceChange = (e) => {
     setPrice(e.target.value);
