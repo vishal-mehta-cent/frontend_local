@@ -59,6 +59,8 @@ export default function Trade({ username }) {
   const sellPreviewGuardRef = useRef({});
   const nav = useNavigate();
   const location = useLocation();
+  const searchBoxRef = useRef(null);
+
 
   // ✅ define who BEFORE using it anywhere
   const who = username || localStorage.getItem("username") || "";
@@ -147,6 +149,21 @@ export default function Trade({ username }) {
       })
       .catch(() => setWhatsappList([]));
   }, []);
+
+  useEffect(() => {
+    function onDocMouseDown(e) {
+      // if click is outside search area -> close dropdown
+      if (searchBoxRef.current && !searchBoxRef.current.contains(e.target)) {
+        setSuggestions([]);
+        // optional: also clear query
+        // setQuery("");
+      }
+    }
+
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, []);
+
 
   function preloadScripts() {
     fetch(`${API}/search/scripts`)
@@ -761,7 +778,8 @@ export default function Trade({ username }) {
 
           {/* Search Bar (shared) */}
           <div className="flex justify-left">
-            <div className="relative w-full max-w-4xl">
+            <div ref={searchBoxRef} className="relative w-full max-w-4xl">
+
               <Search
                 className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 z-10 ${isDark ? "text-slate-200" : "text-slate-500"
                   }`}
@@ -1135,7 +1153,6 @@ export default function Trade({ username }) {
           </div>
         </div>
       )}
-
     </div>
   );
 }
