@@ -43,12 +43,15 @@ import Payments from "./pages/Payments.jsx";
 import LiveChart from "./pages/LiveChart";
 import Whatsapp from "./pages/Whatsapp";
 
+// ✅ ADD: Chart-style popup modal + theme
+import AlertModal from "./components/AlertModal";
+import { useTheme } from "./context/ThemeContext";
+
 // ✅ Backend API base
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
-
 
 /** Auth screen */
 function AuthScreen({ onLoginSuccess }) {
@@ -78,19 +81,17 @@ export default function App() {
   }, [username]);
 
   const handleLoginSuccess = (user) => {
-  setUsername(user);
+    setUsername(user);
 
-  const redirectTo = localStorage.getItem("post_login_redirect");
-  if (redirectTo) {
-    localStorage.removeItem("post_login_redirect");
-    window.location.href = redirectTo;
-    return;
-  }
+    const redirectTo = localStorage.getItem("post_login_redirect");
+    if (redirectTo) {
+      localStorage.removeItem("post_login_redirect");
+      window.location.href = redirectTo;
+      return;
+    }
 
-  window.location.href = "/menu";
-};
-
-
+    window.location.href = "/menu";
+  };
 
   const handleLogout = () => {
     // Don't nuke *everything* (theme/UI prefs etc.) — just auth/session keys
@@ -104,7 +105,6 @@ export default function App() {
 
   return (
     <BrowserRouter>
-
       <ToastContainer position="top-center" autoClose={2000} />
 
       <AnimatedRoutes
@@ -119,6 +119,19 @@ export default function App() {
 function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isDark } = useTheme();
+
+  // ✅ Chart-style popup state (replaces browser alert)
+  const [popup, setPopup] = useState({ open: false, title: "", message: "" });
+  const [pendingLogout, setPendingLogout] = useState(false);
+
+  const closePopup = () => {
+    setPopup((p) => ({ ...p, open: false }));
+    if (pendingLogout) {
+      setPendingLogout(false);
+      onLogout(); // ✅ single source of truth
+    }
+  };
 
   // -------------------------------------------------------
   // Listen to custom open-script-details event
@@ -138,7 +151,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   // 🔥 ZERODHA-STYLE SINGLE SESSION WATCHER
   // -------------------------------------------------------
   useEffect(() => {
-    const user = localStorage.getItem("user_id") || localStorage.getItem("username");
+    const user =
+      localStorage.getItem("user_id") || localStorage.getItem("username");
     const session = localStorage.getItem("session_id");
 
     if (!user || !session) return;
@@ -159,11 +173,15 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           active = false;
           clearInterval(interval);
 
-          alert(
-            "You were logged out because you logged in from another device."
-          );
+          // ✅ REPLACE browser alert with Chart-style popup
+          setPendingLogout(true);
+          setPopup({
+            open: true,
+            title: "Logged out",
+            message: "You were logged out because you logged in from another device.",
+          });
 
-          onLogout(); // ✅ single source of truth
+          // ❌ do not call onLogout here; it will run when user clicks OK
         }
       } catch {
         clearInterval(interval); // silent stop on network fail
@@ -177,171 +195,145 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   }, [username, onLogout]);
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <Routes location={location} key={location.pathname}>
+    <>
+      <AnimatePresence mode="wait" initial={false}>
+        <Routes location={location} key={location.pathname}>
+          {/* 🌐 LANDING PAGE */}
+          <Route
+            path="/"
+            element={username ? <Navigate to="/menu" replace /> : <Landing />}
+          />
 
-        {/* 🌐 LANDING PAGE */}
-        <Route
-          path="/"
-          element={
-            username ? <Navigate to="/menu" replace /> : <Landing />
-          }
-        />
+          {/* 🔐 LOGIN PAGE */}
+          <Route
+            path="/login"
+            element={
+              username ? (
+                <Navigate to="/trade" replace />
+              ) : (
+                <AuthScreen onLoginSuccess={onLoginSuccess} />
+              )
+            }
+          />
 
-        {/* 🔐 LOGIN PAGE */}
-        <Route
-          path="/login"
-          element={
-            username ? (
-              <Navigate to="/trade" replace />
-            ) : (
-              <AuthScreen onLoginSuccess={onLoginSuccess} />
-            )
-          }
-        />
+          <Route
+            path="/menu"
+            element={username ? <Menu logout={onLogout} /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/menu"
-          element={
-            username ? <Menu logout={onLogout} /> : <Navigate to="/" replace />
-          }
-        />
+          <Route
+            path="/trade"
+            element={username ? <Trade username={username} /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/trade/:symbol"
+            element={
+              username ? (
+                <ScriptDetail username={username} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
 
-        <Route
-          path="/trade"
-          element={
-            username ? <Trade username={username} /> : <Navigate to="/" replace />
-          }
-        />
-        <Route
-          path="/trade/:symbol"
-          element={
-            username ? (
-              <ScriptDetail username={username} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+          <Route
+            path="/orders"
+            element={username ? <Orders username={username} /> : <Navigate to="/" replace />}
+          />
+          <Route path="/buy/:symbol" element={username ? <Buy /> : <Navigate to="/" replace />} />
+          <Route path="/sell/:symbol" element={username ? <Sell /> : <Navigate to="/" replace />} />
+          <Route
+            path="/trade-success"
+            element={username ? <TradeSuccess /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/orders"
-          element={
-            username ? <Orders username={username} /> : <Navigate to="/" replace />
-          }
-        />
-        <Route
-          path="/buy/:symbol"
-          element={username ? <Buy /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/sell/:symbol"
-          element={username ? <Sell /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/trade-success"
-          element={username ? <TradeSuccess /> : <Navigate to="/" replace />}
-        />
+          <Route
+            path="/chart/:symbol"
+            element={username ? <ChartPage /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/alert/:symbol"
+            element={username ? <SetAlert /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/notes/:symbol"
+            element={username ? <Notes /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/chart/:symbol"
-          element={username ? <ChartPage /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/alert/:symbol"
-          element={username ? <SetAlert /> : <Navigate to="/" replace />}
-        />
-        <Route
-          path="/notes/:symbol"
-          element={username ? <Notes /> : <Navigate to="/" replace />}
-        />
+          <Route
+            path="/portfolio"
+            element={username ? <Portfolio username={username} /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/portfolio"
-          element={
-            username ? (
-              <Portfolio username={username} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+          <Route
+            path="/recommendations"
+            element={username ? <Recommendation /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/recommendations"
-          element={username ? <Recommendation /> : <Navigate to="/" replace />}
-        />
+          <Route path="/insight" element={username ? <Insight /> : <Navigate to="/" replace />} />
 
-        <Route
-          path="/insight"
-          element={username ? <Insight /> : <Navigate to="/" replace />}
-        />
+          <Route
+            path="/ipo-tracker"
+            element={username ? <IpoTracker /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/ipo-tracker"
-          element={username ? <IpoTracker /> : <Navigate to="/" replace />}
-        />
+          <Route path="/feedback" element={<Feedback username={username} />} />
 
-        <Route
-          path="/feedback"
-          element={<Feedback username={username} />}
-        />
+          <Route
+            path="/profile"
+            element={
+              username ? (
+                <Profile username={username} logout={onLogout} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
 
-        <Route
-          path="/profile"
-          element={
-            username ? (
-              <Profile username={username} logout={onLogout} />
-            ) : (
-              <Navigate to="/" replace />
-            )
-          }
-        />
+          <Route path="/profile/funds" element={<Funds username={username} />} />
 
-        <Route path="/profile/funds" element={<Funds username={username} />} />
+          <Route path="/payments" element={<Payments username={username} />} />
 
-        <Route path="/payments" element={<Payments username={username} />} />
+          <Route
+            path="/history"
+            element={username ? <History username={username} /> : <Navigate to="/" replace />}
+          />
 
+          <Route
+            path="/settings"
+            element={username ? <Settings /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/history"
-          element={
-            username ? <History username={username} /> : <Navigate to="/" replace />
-          }
-        />
+          <Route
+            path="/settings/change-password"
+            element={username ? <PasswordChange username={username} /> : <Navigate to="/" replace />}
+          />
 
-        <Route
-          path="/settings"
-          element={username ? <Settings /> : <Navigate to="/" replace />}
-        />
+          <Route path="/profile/details" element={<ProfileDetail />} />
 
-        <Route
-          path="/settings/change-password"
-          element={username ? <PasswordChange username={username} /> : <Navigate to="/" replace />}
+          <Route
+            path="/settings/change-email"
+            element={username ? <EmailChange /> : <Navigate to="/" replace />}
+          />
 
-        />
+          <Route path="/modify/:id" element={<ModifyOrderPage />} />
 
-        <Route path="/profile/details" element={<ProfileDetail />} />
+          <Route path="/live" element={username ? <LiveChart /> : <Navigate to="/" replace />} />
 
-        <Route
-          path="/settings/change-email"
-          element={username ? <EmailChange /> : <Navigate to="/" replace />}
-        />
+          <Route path="/whatsapp" element={username ? <Whatsapp /> : <Navigate to="/" replace />} />
 
-        <Route path="/modify/:id" element={<ModifyOrderPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AnimatePresence>
 
-        <Route
-          path="/live"
-          element={username ? <LiveChart /> : <Navigate to="/" replace />}
-        />
-
-        <Route
-          path="/whatsapp"
-          element={username ? <Whatsapp /> : <Navigate to="/" replace />}
-        />
-
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AnimatePresence>
+      {/* ✅ Chart-style popup modal */}
+      <AlertModal
+        open={popup.open}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        isDark={isDark}
+      />
+    </>
   );
 }
