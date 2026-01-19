@@ -13,6 +13,10 @@ import { AnimatePresence } from "framer-motion";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+// ✅ add
+import AlertModal from "./components/AlertModal";
+import { useTheme } from "./context/ThemeContext";
+
 // Pages
 import Landing from "./pages/Landing";
 import LoginRegister from "./pages/LoginRegister";
@@ -43,10 +47,6 @@ import Payments from "./pages/Payments.jsx";
 import LiveChart from "./pages/LiveChart";
 import Whatsapp from "./pages/Whatsapp";
 
-// ✅ ADD: Chart-style popup modal + theme
-import AlertModal from "./components/AlertModal";
-import { useTheme } from "./context/ThemeContext";
-
 // ✅ Backend API base
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
@@ -65,6 +65,9 @@ function AuthScreen({ onLoginSuccess }) {
 }
 
 export default function App() {
+  // ✅ needed for Toast theme
+  const { isDark } = useTheme();
+
   const [username, setUsername] = useState(() =>
     localStorage.getItem("user_id") || localStorage.getItem("username")
   );
@@ -105,10 +108,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-       <ToastContainer
+      <ToastContainer
         position="top-center"
         autoClose={2000}
-        theme={isDark ? "dark" : "light"}   // ✅ THIS makes toast auto dark/light
+        theme={isDark ? "dark" : "light"} // ✅ dark/light toast
         newestOnTop
         pauseOnHover
         closeOnClick
@@ -136,7 +139,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
     setPopup((p) => ({ ...p, open: false }));
     if (pendingLogout) {
       setPendingLogout(false);
-      onLogout(); // ✅ single source of truth
+      onLogout(); // ✅ logout after OK
     }
   };
 
@@ -185,7 +188,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           setPopup({
             open: true,
             title: "Logged out",
-            message: "You were logged out because you logged in from another device.",
+            message:
+              "You were logged out because you logged in from another device.",
           });
 
           // ❌ do not call onLogout here; it will run when user clicks OK
@@ -225,12 +229,20 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route
             path="/menu"
-            element={username ? <Menu logout={onLogout} /> : <Navigate to="/" replace />}
+            element={
+              username ? <Menu logout={onLogout} /> : <Navigate to="/" replace />
+            }
           />
 
           <Route
             path="/trade"
-            element={username ? <Trade username={username} /> : <Navigate to="/" replace />}
+            element={
+              username ? (
+                <Trade username={username} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
           <Route
             path="/trade/:symbol"
@@ -245,10 +257,22 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route
             path="/orders"
-            element={username ? <Orders username={username} /> : <Navigate to="/" replace />}
+            element={
+              username ? (
+                <Orders username={username} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
-          <Route path="/buy/:symbol" element={username ? <Buy /> : <Navigate to="/" replace />} />
-          <Route path="/sell/:symbol" element={username ? <Sell /> : <Navigate to="/" replace />} />
+          <Route
+            path="/buy/:symbol"
+            element={username ? <Buy /> : <Navigate to="/" replace />}
+          />
+          <Route
+            path="/sell/:symbol"
+            element={username ? <Sell /> : <Navigate to="/" replace />}
+          />
           <Route
             path="/trade-success"
             element={username ? <TradeSuccess /> : <Navigate to="/" replace />}
@@ -269,15 +293,26 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route
             path="/portfolio"
-            element={username ? <Portfolio username={username} /> : <Navigate to="/" replace />}
+            element={
+              username ? (
+                <Portfolio username={username} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
 
           <Route
             path="/recommendations"
-            element={username ? <Recommendation /> : <Navigate to="/" replace />}
+            element={
+              username ? <Recommendation /> : <Navigate to="/" replace />
+            }
           />
 
-          <Route path="/insight" element={username ? <Insight /> : <Navigate to="/" replace />} />
+          <Route
+            path="/insight"
+            element={username ? <Insight /> : <Navigate to="/" replace />}
+          />
 
           <Route
             path="/ipo-tracker"
@@ -297,13 +332,18 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             }
           />
 
-          <Route path="/profile/funds" element={<Funds username={username} />} />
+          <Route
+            path="/profile/funds"
+            element={<Funds username={username} />}
+          />
 
           <Route path="/payments" element={<Payments username={username} />} />
 
           <Route
             path="/history"
-            element={username ? <History username={username} /> : <Navigate to="/" replace />}
+            element={
+              username ? <History username={username} /> : <Navigate to="/" replace />
+            }
           />
 
           <Route
@@ -313,7 +353,13 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route
             path="/settings/change-password"
-            element={username ? <PasswordChange username={username} /> : <Navigate to="/" replace />}
+            element={
+              username ? (
+                <PasswordChange username={username} />
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
           />
 
           <Route path="/profile/details" element={<ProfileDetail />} />
@@ -325,9 +371,15 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route path="/modify/:id" element={<ModifyOrderPage />} />
 
-          <Route path="/live" element={username ? <LiveChart /> : <Navigate to="/" replace />} />
+          <Route
+            path="/live"
+            element={username ? <LiveChart /> : <Navigate to="/" replace />}
+          />
 
-          <Route path="/whatsapp" element={username ? <Whatsapp /> : <Navigate to="/" replace />} />
+          <Route
+            path="/whatsapp"
+            element={username ? <Whatsapp /> : <Navigate to="/" replace />}
+          />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
