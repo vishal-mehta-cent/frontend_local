@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Activity,
   LineChart,
+  AlertCircle,
 } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
@@ -449,6 +450,26 @@ export default function Trade({ username }) {
     setSuggestions([]);
     nav(`/chart/${encodeURIComponent(s)}`);
   }
+  function openBuy(e, sym) {
+    e?.stopPropagation?.();
+    const s = String(sym || "").toUpperCase().trim();
+    if (!s) return;
+
+    setQuery("");
+    setSuggestions([]);
+    nav(`/buy/${encodeURIComponent(s)}`);
+  }
+
+  function openSell(e, sym) {
+    e?.stopPropagation?.();
+    const s = String(sym || "").toUpperCase().trim();
+    if (!s) return;
+
+    setQuery("");
+    setSuggestions([]);
+    // uses your existing SELL preview + confirmation flow
+    previewThenSell(s, 1, "intraday");
+  }
 
   function goDetail(sym) {
     const s = String(sym || "").trim();
@@ -783,17 +804,42 @@ export default function Trade({ username }) {
                           </div>
 
                           {/* Right: Chart icon */}
-                          <div className="shrink-0 self-center">
+                          {/* Right: Buy / Sell / Chart */}
+                          <div className="shrink-0 self-center flex items-center gap-2">
+                            <button
+                              title="Buy"
+                              onClick={(e) => openBuy(e, sym)}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold tracking-wide border transition-all ${isDark
+                                ? "bg-emerald-500/15 text-emerald-200 border-emerald-400/25 hover:bg-emerald-500/25"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                }`}
+                            >
+                              BUY
+                            </button>
+
+                            <button
+                              title="Sell"
+                              onClick={(e) => openSell(e, sym)}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold tracking-wide border transition-all ${isDark
+                                ? "bg-rose-500/15 text-rose-200 border-rose-400/25 hover:bg-rose-500/25"
+                                : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+                                }`}
+                            >
+                              SELL
+                            </button>
+
                             <button
                               title="Open chart"
                               onClick={(e) => openChart(e, sym)}
-                              
+                              className={`p-2 rounded-xl border transition-all ${isDark
+                                ? "border-white/10 hover:bg-white/10"
+                                : "border-white/40 hover:bg-white/80"
+                                }`}
                             >
-                              <LineChart
-                                className={`w-4 h-4 ${isDark ? "text-cyan-300" : "text-blue-700"}`}
-                              />
+                              <LineChart className={`w-4 h-4 ${isDark ? "text-cyan-300" : "text-blue-700"}`} />
                             </button>
                           </div>
+
                         </div>
                       </li>
 
@@ -1033,48 +1079,63 @@ export default function Trade({ username }) {
       />
 
 
-      {/* SELL CONFIRMATION MODAL */}
+      {/* SELL CONFIRMATION MODAL (Sell First style) */}
       {sellConfirmOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div
-            className={`${glassClass} p-8 rounded-3xl shadow-2xl text-center max-w-md w-full`}
+            className={`w-full max-w-md rounded-2xl border shadow-2xl ${isDark ? "bg-slate-900/90 border-white/10" : "bg-white/95 border-black/10"
+              }`}
           >
-            <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-amber-500/50">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            <p className={`mb-6 ${textClass} font-semibold text-lg`}>
-              {sellConfirmMsg ||
-                `You have 0 qty of ${sellSymbol}. Do you still want to sell first?`}
-            </p>
-            <div className="flex justify-center gap-4">
-              <button
-                className={`px-6 py-3 rounded-xl font-semibold transition-all shadow-lg ${isDark
-                  ? "bg-white/10 hover:bg-white/20 text-white"
-                  : "bg-slate-200 hover:bg-slate-300 text-slate-900"
-                  }`}
-                onClick={() => setSellConfirmOpen(false)}
-              >
-                NO
-              </button>
-              <button
-                className="px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-xl font-semibold hover:shadow-xl hover:shadow-rose-500/50 transition-all"
-                onClick={() => {
-                  setSellConfirmOpen(false);
-                  nav(`/sell/${sellSymbol}`, {
-                    state: {
-                      requestedQty: 1,
-                      allow_short: true,
-                      preview: sellPreviewData,
-                    },
-                  });
-                }}
-              >
-                YES
-              </button>
+            <div className="p-6 text-center">
+              {/* Icon */}
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-500/15">
+                <AlertCircle className="h-7 w-7 text-rose-400" />
+              </div>
+
+              {/* Title */}
+              <h3 className={`text-lg font-extrabold ${isDark ? "text-white" : "text-slate-900"}`}>
+                Sell First?
+              </h3>
+
+              {/* Message */}
+              <p className={`mt-2 text-sm ${isDark ? "text-white/70" : "text-slate-600"}`}>
+                {sellConfirmMsg ||
+                  `You didn't buy ${sellSymbol}. Do you still want to sell first?`}
+              </p>
+
+              {/* Buttons */}
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <button
+                  onClick={() => setSellConfirmOpen(false)}
+                  className={`px-5 py-2 rounded-xl font-semibold transition ${isDark
+                    ? "bg-white/10 text-white hover:bg-white/15"
+                    : "bg-slate-100 text-slate-800 hover:bg-slate-200"
+                    }`}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSellConfirmOpen(false);
+                    nav(`/sell/${sellSymbol}`, {
+                      state: {
+                        requestedQty: 1,
+                        allow_short: true,
+                        preview: sellPreviewData,
+                      },
+                    });
+                  }}
+                  className="px-5 py-2 rounded-xl font-semibold bg-rose-500 text-white hover:bg-rose-600 transition"
+                >
+                  Yes, Sell
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }
