@@ -1,7 +1,83 @@
 import React, { useState, useEffect } from "react";
 
 import BackButton from "../components/BackButton";
-import { Sun, Moon, MessageSquare, Mail, Send, User, Phone, FileText, MessageCircle, Sparkles, Shield } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  MessageSquare,
+  Mail,
+  Send,
+  User,
+  Phone,
+  FileText,
+  MessageCircle,
+  Sparkles,
+  Shield,
+} from "lucide-react";
+
+// ✅ Use env backend base (works on domain + local)
+const API = (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
+  .trim()
+  .replace(/\/+$/, "");
+
+// ✅ Modal popup like Chart.jsx (no browser alert)
+function AlertModal({ open, title, message, onClose, isDark }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
+      <div
+        className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
+          isDark ? "bg-[#0b1220] border border-white/10" : "bg-white border border-black/10"
+        }`}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div
+              className={`text-[17px] font-semibold tracking-tight ${
+                isDark ? "text-blue-300" : "text-blue-700"
+              }`}
+              style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+            >
+              {title || "Alert"}
+            </div>
+
+            <div
+              className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
+                isDark ? "text-slate-300" : "text-slate-600"
+              }`}
+              style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+            >
+              {message}
+            </div>
+          </div>
+
+          <button
+            onClick={onClose}
+            className={`w-9 h-9 rounded-xl grid place-items-center ${
+              isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+            } transition`}
+            title="Close"
+            type="button"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
+            type="button"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Feedback() {
   const [tab, setTab] = useState("feedback");
@@ -32,34 +108,49 @@ export default function Feedback() {
   const [contactMessage, setContactMessage] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-useEffect(() => {
-  try {
-    const u = JSON.parse(localStorage.getItem("nc_user") || "{}");
 
-    const name =
-      (u.full_name || "").trim() ||
-      [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
-      (u.username || "").trim();
+  // ✅ Styled popup state (instead of alert)
+  const [popup, setPopup] = useState({ open: false, title: "", message: "" });
 
-    if (name) {
-      if (!feedbackName) setFeedbackName(name);
-      if (!contactName) setContactName(name);
-    }
-    if (u.email && !contactEmail) setContactEmail(u.email);
-    if (u.phone && !contactPhone) setContactPhone(u.phone);
-  } catch {}
-}, []);
+  const showPopup = (title, message) => {
+    setPopup({ open: true, title: title || "Alert", message: message || "" });
+  };
+
+  const closePopup = () => {
+    setPopup((p) => ({ ...p, open: false }));
+  };
+
+  // ✅ Autofill from localStorage nc_user
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("nc_user") || "{}");
+
+      const name =
+        (u.full_name || "").trim() ||
+        [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+        (u.username || "").trim();
+
+      if (name) {
+        if (!feedbackName) setFeedbackName(name);
+        if (!contactName) setContactName(name);
+      }
+      if (u.email && !contactEmail) setContactEmail(u.email);
+      if (u.phone && !contactPhone) setContactPhone(u.phone);
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
+
     if (!feedbackName.trim() || !feedbackMessage.trim()) {
-      alert("Please fill in both Name and Feedback fields");
+      showPopup("Missing Details", "Please fill in both Name and Feedback fields.");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/feedback/submit", {
+      const res = await fetch(`${API}/feedback/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -69,16 +160,16 @@ useEffect(() => {
       });
 
       if (res.ok) {
-        alert("Feedback submitted successfully");
-        setFeedbackName("");
+        showPopup("Success", "Feedback submitted successfully");
+        // ✅ keep name (so it stays autofilled), clear only message
         setFeedbackMessage("");
       } else {
         console.error("Feedback Error:", await res.text());
-        alert("Failed to submit feedback");
+        showPopup("Failed", "Failed to submit feedback");
       }
     } catch (err) {
       console.error("Feedback Error:", err);
-      alert("Failed to submit feedback. Please try again later.");
+      showPopup("Failed", "Failed to submit feedback. Please try again later.");
     } finally {
       setIsSubmitting(false);
     }
@@ -87,68 +178,67 @@ useEffect(() => {
   const handleContactSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-  !contactName.trim() ||
-  !contactEmail.trim() ||
-  !contactPhone.trim() ||
-  !contactMessage.trim()
-) {
-  alert("Please fill in required contact fields");
-  return;
-}
-
+    // ✅ Subject is optional
+    if (!contactName.trim() || !contactEmail.trim() || !contactPhone.trim() || !contactMessage.trim()) {
+      showPopup("Missing Details", "Please fill in required contact fields.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/feedback/contact", {
+      const res = await fetch(`${API}/feedback/contact`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: contactName,
           email: contactEmail,
           phone: String(contactPhone),
-          subject: contactSubject.trim(),
-
+          subject: contactSubject.trim(), // optional (can be empty)
           message: contactMessage,
         }),
       });
 
       if (res.ok) {
-        alert("Contact message sent successfully");
-        setContactName("");
-        setContactEmail("");
-        setContactPhone("");
+        showPopup("Success", "Contact message sent successfully");
+        // ✅ keep autofill fields, clear only subject/message
         setContactSubject("");
         setContactMessage("");
       } else {
         const err = await res.text();
         console.error("Contact error:", err);
-        alert("Failed to send contact message");
+        showPopup("Failed", "Failed to send contact message");
       }
     } catch (err) {
       console.error("Error submitting contact form:", err);
-      alert("Failed to send contact message");
+      showPopup("Failed", "Failed to send contact message");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div
-      className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}
-    >
+    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}>
+      {/* ✅ Styled popup like Chart.jsx */}
+      <AlertModal
+        open={popup.open}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        isDark={isDark}
+      />
+
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+        <div
+          className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "1s" }}
+        ></div>
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6">
         <div className={`${glassClass} rounded-2xl p-4 mb-8 flex items-center justify-between shadow-2xl`}>
-          <BackButton
-            to="/menu"
-            className={isDark ? "text-slate-200 hover:text-white" : "text-slate-600"}
-          />
+          <BackButton to="/menu" className={isDark ? "text-slate-200 hover:text-white" : "text-slate-600"} />
 
           <div className="flex items-center space-x-2">
             <MessageCircle className="w-5 h-5 text-blue-400" />
@@ -159,6 +249,7 @@ useEffect(() => {
           <button
             onClick={() => setIsDark(!isDark)}
             className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
+            type="button"
           >
             {isDark ? <Sun size={20} /> : <Moon size={20} />}
           </button>
@@ -173,6 +264,7 @@ useEffect(() => {
                   ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-blue-500/50 scale-105"
                   : `${glassClass} ${cardHoverClass} ${textSecondaryClass}`
               }`}
+              type="button"
             >
               <MessageSquare className="w-5 h-5" />
               <span>Feedback</span>
@@ -184,6 +276,7 @@ useEffect(() => {
                   ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-blue-500/50 scale-105"
                   : `${glassClass} ${cardHoverClass} ${textSecondaryClass}`
               }`}
+              type="button"
             >
               <Mail className="w-5 h-5" />
               <span>Contact</span>
@@ -238,13 +331,11 @@ useEffect(() => {
                   </button>
                 </form>
               </div>
-              
-          <p className={`text-center ${textSecondaryClass}`}>
-            Your feedback helps us improve. Thank you for reaching out!
-          </p>
-       
+
+              <p className={`text-center ${textSecondaryClass}`}>
+                Your feedback helps us improve. Thank you for reaching out!
+              </p>
             </div>
-            
           )}
 
           {tab === "contact" && (
@@ -258,9 +349,7 @@ useEffect(() => {
                   </div>
                 </div>
                 <h3 className="text-center text-xl font-bold mb-2">Get In Touch</h3>
-                <p className={`text-center ${textSecondaryClass} mb-6`}>
-                  Have questions? We're here to help you 24/7
-                </p>
+                <p className={`text-center ${textSecondaryClass} mb-6`}>Have questions? We're here to help you 24/7</p>
 
                 <form onSubmit={handleContactSubmit} className="space-y-5">
                   <div className="relative">
@@ -274,6 +363,7 @@ useEffect(() => {
                       required
                     />
                   </div>
+
                   <div className="relative">
                     <Phone className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
                     <input
@@ -285,6 +375,7 @@ useEffect(() => {
                       required
                     />
                   </div>
+
                   <div className="relative">
                     <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
                     <input
@@ -296,17 +387,18 @@ useEffect(() => {
                       required
                     />
                   </div>
+
                   <div className="relative">
                     <FileText className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
                     <input
-                    type="text"
-                    value={contactSubject}
-                    onChange={(e) => setContactSubject(e.target.value)}
-                    placeholder="Subject"
-                    className={`w-full pl-12 pr-4 py-4 ${inputClass} border rounded-xl transition-all focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none shadow-lg`}
-                  />
-
+                      type="text"
+                      value={contactSubject}
+                      onChange={(e) => setContactSubject(e.target.value)}
+                      placeholder="Subject"
+                      className={`w-full pl-12 pr-4 py-4 ${inputClass} border rounded-xl transition-all focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none shadow-lg`}
+                    />
                   </div>
+
                   <div className="relative">
                     <MessageSquare className={`absolute left-4 top-6 w-5 h-5 ${textSecondaryClass}`} />
                     <textarea
@@ -318,6 +410,7 @@ useEffect(() => {
                       required
                     />
                   </div>
+
                   <button
                     type="submit"
                     disabled={isSubmitting}
@@ -331,8 +424,6 @@ useEffect(() => {
             </div>
           )}
         </div>
-
-        
       </div>
     </div>
   );
