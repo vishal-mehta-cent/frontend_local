@@ -329,7 +329,7 @@ export default function ScriptDetailsModal({
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                addToWhatsappAlert();
+                {/*addToWhatsappAlert();*/}
               }}
               className={`${glassClass} hover:bg-green-500/10 px-3 py-3 rounded-xl flex flex-col items-center justify-center space-y-1 transition-all hover:scale-105 border-green-500/30`}
             >
