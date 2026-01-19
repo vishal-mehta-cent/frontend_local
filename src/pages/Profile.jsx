@@ -591,33 +591,72 @@ const dangerTiles = [
       </div>
 
       {/* Logout Modal */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 animate-fadeIn">
-          <div className={`${glassClass} rounded-3xl p-8 text-center max-w-sm w-full shadow-2xl`}>
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500/20 to-rose-500/20 flex items-center justify-center mx-auto mb-4">
-              <LogOut className="w-8 h-8 text-red-400" />
-            </div>
-            <h3 className="font-bold text-xl mb-2">Logout</h3>
-            <p className={`${textSecondaryClass} mb-6`}>
-              Are you sure you want to logout from your account?
-            </p>
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className={`px-6 py-3 ${glassClass} rounded-xl font-medium transition-all hover:scale-105`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={logout}
-                className="px-6 py-3 bg-gradient-to-r from-red-500 to-rose-500 text-white rounded-xl font-medium hover:from-red-600 hover:to-rose-600 transition-all shadow-lg hover:shadow-red-500/50 hover:scale-105"
-              >
-                Logout
-              </button>
-            </div>
+    {/* Logout Modal (Chart.jsx style) */}
+{showLogoutConfirm && (
+  <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
+    <div
+      className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
+        isDark
+          ? "bg-[#0b1220] border border-white/10"
+          : "bg-white border border-black/10"
+      }`}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div
+            className={`text-[17px] font-semibold tracking-tight ${
+              isDark ? "text-blue-300" : "text-blue-700"
+            }`}
+            style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+          >
+            Logout
+          </div>
+
+          <div
+            className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
+              isDark ? "text-slate-300" : "text-slate-600"
+            }`}
+            style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+          >
+            Are you sure you want to logout from your account?
           </div>
         </div>
-      )}
+
+        <button
+          onClick={() => setShowLogoutConfirm(false)}
+          className={`w-9 h-9 rounded-xl grid place-items-center ${
+            isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+          } transition`}
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="mt-5 flex justify-end gap-3">
+        <button
+          onClick={() => setShowLogoutConfirm(false)}
+          className={`px-5 py-2 rounded-xl font-semibold transition ${
+            isDark
+              ? "bg-white/10 hover:bg-white/15 text-white"
+              : "bg-black/5 hover:bg-black/10 text-slate-800"
+          }`}
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={logout}
+          className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
+        >
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }
