@@ -88,15 +88,15 @@ useEffect(() => {
     e.preventDefault();
 
     if (
-      !contactName.trim() ||
-      !contactEmail.trim() ||
-      !contactPhone.trim() ||
-      !contactSubject.trim() ||
-      !contactMessage.trim()
-    ) {
-      alert("Please fill in all contact fields");
-      return;
-    }
+  !contactName.trim() ||
+  !contactEmail.trim() ||
+  !contactPhone.trim() ||
+  !contactMessage.trim()
+) {
+  alert("Please fill in required contact fields");
+  return;
+}
+
 
     setIsSubmitting(true);
     try {
@@ -107,7 +107,8 @@ useEffect(() => {
           name: contactName,
           email: contactEmail,
           phone: String(contactPhone),
-          subject: contactSubject,
+          subject: contactSubject.trim(),
+
           message: contactMessage,
         }),
       });
@@ -237,7 +238,13 @@ useEffect(() => {
                   </button>
                 </form>
               </div>
+              
+          <p className={`text-center ${textSecondaryClass}`}>
+            Your feedback helps us improve. Thank you for reaching out!
+          </p>
+       
             </div>
+            
           )}
 
           {tab === "contact" && (
@@ -292,13 +299,13 @@ useEffect(() => {
                   <div className="relative">
                     <FileText className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
                     <input
-                      type="text"
-                      value={contactSubject}
-                      onChange={(e) => setContactSubject(e.target.value)}
-                      placeholder="Subject"
-                      className={`w-full pl-12 pr-4 py-4 ${inputClass} border rounded-xl transition-all focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none shadow-lg`}
-                      required
-                    />
+                    type="text"
+                    value={contactSubject}
+                    onChange={(e) => setContactSubject(e.target.value)}
+                    placeholder="Subject"
+                    className={`w-full pl-12 pr-4 py-4 ${inputClass} border rounded-xl transition-all focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none shadow-lg`}
+                  />
+
                   </div>
                   <div className="relative">
                     <MessageSquare className={`absolute left-4 top-6 w-5 h-5 ${textSecondaryClass}`} />
@@ -325,11 +332,7 @@ useEffect(() => {
           )}
         </div>
 
-        <div className={`${glassClass} rounded-2xl p-6 text-center shadow-xl`}>
-          <p className={`text-sm ${textSecondaryClass}`}>
-            Your feedback helps us improve. Thank you for reaching out!
-          </p>
-        </div>
+        
       </div>
     </div>
   );
