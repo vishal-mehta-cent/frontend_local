@@ -1296,6 +1296,17 @@ export default function ChartPage() {
   /* ---------------- Fetch candles ---------------- */
   const [candles, setCandles] = useState([]);
 
+const prevClose = useMemo(() => {
+  if (!candles || candles.length < 2) return null;
+  return Number(candles[candles.length - 2]?.close ?? null);
+}, [candles]);
+
+const isUp = useMemo(() => {
+  if (lastPrice == null || prevClose == null) return null;
+  return Number(lastPrice) >= Number(prevClose);
+}, [lastPrice, prevClose]);
+
+
   const mapDataForType = (t, rows) => {
     if (!rows || !rows.length) return [];
     if (t === "heikin") return toHeikinAshi(rows);
@@ -3048,11 +3059,18 @@ export default function ChartPage() {
               {symbol} • {tf.toUpperCase()}
             </div>
 
-            {lastPrice && (
-              <div className="text-sm font-semibold px-2 py-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-lg">
+            {lastPrice != null && (
+              <div
+                className={`text-sm font-extrabold ${isUp == null
+                  ? (isDark ? "text-slate-200" : "text-slate-700")
+                  : isUp
+                    ? "text-green-400"
+                    : "text-rose-400"
+                  }`}
+                title={prevClose != null ? `Prev Close: ₹${Number(prevClose).toFixed(2)}` : ""}
+              >
                 ₹{Number(lastPrice).toLocaleString("en-IN")}
               </div>
-
             )}
 
           </div>
@@ -3155,7 +3173,7 @@ export default function ChartPage() {
             <button
               onClick={openWhatsappPage}
               title="Open WhatsApp Alerts"
-              className="w-6 h-5 flex items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 hover:scale-110 transition-all"
+              className="w-7 h-6 flex items-center justify-center rounded-full bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg hover:shadow-green-500/50 hover:scale-110 transition-all"
             >
               <FaWhatsapp className="w-4 h-4" />
             </button>
