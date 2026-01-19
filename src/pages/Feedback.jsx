@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+
 import BackButton from "../components/BackButton";
 import { Sun, Moon, MessageSquare, Mail, Send, User, Phone, FileText, MessageCircle, Sparkles, Shield } from "lucide-react";
 
@@ -31,6 +32,23 @@ export default function Feedback() {
   const [contactMessage, setContactMessage] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+useEffect(() => {
+  try {
+    const u = JSON.parse(localStorage.getItem("nc_user") || "{}");
+
+    const name =
+      (u.full_name || "").trim() ||
+      [u.first_name, u.last_name].filter(Boolean).join(" ").trim() ||
+      (u.username || "").trim();
+
+    if (name) {
+      if (!feedbackName) setFeedbackName(name);
+      if (!contactName) setContactName(name);
+    }
+    if (u.email && !contactEmail) setContactEmail(u.email);
+    if (u.phone && !contactPhone) setContactPhone(u.phone);
+  } catch {}
+}, []);
 
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
