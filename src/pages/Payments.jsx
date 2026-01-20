@@ -6,7 +6,7 @@ const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 const PLANS = [
   { id: "free", name: "Free", price: 0, trial: "3 Days Free Trial", desc: "Try NeuroCrest for 3 days", strike: null, period: "Only for 3 days", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
-  { id: "monthly", name: "Monthly", price: 149, strike: 500, desc: "Introductory monthly access", period: "Per month", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
+  { id: "monthly", name: "Monthly", price: 1, strike: 500, desc: "Introductory monthly access", period: "Per month", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
   { id: "quarterly", name: "Quarterly", price: 399, strike: 1500, desc: "Best value for consistency", period: "Per quarter", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
   { id: "halfyearly", name: "Half-yearly", price: 699, strike: 3000, desc: "Great value for 6 months", period: "Per 6 months", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
   { id: "annual", name: "Annual", price: 999, strike: 6000, desc: "Maximum savings for long-term users", period: "Per year", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
