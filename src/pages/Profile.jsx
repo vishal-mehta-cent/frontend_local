@@ -350,55 +350,54 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
   };
 
   const handleResetAccount = async () => {
-    if (!username) return;
+  if (!username) return;
 
-    const ok = window.confirm(
-      "Reset account? This will delete your trades, portfolio, watchlist and funds. Your subscription/plan will NOT be reset."
-
-    );
-    if (!ok) return;
-
-    try {
-      const res = await fetch(
-        `${API}/users/${encodeURIComponent(username)}/reset`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ confirm: "RESET", delete_files: true }),
-        }
-      );
-
-      if (!res.ok) {
-        let msg = `HTTP ${res.status}`;
-        try {
-          const j = await res.json();
-          if (j?.detail) msg = j.detail;
-        } catch {}
-        throw new Error(msg);
+  try {
+    const res = await fetch(
+      `${API}/users/${encodeURIComponent(username)}/reset`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm: "RESET", delete_files: true }),
       }
+    );
 
-      const out = await res.json().catch(() => null);
-      console.log("RESET RESPONSE:", out);
-      alert(
-        `✅ Reset done\nDBs: ${out?.dbs_touched?.length || 0}\nDeleted: ${JSON.stringify(
-          out?.deleted_rows || {}
-        )}`
-      );
-
-      // Frontend cleanup
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
       try {
-        const prefix = `notes:${username}:`;
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith(prefix)) localStorage.removeItem(k);
-        }
+        const j = await res.json();
+        if (j?.detail) msg = j.detail;
       } catch {}
-
-      nav("/menu");
-    } catch (e) {
-      alert(e?.message || "Reset failed");
+      throw new Error(msg);
     }
-  };
+
+    const out = await res.json().catch(() => null);
+    console.log("RESET RESPONSE:", out);
+
+    // Frontend cleanup
+    try {
+      const prefix = `notes:${username}:`;
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith(prefix)) localStorage.removeItem(k);
+      }
+    } catch {}
+
+    // ✅ show Chart-style result modal
+    setResetResult({
+      open: true,
+      title: "Reset done",
+      message: `✅ Reset done\}`,
+    });
+  } catch (e) {
+    setResetResult({
+      open: true,
+      title: "Reset failed",
+      message: e?.message || "Reset failed",
+    });
+  }
+};
+
 
   // ✅ Menu-style tiles (right side)
   const tiles = [
@@ -614,7 +613,8 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
                 {/* Reset - left */}
                 <button
                   type="button"
-                  onClick={handleResetAccount}
+                  onClick={() => setShowResetConfirm(true)}
+
                   className={`px-5 py-3 rounded-2xl font-semibold text-sm shadow-lg transition-all hover:scale-105 active:scale-95
                     ${
                       isDark
@@ -867,6 +867,130 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
         </div>
 
         
+      </div>
+    </div>
+  </div>
+)}
+{showResetConfirm && (
+  <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
+    <div
+      className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
+        isDark
+          ? "bg-[#0b1220] border border-white/10"
+          : "bg-white border border-black/10"
+      }`}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div
+            className={`text-[17px] font-semibold tracking-tight ${
+              isDark ? "text-blue-300" : "text-blue-700"
+            }`}
+            style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+          >
+            Reset Account
+          </div>
+
+          <div
+            className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
+              isDark ? "text-slate-300" : "text-slate-600"
+            }`}
+            style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+          >
+            Reset account? This will delete your trades, portfolio, watchlist and funds.
+            Your subscription/plan will NOT be reset.
+          </div>
+        </div>
+
+        <button
+          onClick={() => setShowResetConfirm(false)}
+          className={`w-9 h-9 rounded-xl grid place-items-center ${
+            isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+          } transition`}
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="mt-5 flex justify-end gap-3">
+        <button
+          onClick={() => setShowResetConfirm(false)}
+          className={`px-5 py-2 rounded-xl font-semibold transition ${
+            isDark
+              ? "bg-white/10 hover:bg-white/15 text-white"
+              : "bg-black/5 hover:bg-black/10 text-slate-800"
+          }`}
+        >
+          Cancel
+        </button>
+
+        <button
+          onClick={async () => {
+            setShowResetConfirm(false);
+            await handleResetAccount();
+          }}
+          className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
+        >
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+{resetResult.open && (
+  <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
+    <div
+      className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
+        isDark
+          ? "bg-[#0b1220] border border-white/10"
+          : "bg-white border border-black/10"
+      }`}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div
+            className={`text-[17px] font-semibold tracking-tight ${
+              isDark ? "text-blue-300" : "text-blue-700"
+            }`}
+            style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+          >
+            {resetResult.title}
+          </div>
+
+          <div
+            className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
+              isDark ? "text-slate-300" : "text-slate-600"
+            }`}
+            style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+          >
+            {resetResult.message}
+          </div>
+        </div>
+
+        <button
+          onClick={() => setResetResult({ open: false, title: "", message: "" })}
+          className={`w-9 h-9 rounded-xl grid place-items-center ${
+            isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+          } transition`}
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      <div className="mt-5 flex justify-end">
+        <button
+          onClick={() => {
+            setResetResult({ open: false, title: "", message: "" });
+            nav("/menu");
+          }}
+          className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
+        >
+          OK
+        </button>
       </div>
     </div>
   </div>
