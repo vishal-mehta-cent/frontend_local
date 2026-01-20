@@ -120,14 +120,8 @@ export default function Profile({ username, logout }) {
   const [funds, setFunds] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [hoveredTile, setHoveredTile] = useState(null);
-
-  // ✅ Reset modals (Chart.jsx style)
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [resetResult, setResetResult] = useState({
-    open: false,
-    title: "",
-    message: "",
-  });
+ const [showResetConfirm, setShowResetConfirm] = useState(false);
+const [resetResult, setResetResult] = useState({ open: false, title: "", message: "" });
 
   const safeUser = String(username || "");
   const userEmail = `${safeUser.toLowerCase().replace(/ /g, "")}@gmail.com`;
@@ -144,6 +138,7 @@ export default function Profile({ username, logout }) {
     () => `avatar:${String(username || "guest")}`,
     [username]
   );
+
 
   const [avatarDataUrl, setAvatarDataUrl] = useState(() => {
     try {
@@ -199,11 +194,11 @@ export default function Profile({ username, logout }) {
       localStorage.removeItem(avatarKey);
     } catch {}
   };
-
   const isMobile = useMemo(() => {
-    if (typeof navigator === "undefined") return false;
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  }, []);
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}, []);
+
 
   const onAvatarSelected = (e) => {
     const file = e.target.files?.[0];
@@ -354,16 +349,24 @@ export default function Profile({ username, logout }) {
     }
   };
 
-  // ✅ Reset (NO window.confirm / alert) — Chart.jsx style result modal
   const handleResetAccount = async () => {
     if (!username) return;
 
+    const ok = window.confirm(
+      "Reset account? This will delete your trades, portfolio, watchlist and funds. Your subscription/plan will NOT be reset."
+
+    );
+    if (!ok) return;
+
     try {
-      const res = await fetch(`${API}/users/${encodeURIComponent(username)}/reset`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "RESET", delete_files: true }),
-      });
+      const res = await fetch(
+        `${API}/users/${encodeURIComponent(username)}/reset`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirm: "RESET", delete_files: true }),
+        }
+      );
 
       if (!res.ok) {
         let msg = `HTTP ${res.status}`;
@@ -376,6 +379,11 @@ export default function Profile({ username, logout }) {
 
       const out = await res.json().catch(() => null);
       console.log("RESET RESPONSE:", out);
+      alert(
+        `✅ Reset done\nDBs: ${out?.dbs_touched?.length || 0}\nDeleted: ${JSON.stringify(
+          out?.deleted_rows || {}
+        )}`
+      );
 
       // Frontend cleanup
       try {
@@ -386,17 +394,9 @@ export default function Profile({ username, logout }) {
         }
       } catch {}
 
-      setResetResult({
-        open: true,
-        title: "Reset done",
-        message: `✅ Reset done`,
-      });
+      nav("/menu");
     } catch (e) {
-      setResetResult({
-        open: true,
-        title: "Reset failed",
-        message: e?.message || "Reset failed",
-      });
+      alert(e?.message || "Reset failed");
     }
   };
 
@@ -425,12 +425,12 @@ export default function Profile({ username, logout }) {
     },
 
     {
-      label: "Password",
-      note: "Change Password",
-      icon: <Lock size={28} />,
-      color: "from-slate-400 to-gray-500",
-      onClick: () => nav("/passwordchange"),
-    },
+  label: "Password",
+  note: "Change Password",
+  icon: <Lock size={28} />,
+  color: "from-slate-400 to-gray-500",
+  onClick: () => nav("/passwordchange"),
+},
   ];
 
   const dangerTiles = [
@@ -439,7 +439,7 @@ export default function Profile({ username, logout }) {
       note: "Restore account (delete trades & data)",
       icon: <Sparkles size={28} />,
       color: "from-red-500 to-rose-500",
-      onClick: () => setShowResetConfirm(true),
+      onClick: handleResetAccount,
     },
     {
       label: "Logout",
@@ -523,7 +523,11 @@ export default function Profile({ username, logout }) {
           }`}
                 title={isDark ? "Light mode" : "Dark mode"}
               >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {isDark ? (
+                  <Sun className="w-5 h-5" />
+                ) : (
+                  <Moon className="w-5 h-5" />
+                )}
               </button>
             </div>
           </div>
@@ -532,10 +536,13 @@ export default function Profile({ username, logout }) {
         {/* ✅ 2 column layout (left profile, right tiles) */}
         <div className="grid grid-cols-1 gap-6 items-stretch">
           {/* ================= LEFT: Profile Card ================= */}
-          <div className={`${glassClass} rounded-3xl shadow-2xl overflow-hidden w-full`}>
+          <div
+            className={`${glassClass} rounded-3xl shadow-2xl overflow-hidden w-full`}
+          >
             {/* Body */}
             <div className="p-10 pb-24 relative overflow-hidden">
               {/* Edit */}
+              
 
               <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl pointer-events-none"></div>
 
@@ -544,23 +551,25 @@ export default function Profile({ username, logout }) {
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500 rounded-full blur-lg opacity-75 group-hover:opacity-100 transition-opacity animate-pulse"></div>
 
                   {/* Hidden input: Gallery */}
-                  <input
-                    ref={galleryInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-                    onChange={onAvatarSelected}
-                    className="absolute -left-[9999px] w-px h-px opacity-0"
-                  />
+                  {/* Hidden input: Gallery */}
+<input
+  ref={galleryInputRef}
+  type="file"
+  accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+  onChange={onAvatarSelected}
+  className="absolute -left-[9999px] w-px h-px opacity-0"
+/>
 
-                  {/* Hidden input: Camera (Live photo) */}
-                  <input
-                    ref={cameraInputRef}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={onAvatarSelected}
-                    className="absolute -left-[9999px] w-px h-px opacity-0"
-                  />
+{/* Hidden input: Camera (Live photo) */}
+<input
+  ref={cameraInputRef}
+  type="file"
+  accept="image/*"
+  capture="environment"
+  onChange={onAvatarSelected}
+  className="absolute -left-[9999px] w-px h-px opacity-0"
+/>
+
 
                   <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 p-1 shadow-2xl">
                     <div className="w-full h-full rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center overflow-hidden">
@@ -605,7 +614,7 @@ export default function Profile({ username, logout }) {
                 {/* Reset - left */}
                 <button
                   type="button"
-                  onClick={() => setShowResetConfirm(true)}
+                  onClick={handleResetAccount}
                   className={`px-5 py-3 rounded-2xl font-semibold text-sm shadow-lg transition-all hover:scale-105 active:scale-95
                     ${
                       isDark
@@ -715,300 +724,154 @@ export default function Profile({ username, logout }) {
 
       {/* ✅ Avatar Options Modal */}
       {/* ✅ Avatar Options Modal (NeuroCrest glass UI) */}
-      {showAvatarOptions && (
-        <div
-          className="fixed inset-0 z-[10060] flex items-center justify-center px-3"
-          onMouseDown={closeAvatarOptions}
+{showAvatarOptions && (
+  <div
+    className="fixed inset-0 z-[10060] flex items-center justify-center px-3"
+    onMouseDown={closeAvatarOptions}
+  >
+    {/* Backdrop with glow */}
+    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
+    {/* Modal */}
+    <div
+      className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden ${
+        isDark
+          ? "bg-white/5 border border-white/10"
+          : "bg-white/60 border border-white/40"
+      }`}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {/* Top glow strip */}
+      <div className="absolute inset-x-0 -top-10 h-32 bg-gradient-to-r from-blue-500/30 via-cyan-500/25 to-blue-500/30 blur-2xl pointer-events-none" />
+
+      {/* Header */}
+      <div className="px-6 pt-6 pb-4 flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            
+
+            <div>
+              <div className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                Profile Photo
+              </div>
+              <div className={`text-sm mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                Choose an option
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={closeAvatarOptions}
+          className={`w-10 h-10 rounded-xl grid place-items-center transition shadow-md hover:rotate-90 duration-300 active:scale-95  ${
+            isDark
+              ? "bg-white/10 hover:bg-white/15 border border-white/10 text-white"
+              : "bg-white/70 hover:bg-white border border-white text-slate-900"
+          }`}
+          title="Close"
         >
-          {/* Backdrop with glow */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          ✕
+        </button>
+      </div>
 
-          {/* Modal */}
-          <div
-            className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden ${
-              isDark
-                ? "bg-white/5 border border-white/10"
-                : "bg-white/60 border border-white/40"
-            }`}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            {/* Top glow strip */}
-            <div className="absolute inset-x-0 -top-10 h-32 bg-gradient-to-r from-blue-500/30 via-cyan-500/25 to-blue-500/30 blur-2xl pointer-events-none" />
-
-            {/* Header */}
-            <div className="px-6 pt-6 pb-4 flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-3">
-                  <div>
-                    <div className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                      Profile Photo
-                    </div>
-                    <div
-                      className={`text-sm mt-0.5 ${
-                        isDark ? "text-slate-300" : "text-slate-600"
-                      }`}
-                    >
-                      Choose an option
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={closeAvatarOptions}
-                className={`w-10 h-10 rounded-xl grid place-items-center transition shadow-md hover:rotate-90 duration-300 active:scale-95  ${
-                  isDark
-                    ? "bg-white/10 hover:bg-white/15 border border-white/10 text-white"
-                    : "bg-white/70 hover:bg-white border border-white text-slate-900"
-                }`}
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Options */}
-            <div className="px-6 pb-6">
-              <div className="grid gap-3">
-                {/* Camera (only on mobile) */}
-                {isMobile && (
-                  <button
-                    type="button"
-                    onClick={takeFromCamera}
-                    className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
-                      isDark
-                        ? "bg-white/5 border border-white/10 hover:border-white/20"
-                        : "bg-white/70 border border-white hover:border-slate-200"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
-                        <Camera className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="text-left">
-                        <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
-                          Camera
-                        </div>
-                        <div
-                          className={`text-xs mt-0.5 ${
-                            isDark ? "text-slate-300" : "text-slate-600"
-                          }`}
-                        >
-                          Live photo capture
-                        </div>
-                      </div>
-                    </div>
-                    <span className={`text-sm font-semibold ${isDark ? "text-blue-300" : "text-blue-700"}`}>
-                      Open
-                    </span>
-                  </button>
-                )}
-
-                {/* Gallery */}
-                <button
-                  type="button"
-                  onClick={pickFromGallery}
-                  className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
-                    isDark
-                      ? "bg-white/5 border border-white/10 hover:border-white/20"
-                      : "bg-white/70 border border-white hover:border-slate-200"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
-                      <span className="text-white text-lg">🖼️</span>
-                    </div>
-                    <div className="text-left">
-                      <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
-                        Gallery
-                      </div>
-                      <div
-                        className={`text-xs mt-0.5 ${
-                          isDark ? "text-slate-300" : "text-slate-600"
-                        }`}
-                      >
-                        Upload JPG/PNG
-                      </div>
-                    </div>
-                  </div>
-                  <span
-                    className={`text-sm font-semibold ${
-                      isDark ? "text-emerald-300" : "text-emerald-700"
-                    }`}
-                  >
-                    Choose
-                  </span>
-                </button>
-
-                {/* No profile */}
-                <button
-                  type="button"
-                  onClick={clearAvatar}
-                  className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
-                    isDark
-                      ? "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
-                      : "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
-                      <span className="text-white text-lg">⛔</span>
-                    </div>
-                    <div className="text-left">
-                      <div className={`font-bold ${isDark ? "text-rose-100" : "text-rose-700"}`}>
-                        No Profile
-                      </div>
-                      <div
-                        className={`text-xs mt-0.5 ${
-                          isDark ? "text-rose-200/80" : "text-rose-700/80"
-                        }`}
-                      >
-                        Show initials only
-                      </div>
-                    </div>
-                  </div>
-                  <span className={`text-sm font-semibold ${isDark ? "text-rose-200" : "text-rose-700"}`}>
-                    Remove
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Options */}
+      <div className="px-6 pb-6">
+        <div className="grid gap-3">
+          {/* Camera (only on mobile) */}
+{isMobile && (
+  <button
+    type="button"
+    onClick={takeFromCamera}
+    className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
+      isDark
+        ? "bg-white/5 border border-white/10 hover:border-white/20"
+        : "bg-white/70 border border-white hover:border-slate-200"
+    }`}
+  >
+    <div className="flex items-center gap-4">
+      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+        <Camera className="w-5 h-5 text-white" />
+      </div>
+      <div className="text-left">
+        <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+          Camera
         </div>
-      )}
+        <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+          Live photo capture
+        </div>
+      </div>
+    </div>
+    <span className={`text-sm font-semibold ${isDark ? "text-blue-300" : "text-blue-700"}`}>
+      Open
+    </span>
+  </button>
+)}
 
-      {/* ✅ Reset Confirm Modal (Chart.jsx style) */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
-          <div
-            className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
+
+          {/* Gallery */}
+          <button
+            type="button"
+            onClick={pickFromGallery}
+            className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
               isDark
-                ? "bg-[#0b1220] border border-white/10"
-                : "bg-white border border-black/10"
+                ? "bg-white/5 border border-white/10 hover:border-white/20"
+                : "bg-white/70 border border-white hover:border-slate-200"
             }`}
-            onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div
-                  className={`text-[17px] font-semibold tracking-tight ${
-                    isDark ? "text-blue-300" : "text-blue-700"
-                  }`}
-                  style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
-                >
-                  Reset Account
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+                <span className="text-white text-lg">🖼️</span>
+              </div>
+              <div className="text-left">
+                <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                  Gallery
                 </div>
-
-                <div
-                  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
-                    isDark ? "text-slate-300" : "text-slate-600"
-                  }`}
-                  style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-                >
-                  Reset account? This will delete your trades, portfolio, watchlist and funds.
-                  Your subscription/plan will NOT be reset.
+                <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                  Upload JPG/PNG
                 </div>
               </div>
-
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className={`w-9 h-9 rounded-xl grid place-items-center ${
-                  isDark
-                    ? "bg-white/10 hover:bg-white/15"
-                    : "bg-black/5 hover:bg-black/10"
-                } transition`}
-                title="Close"
-              >
-                ✕
-              </button>
             </div>
+            <span className={`text-sm font-semibold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
+              Choose
+            </span>
+          </button>
 
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className={`px-5 py-2 rounded-xl font-semibold transition ${
-                  isDark
-                    ? "bg-white/10 hover:bg-white/15 text-white"
-                    : "bg-black/5 hover:bg-black/10 text-slate-800"
-                }`}
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={async () => {
-                  setShowResetConfirm(false);
-                  await handleResetAccount();
-                }}
-                className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
-              >
-                OK
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ Reset Result Modal (Chart.jsx style) */}
-      {resetResult.open && (
-        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
-          <div
-            className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
+          {/* No profile */}
+          <button
+            type="button"
+            onClick={clearAvatar}
+            className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
               isDark
-                ? "bg-[#0b1220] border border-white/10"
-                : "bg-white border border-black/10"
+                ? "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
+                : "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
             }`}
-            onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div
-                  className={`text-[17px] font-semibold tracking-tight ${
-                    isDark ? "text-blue-300" : "text-blue-700"
-                  }`}
-                  style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
-                >
-                  {resetResult.title}
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+                <span className="text-white text-lg">⛔</span>
+              </div>
+              <div className="text-left">
+                <div className={`font-bold ${isDark ? "text-rose-100" : "text-rose-700"}`}>
+                  No Profile
                 </div>
-
-                <div
-                  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
-                    isDark ? "text-slate-300" : "text-slate-600"
-                  }`}
-                  style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-                >
-                  {resetResult.message}
+                <div className={`text-xs mt-0.5 ${isDark ? "text-rose-200/80" : "text-rose-700/80"}`}>
+                  Show initials only
                 </div>
               </div>
-
-              <button
-                onClick={() => setResetResult({ open: false, title: "", message: "" })}
-                className={`w-9 h-9 rounded-xl grid place-items-center ${
-                  isDark
-                    ? "bg-white/10 hover:bg-white/15"
-                    : "bg-black/5 hover:bg-black/10"
-                } transition`}
-                title="Close"
-              >
-                ✕
-              </button>
             </div>
-
-            <div className="mt-5 flex justify-end">
-              <button
-                onClick={() => {
-                  setResetResult({ open: false, title: "", message: "" });
-                  nav("/menu");
-                }}
-                className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
-              >
-                OK
-              </button>
-            </div>
-          </div>
+            <span className={`text-sm font-semibold ${isDark ? "text-rose-200" : "text-rose-700"}`}>
+              Remove
+            </span>
+          </button>
         </div>
-      )}
+
+        
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* Logout Modal */}
       {/* Logout Modal (Chart.jsx style) */}
@@ -1045,10 +908,15 @@ export default function Profile({ username, logout }) {
 
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className={`${glassClass} p-2 rounded-xl ${cardHoverClass} transition-all hover:rotate-90 duration-300`}
-            >
-              <X className="w-5 h-5" />
-            </button>
+                className={`w-9 h-9 rounded-xl grid place-items-center ${
+                  isDark
+                    ? "bg-white/10 hover:bg-white/15"
+                    : "bg-black/5 hover:bg-black/10"
+                } transition`}
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
 
             <div className="mt-5 flex justify-end gap-3">
