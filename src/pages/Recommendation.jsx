@@ -9,6 +9,10 @@ import CustomDropdown from "../components/CustomDropdown";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import HeaderActions from "../components/HeaderActions";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css"; // base
+import "./datepicker-neurocrest.css"; // ✅ same file used in History
+
 
 
 
@@ -625,11 +629,21 @@ export default function Recommendations() {
         <div className="filters-row date-row-centered">
           <div className="filter-item">
             <label>Date:</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+            <DatePicker
+              selected={selectedDate ? new Date(selectedDate) : null}
+              onChange={(d) => {
+                if (!d) return setSelectedDate("");
+                const ymd = d.toISOString().slice(0, 10); // YYYY-MM-DD
+                setSelectedDate(ymd);
+              }}
+              dateFormat="MM/dd/yyyy"
+              placeholderText="mm/dd/yyyy"
+              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
+              calendarClassName="nc-date-calendar"
+              popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
             />
+
           </div>
 
           {activeType === "Intraday" && (
