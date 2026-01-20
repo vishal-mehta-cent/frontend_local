@@ -14,9 +14,66 @@ import HeaderActions from "../components/HeaderActions";
 
 
 
-const API = import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com";
+const API = (import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com")
+  .trim()
+  .replace(/\/+$/, "");
+
 
 // ---------- Safe helpers ----------
+
+// ---------- Brokerage settings helpers (from Funds page localStorage) ----------
+const DEFAULT_RATES = {
+  brokerage_mode: "ABS", // "ABS" or "PCT"
+  brokerage_intraday_pct: "0.0005",
+  brokerage_intraday_abs: "20",
+  brokerage_delivery_pct: "0.005",
+  brokerage_delivery_abs: "0",
+  tax_intraday_pct: "0.00018",
+  tax_delivery_pct: "0.0011",
+};
+
+const getRatesKey = (username) => (username ? `nc_rates_${username}` : "nc_rates");
+
+const loadRates = (username) => {
+  try {
+    const raw = localStorage.getItem(getRatesKey(username));
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || typeof parsed !== "object") return DEFAULT_RATES;
+    return { ...DEFAULT_RATES, ...parsed };
+  } catch {
+    return DEFAULT_RATES;
+  }
+};
+
+const toF = (v, fallback = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+// ✅ per-side additional cost calculator
+// segment: "intraday" | "delivery"
+const calcAdditionalCost = ({ rates, segment, investment }) => {
+  const seg = (segment || "delivery").toLowerCase();
+  const isIntra = seg === "intraday";
+
+  const brokerage = (() => {
+    if ((rates?.brokerage_mode || "ABS") === "PCT") {
+      const pct = isIntra ? toF(rates.brokerage_intraday_pct) : toF(rates.brokerage_delivery_pct);
+      return investment * pct;
+    } else {
+      // ABS = per trade flat brokerage
+      return isIntra ? toF(rates.brokerage_intraday_abs) : toF(rates.brokerage_delivery_abs);
+    }
+  })();
+
+  const taxPct = isIntra ? toF(rates.tax_intraday_pct) : toF(rates.tax_delivery_pct);
+  const tax = investment * taxPct;
+
+  const additional = brokerage + tax;
+  return Number.isFinite(additional) ? additional : 0;
+};
+
+
 const toNum = (v) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
@@ -293,6 +350,38 @@ export default function Orders({ username }) {
       setLoading(false);
     }
   }, [who]);
+
+  const whoRates = username || localStorage.getItem("username");
+  const [rates, setRates] = useState(DEFAULT_RATES);
+
+  useEffect(() => {
+    if (!whoRates) return;
+
+    (async () => {
+      // 1) Try backend first
+      try {
+        const res = await fetch(`${API}/orders/brokerage-settings/${whoRates}`);
+        if (res.ok) {
+          const data = await res.json();
+          const merged = { ...DEFAULT_RATES, ...data };
+          setRates(merged);
+
+          // optional: keep local cache
+          try {
+            localStorage.setItem(getRatesKey(whoRates), JSON.stringify(merged));
+          } catch { }
+          return;
+        }
+      } catch {
+        // ignore and fallback
+      }
+
+      // 2) Fallback to localStorage
+      setRates(loadRates(whoRates));
+    })();
+  }, [whoRates]);
+
+
 
   // initial load
   useEffect(() => {
@@ -774,6 +863,48 @@ export default function Orders({ username }) {
                 : toNum(o.price) ?? 0;
 
               const qty = toNum(o.qty) ?? 0;
+              const investment = (entryPrice || 0) * (qty || 0);
+
+              // Entry additional cost + net investment
+              // Entry additional cost
+              // Entry additional cost
+              const entryAdditionalCost = calcAdditionalCost({
+                rates,
+                segment: o.segment,
+                investment,
+              });
+
+              // Net Investment depends on side
+              const netInvestment = isBuy
+                ? (investment + entryAdditionalCost)
+                : (investment - entryAdditionalCost);
+
+              // Exit side (only if closed)
+              const exitInvestment =
+                o.inactive && o.exit_price != null ? (toNum(o.exit_price) ?? 0) * (qty || 0) : 0;
+
+              const exitAdditionalCost =
+                o.inactive && o.exit_price != null
+                  ? calcAdditionalCost({
+                    rates,
+                    segment: o.segment,
+                    investment: exitInvestment,
+                  })
+                  : 0;
+
+              // Exit is opposite side
+              // ✅ Exit is opposite of entry side:
+              // BUY position exits with SELL, SELL position exits with BUY
+              const exitIsSell = isBuy;
+
+              // ✅ Your required logic:
+              // Exit SELL (closing BUY)  -> netInvestment - exitAdditionalCost
+              // Exit BUY  (closing SELL) -> netInvestment + exitAdditionalCost
+              const exitNetInvestment =
+                o.inactive && o.exit_price != null
+                  ? (exitIsSell ? (netInvestment - exitAdditionalCost) : (netInvestment + exitAdditionalCost))
+                  : 0;
+
 
               const effectivePrice =
                 o.inactive && o.exit_price != null ? toNum(o.exit_price) : live;
@@ -968,7 +1099,8 @@ export default function Orders({ username }) {
 
                         {/* % */}
                         <div className={`mt-1 text-sm font-bold ${pctColor}`}>
-                          {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%
+                          {(perShare >= 0 ? "+" : "") + perShare.toFixed(4)} (
+                          {(pct >= 0 ? "+" : "") + pct.toFixed(2)}%)
                         </div>
 
                         {/* Live */}
@@ -977,26 +1109,26 @@ export default function Orders({ username }) {
                         </div>
                       </div>
                     )}
-
-
-
                   </div>
 
                   {/* ===== BOTTOM GLASS PANEL (mobile swipe) ===== */}
                   <div
                     className={[
                       "mt-4 rounded-2xl px-3 sm:px-5 py-3",
-                      // mobile swipe
+                      // mobile: scroll row
                       "flex gap-3 overflow-x-auto hide-scrollbar",
-                      // desktop grid (smaller gap than 8)
-                      o.inactive && o.exit_price != null
-                        ? "sm:grid sm:grid-cols-4 sm:gap-4 sm:overflow-visible"
-                        : "sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible",
+                      // desktop: equal-width columns
+                      "sm:grid sm:overflow-visible sm:gap-6 sm:items-stretch",
+                      // ✅ equal width columns (important)
+                      "sm:[grid-auto-columns:1fr]",
+                      o.inactive && o.exit_price != null ? "sm:grid-cols-7" : "sm:grid-cols-5",
                       isDark
                         ? "bg-white/5 border border-white/10"
                         : "bg-slate-50/70 border border-slate-200/50",
                     ].join(" ")}
                   >
+
+
 
                     {/* Stop Loss */}
                     <div className="flex-shrink-0 min-w-[140px] sm:min-w-0">
@@ -1018,22 +1150,60 @@ export default function Orders({ username }) {
                     <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
                       <div className={`text-xs font-semibold ${textSecondaryClass}`}>Investment</div>
                       <div className={`mt-1 text-lg sm:text-xl font-extrabold ${textClass} whitespace-nowrap`}>
-                        {money((entryPrice || 0) * (toNum(o.qty) ?? 0))}
+                        {money(investment)}
+                      </div>
+                    </div>
+
+                    {/* Additional Cost */}
+                    <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
+                      <div className={`text-xs font-semibold ${textSecondaryClass}`}>Additional Cost</div>
+                      <div className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"} whitespace-nowrap`}>
+                        {money(entryAdditionalCost)}
+                      </div>
+                    </div>
+
+                    {/* Net Investment */}
+                    <div className="flex-shrink-0 min-w-[190px] sm:min-w-0">
+                      <div className={`text-xs font-semibold ${textSecondaryClass}`}>Net Investment</div>
+                      <div className={`mt-1 text-lg sm:text-xl font-extrabold ${textClass} whitespace-nowrap`}>
+                        {money(netInvestment)}
                       </div>
                     </div>
 
 
 
 
+
                     {/* ✅ Exit Price — SAME ROW (only for inactive rows) */}
                     {o.inactive && o.exit_price != null && (
-                      <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
-                        <div className={`text-xs font-semibold ${textSecondaryClass}`}>Exit Price</div>
-                        <div className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"} whitespace-nowrap`}>
-                          {money(o.exit_price)}
+                      <>
+                        {/* Exit Price */}
+                        <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
+                          <div className={`text-xs font-semibold ${textSecondaryClass}`}>Exit Price</div>
+                          <div
+                            className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"
+                              } whitespace-nowrap`}
+                          >
+                            {money(o.exit_price)}
+                          </div>
                         </div>
-                      </div>
+
+                        {/* Exit Net Investment */}
+                        <div className="flex-shrink-0 min-w-[190px] sm:min-w-0">
+                          <div className={`text-xs font-semibold ${textSecondaryClass} whitespace-nowrap`}>
+                            Exit Net Investment
+                          </div>
+
+                          <div
+                            className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-amber-200" : "text-amber-700"
+                              } whitespace-nowrap`}
+                          >
+                            {money(exitNetInvestment)}
+                          </div>
+                        </div>
+                      </>
                     )}
+
 
 
 
@@ -1264,8 +1434,6 @@ export default function Orders({ username }) {
                           >
                             Modify
                           </button>
-
-
                           <button
                             disabled={isInactiveSel}
                             onClick={() => {
@@ -1280,7 +1448,6 @@ export default function Orders({ username }) {
                           >
                             Exit
                           </button>
-
                         </div>
                       )}
                     </div>
@@ -1291,9 +1458,6 @@ export default function Orders({ username }) {
           </div>
         </div>
       )}
-
-
     </div>
   );
-
 }
