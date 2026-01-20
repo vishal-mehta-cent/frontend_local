@@ -389,11 +389,7 @@ export default function Profile({ username, logout }) {
       setResetResult({
         open: true,
         title: "Reset done",
-        message: `✅ Reset done\nDBs: ${out?.dbs_touched?.length || 0}\nDeleted:\n${JSON.stringify(
-          out?.deleted_rows || {},
-          null,
-          2
-        )}`,
+        message: `✅ Reset done`,
       });
     } catch (e) {
       setResetResult({
