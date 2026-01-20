@@ -125,14 +125,18 @@ export default function Profile({ username, logout }) {
   const userEmail = `${safeUser.toLowerCase().replace(/ /g, "")}@gmail.com`;
 
   // =========================
-  // ✅ Avatar (Gallery Upload + Initials)
+  // ✅ Avatar (Camera/Gallery/No profile + Initials)
   // =========================
-  const fileInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+
+  const [showAvatarOptions, setShowAvatarOptions] = useState(false);
 
   const avatarKey = useMemo(
     () => `avatar:${String(username || "guest")}`,
     [username]
   );
+
 
   const [avatarDataUrl, setAvatarDataUrl] = useState(() => {
     try {
@@ -168,11 +172,39 @@ export default function Profile({ username, logout }) {
 
   const initials = useMemo(() => getInitials(username), [username]);
 
-  const onPickAvatar = () => fileInputRef.current?.click();
+  const openAvatarOptions = () => setShowAvatarOptions(true);
+  const closeAvatarOptions = () => setShowAvatarOptions(false);
+
+  const pickFromGallery = () => {
+    closeAvatarOptions();
+    galleryInputRef.current?.click();
+  };
+
+  const takeFromCamera = () => {
+    closeAvatarOptions();
+    cameraInputRef.current?.click();
+  };
+
+  const clearAvatar = () => {
+    closeAvatarOptions();
+    setAvatarDataUrl("");
+    try {
+      localStorage.removeItem(avatarKey);
+    } catch {}
+  };
+  const isMobile = useMemo(() => {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}, []);
+
 
   const onAvatarSelected = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+const isMobile = useMemo(() => {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}, []);
 
     // Validate type (accept is not enough)
     const okTypes = ["image/jpeg", "image/jpg", "image/png"];
@@ -394,12 +426,12 @@ export default function Profile({ username, logout }) {
     },
 
     {
-      label: "Password / Email",
-      note: "Change password or email",
-      icon: <Lock size={28} />,
-      color: "from-slate-400 to-gray-500",
-      onClick: () => nav("/settings"),
-    },
+  label: "Password",
+  note: "Change Password",
+  icon: <Lock size={28} />,
+  color: "from-slate-400 to-gray-500",
+  onClick: () => nav("/passwordchange"),
+},
   ];
 
   const dangerTiles = [
@@ -446,7 +478,6 @@ export default function Profile({ username, logout }) {
       {/* Content Container */}
       <div className="relative z-10 w-full max-w-none mx-auto px-2 sm:px-3 lg:px-4 py-6">
         {/* ✅ GLOBAL HEADER (Back left + PROFILE centered on SAME LINE) */}
-
         <div className="px-2 sm:px-4 py-5">
           <div className="grid grid-cols-3 items-center">
             {/* Left */}
@@ -509,41 +540,32 @@ export default function Profile({ username, logout }) {
           <div
             className={`${glassClass} rounded-3xl shadow-2xl overflow-hidden w-full`}
           >
-            {/* Header (Menu style) */}
-
             {/* Body */}
             <div className="p-10 pb-24 relative overflow-hidden">
               {/* Edit */}
-              <div className="justify-self-end">
-                <button
-                  type="button"
-                  onClick={() => nav("/profile/details")}
-                  title="Edit profile"
-                  className={`w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 shadow-lg
-                      ${
-                        isDark
-                          ? "bg-white/10 hover:bg-white/20 border border-white/20"
-                          : "bg-white/20 hover:bg-white/30 border border-white/30"
-                      }`}
-                >
-                  <Pencil
-                    className={`w-5 h-5 ${
-                      isDark ? "text-white" : "text-slate-900"
-                    }`}
-                  />
-                </button>
-              </div>
+              
+
               <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl pointer-events-none"></div>
 
               <div className="relative flex flex-col items-center">
                 <div className="relative group">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500 rounded-full blur-lg opacity-75 group-hover:opacity-100 transition-opacity animate-pulse"></div>
 
-                  {/* Hidden file input (gallery picker) */}
+                  {/* Hidden input: Gallery */}
                   <input
-                    ref={fileInputRef}
+                    ref={galleryInputRef}
                     type="file"
                     accept="image/png,image/jpeg"
+                    onChange={onAvatarSelected}
+                    className="hidden"
+                  />
+
+                  {/* Hidden input: Camera (Live photo) */}
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    capture="environment"
                     onChange={onAvatarSelected}
                     className="hidden"
                   />
@@ -564,10 +586,10 @@ export default function Profile({ username, logout }) {
                     </div>
                   </div>
 
-                  {/* Camera button (replaces green dot) */}
+                  {/* Camera button → open 3 options */}
                   <button
                     type="button"
-                    onClick={onPickAvatar}
+                    onClick={openAvatarOptions}
                     title="Change photo"
                     className={`absolute bottom-2 right-2 w-10 h-10 rounded-full grid place-items-center shadow-lg transition-all hover:scale-110 active:scale-95
                       ${
@@ -622,6 +644,7 @@ export default function Profile({ username, logout }) {
                 </button>
               </div>
             </div>
+
             <div className="p-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {tiles.map((t, idx) => {
@@ -697,6 +720,157 @@ export default function Profile({ username, logout }) {
           </div>
         </div>
       </div>
+
+      {/* ✅ Avatar Options Modal */}
+      {/* ✅ Avatar Options Modal (NeuroCrest glass UI) */}
+{showAvatarOptions && (
+  <div
+    className="fixed inset-0 z-[10060] flex items-center justify-center px-3"
+    onMouseDown={closeAvatarOptions}
+  >
+    {/* Backdrop with glow */}
+    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+
+    {/* Modal */}
+    <div
+      className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden ${
+        isDark
+          ? "bg-white/5 border border-white/10"
+          : "bg-white/60 border border-white/40"
+      }`}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {/* Top glow strip */}
+      <div className="absolute inset-x-0 -top-10 h-32 bg-gradient-to-r from-blue-500/30 via-cyan-500/25 to-blue-500/30 blur-2xl pointer-events-none" />
+
+      {/* Header */}
+      <div className="px-6 pt-6 pb-4 flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            
+
+            <div>
+              <div className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                Profile Photo
+              </div>
+              <div className={`text-sm mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                Choose an option
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={closeAvatarOptions}
+          className={`w-10 h-10 rounded-xl grid place-items-center transition shadow-md hover:rotate-90 duration-300 active:scale-95  ${
+            isDark
+              ? "bg-white/10 hover:bg-white/15 border border-white/10 text-white"
+              : "bg-white/70 hover:bg-white border border-white text-slate-900"
+          }`}
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Options */}
+      <div className="px-6 pb-6">
+        <div className="grid gap-3">
+          {/* Camera (only on mobile) */}
+{isMobile && (
+  <button
+    type="button"
+    onClick={takeFromCamera}
+    className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
+      isDark
+        ? "bg-white/5 border border-white/10 hover:border-white/20"
+        : "bg-white/70 border border-white hover:border-slate-200"
+    }`}
+  >
+    <div className="flex items-center gap-4">
+      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+        <Camera className="w-5 h-5 text-white" />
+      </div>
+      <div className="text-left">
+        <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+          Camera
+        </div>
+        <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+          Live photo capture
+        </div>
+      </div>
+    </div>
+    <span className={`text-sm font-semibold ${isDark ? "text-blue-300" : "text-blue-700"}`}>
+      Open
+    </span>
+  </button>
+)}
+
+
+          {/* Gallery */}
+          <button
+            type="button"
+            onClick={pickFromGallery}
+            className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
+              isDark
+                ? "bg-white/5 border border-white/10 hover:border-white/20"
+                : "bg-white/70 border border-white hover:border-slate-200"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+                <span className="text-white text-lg">🖼️</span>
+              </div>
+              <div className="text-left">
+                <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                  Gallery
+                </div>
+                <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                  Upload JPG/PNG
+                </div>
+              </div>
+            </div>
+            <span className={`text-sm font-semibold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
+              Choose
+            </span>
+          </button>
+
+          {/* No profile */}
+          <button
+            type="button"
+            onClick={clearAvatar}
+            className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
+              isDark
+                ? "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
+                : "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+                <span className="text-white text-lg">⛔</span>
+              </div>
+              <div className="text-left">
+                <div className={`font-bold ${isDark ? "text-rose-100" : "text-rose-700"}`}>
+                  No Profile
+                </div>
+                <div className={`text-xs mt-0.5 ${isDark ? "text-rose-200/80" : "text-rose-700/80"}`}>
+                  Show initials only
+                </div>
+              </div>
+            </div>
+            <span className={`text-sm font-semibold ${isDark ? "text-rose-200" : "text-rose-700"}`}>
+              Remove
+            </span>
+          </button>
+        </div>
+
+        
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* Logout Modal */}
       {/* Logout Modal (Chart.jsx style) */}
