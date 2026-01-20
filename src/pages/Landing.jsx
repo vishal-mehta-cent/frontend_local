@@ -32,7 +32,8 @@ export default function Landing() {
         <div className="min-h-screen bg-gradient-to-br from-[#020617] via-[#0f172a] to-[#1e1b4b] text-white overflow-hidden relative">
 
             {/* BACKGROUND TEXTURE */}
-            <div className="fixed inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMjIiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
+           <div className="fixed inset-0 pointer-events-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMyMjIiIGZpbGwtb3BhY2l0eT0iMC4xIj48cGF0aCBkPSJNMzYgMzRjMC0yLjIxLTEuNzktNC00LTRzLTQgMS43OS00IDQgMS43OSA0IDQgNCA0LTEuNzkgNC00eiIvPjwvZz48L2c+PC9zdmc+')] opacity-20"></div>
+
 
             {/* ANIMATED GRADIENT ORBS */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -42,43 +43,62 @@ export default function Landing() {
             </div>
 
             {/* HEADER */}
-           <header className="px-6 pt-5">
-  <div className="max-w-7xl mx-auto relative flex items-center justify-center">
-    {/* Center logo */}
-   {/* Center Brand (Transparent logo but visible) */}
-<div className="flex items-center justify-center gap-4 group">
-  <div className="relative">
-    {/* Subtle glow effect behind logo */}
-    <div className="absolute inset-0 blur-2xl opacity-40 group-hover:opacity-60
-                    bg-gradient-to-r from-cyan-400 via-blue-500 to-yellow-300 rounded-full
-                    transition-all duration-500 group-hover:blur-3xl" />
+           {/* HEADER */}
+{/* HEADER */}
+<header className="relative z-50 px-4 sm:px-6 pt-5">
+  <div className="max-w-7xl mx-auto">
+    {/* Mobile: stacked (brand center, login below) | Desktop: 3-column grid with centered brand */}
+    <div className="flex flex-col gap-3 sm:gap-0 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:items-center">
 
-    <img
-      src="logo1.png"
-      alt="NeuroCrest"
-      className="relative w-14 h-14 md:w-16 md:h-16 object-contain
-                 drop-shadow-[0_8px_25px_rgba(0,0,0,0.6)]
-                 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_10px_35px_rgba(34,211,238,0.4)]"
-    />
-  </div>
+      {/* Left spacer (keeps center perfect on desktop) */}
+      <div className="hidden sm:block" />
 
-  <div className={`text-4xl md:text-5xl font-extrabold tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
-    NEUROCREST
-  </div>
-</div>
+      {/* Brand (ALWAYS centered) */}
+      <div className="flex items-center justify-center gap-3 sm:gap-4 group min-w-0">
+        <div className="relative flex-shrink-0">
+          {/* Subtle glow effect behind logo */}
+          <div
+            className="absolute inset-0 blur-2xl opacity-40 group-hover:opacity-60
+                       bg-gradient-to-r from-cyan-400 via-blue-500 to-yellow-300 rounded-full
+                       transition-all duration-500 group-hover:blur-3xl"
+          />
 
+          <img
+            src="logo1.png"
+            alt="NeuroCrest"
+            className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 object-contain
+                       drop-shadow-[0_8px_25px_rgba(0,0,0,0.6)]
+                       transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_10px_35px_rgba(34,211,238,0.4)]"
+          />
+        </div>
 
-    {/* Login stays right */}
-    <button
-      onClick={() => navigate("/login?mode=login")}
-      className={`absolute right-0 px-6 py-2.5 rounded-full font-semibold text-black ${brandGradient}
-                 hover:scale-105 hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
-                 transition-all duration-300 shadow-lg`}
-    >
-      Login
-    </button>
+        <div
+          className={`font-extrabold tracking-wide bg-clip-text text-transparent ${brandGradient}
+                      leading-none whitespace-nowrap
+                      text-[clamp(20px,6vw,52px)] md:text-5xl`}
+        >
+          NEUROCREST
+        </div>
+      </div>
+
+      {/* Login: mobile center below | desktop right */}
+      <div className="flex justify-center sm:justify-end">
+        <button
+          onClick={() => navigate("/login?mode=login")}
+          className={`px-8 sm:px-6 py-2.5 rounded-full font-semibold text-black
+                      text-xl sm:text-base ${brandGradient}
+                      hover:scale-105 hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
+                      transition-all duration-300 shadow-lg whitespace-nowrap`}
+        >
+          Login
+        </button>
+      </div>
+
+    </div>
   </div>
 </header>
+
+
 
 
             <main className="relative z-10">
