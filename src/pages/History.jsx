@@ -14,6 +14,9 @@ import { useTheme } from "../context/ThemeContext";
 import BackButton from "../components/BackButton";
 import HeaderActions from "../components/HeaderActions";
 import { formatToIST_YMDHMS } from "../utils/time";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css"; // keep for base structure (we override styles)
+import "./datepicker-neurocrest.css"; // ✅ create this file (next step)
 
 
 
@@ -755,22 +758,36 @@ export default function History({ username }) {
 
           {/* ✅ Date filters now work for BOTH tabs */}
           <div className="flex flex-wrap md:flex-nowrap items-center gap-3">
-            <input
-              id="startDate"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500`}
-              placeholder="mm/dd/yyyy"
+            <DatePicker
+              selected={startDate ? new Date(startDate) : null}
+              onChange={(d) => {
+                if (!d) return setStartDate("");
+                const ymd = d.toISOString().slice(0, 10); // YYYY-MM-DD
+                setStartDate(ymd);
+              }}
+              dateFormat="MM/dd/yyyy"
+              placeholderText="Start date"
+              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
+              calendarClassName="nc-date-calendar"
+              popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              isClearable
             />
 
-            <input
-              id="endDate"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500`}
-              placeholder="mm/dd/yyyy"
+            <DatePicker
+              selected={endDate ? new Date(endDate) : null}
+              onChange={(d) => {
+                if (!d) return setEndDate("");
+                const ymd = d.toISOString().slice(0, 10); // YYYY-MM-DD
+                setEndDate(ymd);
+              }}
+              dateFormat="MM/dd/yyyy"
+              placeholderText="End date"
+              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
+              calendarClassName="nc-date-calendar"
+              popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              isClearable
             />
 
             <button
@@ -870,6 +887,14 @@ export default function History({ username }) {
                             className={[
                               "px-3 py-1 rounded-xl text-xs font-extrabold tracking-wide",
                               "ring-1 shadow-lg backdrop-blur-xl",
+                              isBuy
+                                ? (isDark
+                                  ? "shadow-[0_0_14px_rgba(16,185,129,0.28),0_0_42px_rgba(16,185,129,0.18)]"
+                                  : "shadow-[0_0_14px_rgba(16,185,129,0.40),0_0_55px_rgba(16,185,129,0.22)]")
+                                : (isDark
+                                  ? "shadow-[0_0_14px_rgba(244,63,94,0.24),0_0_42px_rgba(244,63,94,0.16)]"
+                                  : "shadow-[0_0_14px_rgba(244,63,94,0.34),0_0_55px_rgba(244,63,94,0.20)]"),
+
                               isBuy
                                 ? isDark
                                   ? "bg-emerald-500/15 ring-emerald-400/20 text-emerald-200"
@@ -1007,6 +1032,18 @@ export default function History({ username }) {
                               "inline-flex items-center gap-2",
                               "px-4 py-2 rounded-2xl",
                               "shadow-lg ring-1",
+                              pnlNum > 0
+                                ? (isDark
+                                  ? "shadow-[0_0_18px_rgba(16,185,129,0.35),0_0_55px_rgba(16,185,129,0.22)]"
+                                  : "shadow-[0_0_18px_rgba(16,185,129,0.45),0_0_70px_rgba(16,185,129,0.28)]")
+                                : pnlNum < 0
+                                  ? (isDark
+                                    ? "shadow-[0_0_18px_rgba(244,63,94,0.32),0_0_55px_rgba(244,63,94,0.20)]"
+                                    : "shadow-[0_0_18px_rgba(244,63,94,0.42),0_0_70px_rgba(244,63,94,0.26)]")
+                                  : (isDark
+                                    ? "shadow-[0_0_14px_rgba(148,163,184,0.18),0_0_40px_rgba(148,163,184,0.10)]"
+                                    : "shadow-[0_0_14px_rgba(148,163,184,0.22),0_0_45px_rgba(148,163,184,0.12)]"),
+
                               "backdrop-blur-xl",
                               pnlNum > 0
                                 ? isDark
