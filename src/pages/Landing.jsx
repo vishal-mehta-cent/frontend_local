@@ -42,53 +42,44 @@ export default function Landing() {
             </div>
 
             {/* HEADER */}
-            <header className="px-4 sm:px-6 pt-5">
-                <div className="max-w-7xl mx-auto grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                    {/* Left spacer keeps center truly centered */}
-                    <div />
+           <header className="px-6 pt-5">
+  <div className="max-w-7xl mx-auto relative flex items-center justify-center">
+    {/* Center logo */}
+   {/* Center Brand (Transparent logo but visible) */}
+<div className="flex items-center justify-center gap-4 group">
+  <div className="relative">
+    {/* Subtle glow effect behind logo */}
+    <div className="absolute inset-0 blur-2xl opacity-40 group-hover:opacity-60
+                    bg-gradient-to-r from-cyan-400 via-blue-500 to-yellow-300 rounded-full
+                    transition-all duration-500 group-hover:blur-3xl" />
 
-                    {/* Center Brand (Transparent logo but visible) */}
-                    <div className="flex items-center justify-center gap-3 sm:gap-4 group min-w-0">
-                        <div className="relative flex-shrink-0">
-                            {/* Subtle glow effect behind logo */}
-                            <div className="absolute inset-0 blur-2xl opacity-40 group-hover:opacity-60
-                                            bg-gradient-to-r from-cyan-400 via-blue-500 to-yellow-300 rounded-full
-                                            transition-all duration-500 group-hover:blur-3xl" />
+    <img
+      src="logo1.png"
+      alt="NeuroCrest"
+      className="relative w-14 h-14 md:w-16 md:h-16 object-contain
+                 drop-shadow-[0_8px_25px_rgba(0,0,0,0.6)]
+                 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_10px_35px_rgba(34,211,238,0.4)]"
+    />
+  </div>
 
-                            <img
-                                src="logo1.png"
-                                alt="NeuroCrest"
-                                className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 object-contain
-                                           drop-shadow-[0_8px_25px_rgba(0,0,0,0.6)]
-                                           transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_10px_35px_rgba(34,211,238,0.4)]"
-                            />
-                        </div>
+  <div className={`text-4xl md:text-5xl font-extrabold tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
+    NEUROCREST
+  </div>
+</div>
 
-                        {/* ✅ Responsive, no-overlap text */}
-                        <div
-                            className={`font-extrabold tracking-wide bg-clip-text text-transparent ${brandGradient}
-                                        leading-none whitespace-nowrap min-w-0
-                                        text-[clamp(20px,6vw,52px)] md:text-5xl
-                                        max-w-[68vw] sm:max-w-none truncate`}
-                        >
-                            NEUROCREST
-                        </div>
-                    </div>
 
-                    {/* Right: Login button (no absolute positioning) */}
-                    <div className="flex justify-end">
-                        <button
-                            onClick={() => navigate("/login?mode=login")}
-                            className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-full font-semibold text-black
-                                        text-sm sm:text-base ${brandGradient}
-                                        hover:scale-105 hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
-                                        transition-all duration-300 shadow-lg whitespace-nowrap`}
-                        >
-                            Login
-                        </button>
-                    </div>
-                </div>
-            </header>
+    {/* Login stays right */}
+    <button
+      onClick={() => navigate("/login?mode=login")}
+      className={`absolute right-0 px-6 py-2.5 rounded-full font-semibold text-black ${brandGradient}
+                 hover:scale-105 hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
+                 transition-all duration-300 shadow-lg`}
+    >
+      Login
+    </button>
+  </div>
+</header>
+
 
             <main className="relative z-10">
 
@@ -122,7 +113,7 @@ export default function Landing() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                            <button
+                              <button
                                 type="button"
                                 onClick={() => navigate("/login?mode=signup")}
                                 className={`px-8 py-4 rounded-full font-bold text-black text-lg ${brandGradient}
@@ -132,9 +123,9 @@ export default function Landing() {
                                 relative overflow-hidden
                                 before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%]
                                 hover:before:translate-x-[100%] before:transition-transform before:duration-700`}
-                            >
+                                >
                                 Get Started <ArrowRight className="w-5 h-5" />
-                            </button>
+                                </button>
 
                             <button className="px-8 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full
                                              font-semibold text-lg hover:bg-white/20 hover:border-cyan-400/40
@@ -143,61 +134,60 @@ export default function Landing() {
                                 Watch Demo
                             </button>
                         </div>
-
-                        <div className="mt-16 max-w-5xl mx-auto">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                                {/* Card 1 */}
-                                <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-7 text-center
+<div className="mt-16 max-w-5xl mx-auto">
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    {/* Card 1 */}
+    <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-7 text-center
                     hover:bg-white/10 hover:border-cyan-400/30 transition-all duration-500
                     hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(34,211,238,0.2)]">
-                                    <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mx-auto mb-4
+      <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mx-auto mb-4
                       shadow-lg group-hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
                       transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                                        <Zap className="w-6 h-6 text-black" />
-                                    </div>
-                                    <div className="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight">
-                                        Built for <span className={`bg-clip-text text-transparent ${brandGradient}`}>Beginners</span>
-                                    </div>
-                                    <div className="text-sm md:text-base text-gray-300/80 mt-2">
-                                        Learn &amp; Practice Safely
-                                    </div>
-                                </div>
+        <Zap className="w-6 h-6 text-black" />
+      </div>
+      <div className="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight">
+        Built for <span className={`bg-clip-text text-transparent ${brandGradient}`}>Beginners</span>
+      </div>
+      <div className="text-sm md:text-base text-gray-300/80 mt-2">
+        Learn &amp; Practice Safely
+      </div>
+    </div>
 
-                                {/* Card 2 */}
-                                <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-7 text-center
+    {/* Card 2 */}
+    <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-7 text-center
                     hover:bg-white/10 hover:border-cyan-400/30 transition-all duration-500
                     hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(34,211,238,0.2)]">
-                                    <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mx-auto mb-4
+      <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mx-auto mb-4
                       shadow-lg group-hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
                       transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                                        <BarChart3 className="w-6 h-6 text-black" />
-                                    </div>
-                                    <div className="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight">
-                                        Loved by <span className={`bg-clip-text text-transparent ${brandGradient}`}>Active</span> Traders
-                                    </div>
-                                    <div className="text-sm md:text-base text-gray-300/80 mt-2">
-                                        Faster, clearer decisions
-                                    </div>
-                                </div>
+        <BarChart3 className="w-6 h-6 text-black" />
+      </div>
+      <div className="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight">
+        Loved by <span className={`bg-clip-text text-transparent ${brandGradient}`}>Active</span> Traders
+      </div>
+      <div className="text-sm md:text-base text-gray-300/80 mt-2">
+        Faster, clearer decisions
+      </div>
+    </div>
 
-                                {/* Card 3 */}
-                                <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-7 text-center
+    {/* Card 3 */}
+    <div className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-7 text-center
                     hover:bg-white/10 hover:border-cyan-400/30 transition-all duration-500
                     hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(34,211,238,0.2)]">
-                                    <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mx-auto mb-4
+      <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mx-auto mb-4
                       shadow-lg group-hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
                       transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                                        <Shield className="w-6 h-6 text-black" />
-                                    </div>
-                                    <div className="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight">
-                                        Trusted by <span className={`bg-clip-text text-transparent ${brandGradient}`}>Serious</span> Builders
-                                    </div>
-                                    <div className="text-sm md:text-base text-gray-300/80 mt-2">
-                                        Validate &amp; refine systems
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+        <Shield className="w-6 h-6 text-black" />
+      </div>
+      <div className="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight">
+        Trusted by <span className={`bg-clip-text text-transparent ${brandGradient}`}>Serious</span> Builders
+      </div>
+      <div className="text-sm md:text-base text-gray-300/80 mt-2">
+        Validate &amp; refine systems
+      </div>
+    </div>
+  </div>
+</div>
 
                     </div>
                 </section>
@@ -264,7 +254,7 @@ export default function Landing() {
                                     <li className="flex items-start gap-2 text-slate-300">
                                         <CheckCircle2 className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
                                         <span>Your strategy → we build the algo
-                                        </span>
+</span>
                                     </li>
                                     <li className="flex items-start gap-2 text-slate-300">
                                         <CheckCircle2 className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
@@ -329,101 +319,101 @@ export default function Landing() {
 
                 {/* BENEFITS */}
                 {/* OFFERS / BENEFITS */}
-                <section id="offers" className="px-6 py-20">
-                    <div className="max-w-7xl mx-auto">
+<section id="offers" className="px-6 py-20">
+  <div className="max-w-7xl mx-auto">
 
-                        {/* Top row: Title + Subscription Button */}
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
-                            <div>
-                                <div className="text-sm font-semibold text-cyan-200/90 tracking-wider uppercase">
-                                    OFFERS
-                                </div>
+    {/* Top row: Title + Subscription Button */}
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-10">
+      <div>
+        <div className="text-sm font-semibold text-cyan-200/90 tracking-wider uppercase">
+          OFFERS
+        </div>
 
-                                <h2 className="mt-2 text-3xl md:text-4xl font-extrabold text-white">
-                                    Choose the plan that fits you
-                                </h2>
+        <h2 className="mt-2 text-3xl md:text-4xl font-extrabold text-white">
+          Choose the plan that fits you
+        </h2>
 
-                                <p className="mt-2 text-gray-300/80 max-w-2xl">
-                                    Early-access pricing, broker-ready builds, and fast support—everything designed to help you learn & execute better.
-                                </p>
-                            </div>
+        <p className="mt-2 text-gray-300/80 max-w-2xl">
+          Early-access pricing, broker-ready builds, and fast support—everything designed to help you learn & execute better.
+        </p>
+      </div>
 
-                            {/* ✅ Subscription button */}
-                            <button
-                                type="button"
-                                onClick={() => navigate("/payments")}
+      {/* ✅ Subscription button */}
+      <button
+  type="button"
+ onClick={() => navigate("/payments")}
 
-                                className={`px-7 py-3 rounded-full font-bold text-black ${brandGradient}
+  className={`px-7 py-3 rounded-full font-bold text-black ${brandGradient}
   hover:shadow-[0_0_40px_rgba(34,211,238,0.6)] hover:scale-105
   transition-all duration-300 inline-flex items-center gap-2
   shadow-lg`}
-                            >
-                                Subscription <ArrowRight className="w-5 h-5" />
-                            </button>
+>
+  Subscription <ArrowRight className="w-5 h-5" />
+</button>
 
-                        </div>
+    </div>
 
-                        {/* Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Card 1 */}
-                            <div className="group bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl
+    {/* Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Card 1 */}
+      <div className="group bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl
                       hover:bg-white/10 hover:border-cyan-400/30 transition-all duration-500
                       hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(34,211,238,0.2)]">
-                                <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mb-5
+        <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mb-5
                         shadow-lg group-hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
                         transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                                    <BadgePercent className="w-6 h-6 text-black" />
-                                </div>
+          <BadgePercent className="w-6 h-6 text-black" />
+        </div>
 
-                                <h3 className="text-2xl font-extrabold text-white leading-snug">
-                                    Introductory <br /> Offer
-                                </h3>
+        <h3 className="text-2xl font-extrabold text-white leading-snug">
+          Introductory <br /> Offer
+        </h3>
 
-                                <p className="mt-3 text-gray-300/80">
-                                    Early-access pricing for paper trading, plus add-on chart learning alerts (education-only).
-                                </p>
-                            </div>
+        <p className="mt-3 text-gray-300/80">
+          Early-access pricing for paper trading, plus add-on chart learning alerts (education-only).
+        </p>
+      </div>
 
-                            {/* Card 2 */}
-                            <div className="group bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl
+      {/* Card 2 */}
+      <div className="group bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl
                       hover:bg-white/10 hover:border-cyan-400/30 transition-all duration-500
                       hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(34,211,238,0.2)]">
-                                <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mb-5
+        <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mb-5
                         shadow-lg group-hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
                         transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                                    <Building2 className="w-6 h-6 text-black" />
-                                </div>
+          <Building2 className="w-6 h-6 text-black" />
+        </div>
 
-                                <h3 className="text-2xl font-extrabold text-white leading-snug">
-                                    Broker-Ready <br /> Builds
-                                </h3>
+        <h3 className="text-2xl font-extrabold text-white leading-snug">
+          Broker-Ready <br /> Builds
+        </h3>
 
-                                <p className="mt-3 text-gray-300/80">
-                                    White-label, custom strategies, alerts, plus broker integrations—tailored to you.
-                                </p>
-                            </div>
+        <p className="mt-3 text-gray-300/80">
+          White-label, custom strategies, alerts, plus broker integrations—tailored to you.
+        </p>
+      </div>
 
-                            {/* Card 3 */}
-                            <div className="group bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl
+      {/* Card 3 */}
+      <div className="group bg-white/5 border border-white/10 rounded-3xl p-8 backdrop-blur-xl
                       hover:bg-white/10 hover:border-cyan-400/30 transition-all duration-500
                       hover:-translate-y-2 hover:shadow-[0_20px_50px_rgba(34,211,238,0.2)]">
-                                <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mb-5
+        <div className={`w-12 h-12 ${brandGradient} rounded-2xl flex items-center justify-center mb-5
                         shadow-lg group-hover:shadow-[0_0_30px_rgba(34,211,238,0.5)]
                         transition-all duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-                                    <Headset className="w-6 h-6 text-black" />
-                                </div>
+          <Headset className="w-6 h-6 text-black" />
+        </div>
 
-                                <h3 className="text-2xl font-extrabold text-white leading-snug">
-                                    Real-Time <br /> Support
-                                </h3>
+        <h3 className="text-2xl font-extrabold text-white leading-snug">
+          Real-Time <br /> Support
+        </h3>
 
-                                <p className="mt-3 text-gray-300/80">
-                                    Stuck or have ideas? Ping us anytime—fast replies, clear fixes, real feedback.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+        <p className="mt-3 text-gray-300/80">
+          Stuck or have ideas? Ping us anytime—fast replies, clear fixes, real feedback.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
 
 
                 {/* CTA */}
@@ -448,29 +438,29 @@ export default function Landing() {
                         >
                             Contact Us
                         </button>
-                        {/* WhatsApp + Phone (single pill) */}
-                        {/* Contact pill: WhatsApp + Phone + Email */}
-                        <div className="mt-6 flex items-center justify-center">
-                            <a
-                                href="mailto:neurocrest.app@gmail.com"
-                                className="inline-flex items-center gap-4 px-8 py-4 rounded-full
+                    {/* WhatsApp + Phone (single pill) */}
+{/* Contact pill: WhatsApp + Phone + Email */}
+<div className="mt-6 flex items-center justify-center">
+  <a
+    href="mailto:neurocrest.app@gmail.com"
+    className="inline-flex items-center gap-4 px-8 py-4 rounded-full
                bg-white/5 border border-white/10 backdrop-blur
                hover:bg-white/10 hover:border-cyan-400/30 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)]
                transition-all duration-300 hover:scale-105"
-                            >
-                                {/* Icons */}
-                                <span className="inline-flex items-center gap-3 text-white/90">
-                                    <MessageCircle className="w-6 h-6 hover:text-cyan-400 transition-colors" />
-                                    <Phone className="w-6 h-6 hover:text-cyan-400 transition-colors" />
-                                    <Mail className="w-6 h-6 hover:text-cyan-400 transition-colors" />
-                                </span>
+  >
+    {/* Icons */}
+    <span className="inline-flex items-center gap-3 text-white/90">
+      <MessageCircle className="w-6 h-6 hover:text-cyan-400 transition-colors" />
+      <Phone className="w-6 h-6 hover:text-cyan-400 transition-colors" />
+      <Mail className="w-6 h-6 hover:text-cyan-400 transition-colors" />
+    </span>
 
-                                {/* Text */}
-                                <span className="text-white/90 font-semibold tracking-wide">
-                                    9426001601 | neurocrest.app@gmail.com
-                                </span>
-                            </a>
-                        </div>
+    {/* Text */}
+    <span className="text-white/90 font-semibold tracking-wide">
+      9426001601 | neurocrest.app@gmail.com
+    </span>
+  </a>
+</div>
                     </div>
 
 
