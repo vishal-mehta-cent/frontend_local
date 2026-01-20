@@ -226,13 +226,18 @@ export default function SignalCard({
   // ============================================================
   return (
     <div
-      className="signal-card-advanced clean-line-layout"
+      className={[
+        "signal-card-advanced",
+        "clean-line-layout",
+        !isClosed && side === "buy" ? "signal-glow-buy" : "",
+        !isClosed && side === "sell" ? "signal-glow-sell" : "",
+      ].join(" ")}
       style={{
-        opacity: isClosed ? 0.6 : 1,
+        opacity: isClosed ? 0.7 : 1,
         filter: isClosed ? "grayscale(0%)" : "none",
       }}
-
     >
+
       {/* ---------------- HEADER ---------------- */}
       <div
         style={{
