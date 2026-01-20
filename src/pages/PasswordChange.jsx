@@ -100,7 +100,7 @@ export default function ChangePassword({ username }) {
       <div className="relative z-10 w-full max-w-none mx-auto px-2 sm:px-3 lg:px-4 py-4">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-6">
-          <BackButton to="/settings" />
+          <BackButton to="/profile" />
 
           <div className="flex items-center gap-3">
             <button
