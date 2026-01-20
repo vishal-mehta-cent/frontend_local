@@ -1501,7 +1501,13 @@ const isUp = useMemo(() => {
         minimumVisibleBarCount: 5,
         visible: true,
       },
-      handleScroll: { mouseWheel: true, pressedMouseMove: true },
+      handleScroll: {
+  mouseWheel: true,
+  pressedMouseMove: true,
+  horzTouchDrag: true,
+  vertTouchDrag: false,
+},
+
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true } },
       localization: {
         timeFormatter: (t) => typeof t === "number" ? fmtISTFromUnixSec(t, true) : "",
@@ -3017,15 +3023,16 @@ const isUp = useMemo(() => {
   }
 
 
-
-
-
-
-
-
   /* --------------------------- UI --------------------------- */
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} relative overflow-hidden transition-colors duration-300`}>
+  <div
+    className={`h-[100dvh] ${bgClass} ${textClass} relative overflow-x-hidden overflow-y-scroll show-scrollbar transition-colors duration-300`}
+    style={{ scrollbarGutter: "stable" }}
+  >
+
+
+
+
       {/* Background Gradient Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
@@ -3259,8 +3266,8 @@ const isUp = useMemo(() => {
       <LeftRail />
 
       {/* Main chart + overlay */}
-      <div style={{ position: "relative" }}>
-        <div ref={mainRef} style={{ width: "100%" }} />
+      <div style={{ position: "relative" }} className="touch-pan-y">
+        <div ref={mainRef} style={{ width: "100%", touchAction: "pan-y" }} />
         {/* Floating Zoom Buttons */}
 
         {/* Floating Centered Zoom Buttons */}
@@ -3334,8 +3341,8 @@ const isUp = useMemo(() => {
       </div>
 
       {/* Volume pane (separate, time-synced) */}
-      <div className="mt-0 border-t pb-">
-        <div ref={volumeRef} style={{ width: "100%" }} />
+      <div className="mt-0 border-t touch-pan-y">
+        <div ref={volumeRef} style={{ width: "100%", touchAction: "pan-y" }} />
       </div>
 
       {/* Alert Description Section */}
@@ -3482,8 +3489,8 @@ const isUp = useMemo(() => {
 
 
       {/* Oscillator pane */}
-      <div className="mt-2 border-t">
-        <div ref={oscRef} style={{ width: "100%" }} />
+      <div className="mt-2 border-t touch-pan-y">
+         <div ref={oscRef} style={{ width: "100%", touchAction: "pan-y" }} />
       </div>
 
       {/* status */}
