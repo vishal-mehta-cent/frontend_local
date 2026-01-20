@@ -351,7 +351,8 @@ export default function Profile({ username, logout }) {
     if (!username) return;
 
     const ok = window.confirm(
-      "Reset account? This will delete your trades, portfolio, watchlist and funds. Profile/login will remain."
+      "Reset account? This will delete your trades, portfolio, watchlist and funds. Your subscription/plan will NOT be reset."
+
     );
     if (!ok) return;
 
