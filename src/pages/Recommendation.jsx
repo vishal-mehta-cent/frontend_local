@@ -937,7 +937,8 @@ export default function Recommendations() {
                     );
                   })
                 ) : (
-                  <p>No closed signals.</p>
+                  <p className="no-signals-text">No closed signals.</p>
+
                 )}
               </div>
             </div>
@@ -1013,20 +1014,39 @@ export default function Recommendations() {
         </div>
 
         {/* MAIN CATEGORY BUTTONS (UNCHANGED LOGIC) */}
-        <div className="recommendation-buttons">
-          {["Intraday", "BTST", "Short-term"].map((type) => (
-            <button
-              key={type}
-              className={`rec-btn ${activeType === type ? "active" : ""}`}
-              onClick={() => {
-                setActiveType(type);
-                setSubIntraday("All");
-              }}
-            >
-              {type}
-            </button>
-          ))}
+        {/* MAIN CATEGORY BUTTONS (UI updated like header row) */}
+        {/* MAIN CATEGORY BUTTONS (match header row pill UI) */}
+        <div className="w-full flex justify-center mb-6">
+          <div className="flex items-center gap-3">
+            {["Intraday", "BTST", "Short-term"].map((type) => {
+              const isActiveTab = activeType === type;
+
+              return (
+                <button
+                  key={type}
+                  onClick={() => {
+                    setActiveType(type);
+                    setSubIntraday("All");
+                  }}
+                  className={[
+                    "px-5 py-3 rounded-xl text-sm font-semibold",
+                    "transition-all duration-200",
+                    "border",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60",
+                    "shadow-sm",
+                    isActiveTab
+                      ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white border-white/10 shadow-xl"
+                      : `${glassClass} ${textClass} ${cardHoverClass} ${isDark ? "border-white/10" : "border-slate-200/60"}`,
+                  ].join(" ")}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+
 
         {/* SIGNALS LAYOUT (UNCHANGED) */}
         <div className="recommendation-content">
