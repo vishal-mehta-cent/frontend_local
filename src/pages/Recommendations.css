@@ -94,7 +94,11 @@
 
 /* ---------------- Signal Card ---------------- */
 .signal-card-advanced {
-  background-color: #f5f9ff;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+
   border-radius: 12px;
   width: 260px;
   height: auto;
@@ -112,6 +116,39 @@
   transform: scale(1.02);
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
+
+/* ===== Glow border for ACTIVE cards ===== */
+.signal-glow-buy {
+  border: 2.5px solid rgb(0, 255, 106) !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 200, 83, 0.20),
+    0 0 18px rgba(0, 200, 83, 0.35),
+    0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+.signal-glow-sell {
+  border: 2.5px solid rgba(229, 57, 53, 0.65) !important;
+  box-shadow:
+    0 0 0 1px rgba(229, 57, 53, 0.20),
+    0 0 18px rgba(229, 57, 53, 0.35),
+    0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+/* Optional: slightly stronger glow on hover */
+.signal-glow-buy:hover {
+  box-shadow:
+    0 0 0 1px rgba(0, 200, 83, 0.25),
+    0 0 26px rgba(0, 200, 83, 0.45),
+    0 14px 34px rgba(0, 0, 0, 0.10);
+}
+
+.signal-glow-sell:hover {
+  box-shadow:
+    0 0 0 1px rgba(229, 57, 53, 0.25),
+    0 0 26px rgba(229, 57, 53, 0.45),
+    0 14px 34px rgba(0, 0, 0, 0.10);
+}
+
 
 /* ---------- Header ---------- */
 /* ---------- Header (Make Script Centered) ---------- */
