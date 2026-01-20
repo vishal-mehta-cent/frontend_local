@@ -347,27 +347,32 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           />
 
           <Route
-            path="/settings"
-            element={username ? <Settings /> : <Navigate to="/" replace />}
-          />
+  path="/settings"
+  element={username ? <Settings /> : <Navigate to="/" replace />}
+/>
 
-          <Route
-            path="/settings/change-password"
-            element={
-              username ? (
-                <PasswordChange username={username} />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+<Route
+  path="/settings/change-password"
+  element={
+    username ? <PasswordChange username={username} /> : <Navigate to="/" replace />
+  }
+/>
 
-          <Route path="/profile/details" element={<ProfileDetail />} />
+{/* ✅ Short route for Profile tile */}
+<Route
+  path="/passwordchange"
+  element={
+    username ? <PasswordChange username={username} /> : <Navigate to="/" replace />
+  }
+/>
 
-          <Route
-            path="/settings/change-email"
-            element={username ? <EmailChange /> : <Navigate to="/" replace />}
-          />
+<Route
+  path="/settings/change-email"
+  element={
+    username ? <EmailChange username={username} /> : <Navigate to="/" replace />
+  }
+/>
+
 
           <Route path="/modify/:id" element={<ModifyOrderPage />} />
 
@@ -383,6 +388,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        
       </AnimatePresence>
 
       {/* ✅ Chart-style popup modal */}
