@@ -696,7 +696,7 @@
 
 /* Full container that highlights closed signals */
 .closed-signals-container {
-  background: #cecece;
+
   /* soft light red */
   border: 2px solid #777777;
   /* stronger red border */
@@ -707,7 +707,7 @@
 }
 
 .active-signals-container {
-  background: #e8f1ff;
+
   border: 2px solid #2962ff;
   border-radius: 12px;
   padding: 20px 25px;
@@ -730,6 +730,10 @@
 
   color: #0d47a1;
 
+}
+
+.no-signals-text {
+  white-space: nowrap;
 }
 
 /* Closed */
@@ -1121,11 +1125,9 @@
 
 /* ---------------- DARK THEME ---------------- */
 .theme-dark .advanced-filter-wrapper {
-  background: linear-gradient(
-    145deg,
-    rgba(2, 6, 23, 0.75),
-    rgba(15, 23, 42, 0.75)
-  );
+  background: linear-gradient(145deg,
+      rgba(2, 6, 23, 0.75),
+      rgba(15, 23, 42, 0.75));
   border: 1.5px solid rgba(34, 211, 238, 0.35);
   box-shadow:
     0 12px 35px rgba(0, 0, 0, 0.55),
@@ -1159,7 +1161,8 @@
 /* Make heading text visible in dark theme */
 .theme-dark .active-title,
 .theme-dark .closed-title {
-  color: #eaf2ff !important;   /* bright readable */
+  color: #eaf2ff !important;
+  /* bright readable */
 }
 
 /* Title row with dot + text */
@@ -1199,29 +1202,34 @@
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
     opacity: 0.75;
   }
+
   50% {
     transform: scale(1.35);
     box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.08);
     opacity: 1;
   }
+
   100% {
     transform: scale(0.85);
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
     opacity: 0.75;
   }
 }
+
 /* =====================================================
    FIX: Accuracy Gauge text not visible in DARK theme
    ===================================================== */
 
 /* Percentage value inside gauge */
 .theme-dark svg text {
-  fill: #e5e7eb !important;   /* light gray / white */
+  fill: #e5e7eb !important;
+  /* light gray / white */
 }
 
 /* BUY / SELL label text under gauge */
 .theme-dark svg text:last-of-type {
-  fill: #93c5fd !important;   /* soft blue */
+  fill: #93c5fd !important;
+  /* soft blue */
 }
 
 /* =====================================================
@@ -1402,13 +1410,13 @@
 
 .filter-item input[type="date"] {
   position: relative;
-  padding-right: 42px; /* space for icon */
+  padding-right: 42px;
+  /* space for icon */
 }
 
 
 /* DARK THEME: make calendar icon visible */
-.theme-dark
-.filter-item input[type="date"]::-webkit-calendar-picker-indicator {
+.theme-dark .filter-item input[type="date"]::-webkit-calendar-picker-indicator {
   position: absolute;
   right: 14px;
   top: 50%;
@@ -1425,8 +1433,8 @@
 .theme-light .filter-item input[type="date"]::-webkit-calendar-picker-indicator {
   filter: none;
 }
-.theme-dark
-.filter-item input[type="date"]::-webkit-calendar-picker-indicator:hover {
+
+.theme-dark .filter-item input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
