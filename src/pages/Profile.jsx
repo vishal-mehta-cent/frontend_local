@@ -201,10 +201,6 @@ export default function Profile({ username, logout }) {
   const onAvatarSelected = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-const isMobile = useMemo(() => {
-  if (typeof navigator === "undefined") return false;
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}, []);
 
     // Validate type (accept is not enough)
     const okTypes = ["image/jpeg", "image/jpg", "image/png"];
@@ -552,23 +548,25 @@ const isMobile = useMemo(() => {
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-500 rounded-full blur-lg opacity-75 group-hover:opacity-100 transition-opacity animate-pulse"></div>
 
                   {/* Hidden input: Gallery */}
-                  <input
-                    ref={galleryInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    onChange={onAvatarSelected}
-                    className="hidden"
-                  />
+                  {/* Hidden input: Gallery */}
+<input
+  ref={galleryInputRef}
+  type="file"
+  accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+  onChange={onAvatarSelected}
+  className="absolute -left-[9999px] w-px h-px opacity-0"
+/>
 
-                  {/* Hidden input: Camera (Live photo) */}
-                  <input
-                    ref={cameraInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg"
-                    capture="environment"
-                    onChange={onAvatarSelected}
-                    className="hidden"
-                  />
+{/* Hidden input: Camera (Live photo) */}
+<input
+  ref={cameraInputRef}
+  type="file"
+  accept="image/*"
+  capture="environment"
+  onChange={onAvatarSelected}
+  className="absolute -left-[9999px] w-px h-px opacity-0"
+/>
+
 
                   <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 p-1 shadow-2xl">
                     <div className="w-full h-full rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center overflow-hidden">
