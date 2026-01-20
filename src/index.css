@@ -103,28 +103,7 @@ body {
   display: none;
 }
 
-/* Hide scrollbars globally EXCEPT on .nc-scrollbar */
-*:not(.nc-scrollbar) {
-  -ms-overflow-style: none;
-  /* IE/Edge */
-  scrollbar-width: none;
-  /* Firefox */
-}
 
-*:not(.nc-scrollbar)::-webkit-scrollbar {
-  width: 0px;
-  height: 0px;
-  display: none;
-  /* Chrome/Safari */
-}
-
-
-*::-webkit-scrollbar {
-  width: 0px;
-  height: 0px;
-  display: none;
-  /* Chrome/Safari */
-}
 
 /* ✅ Neurocrest styled scrollbar (overlay style) */
 .nc-scrollbar {
@@ -174,4 +153,22 @@ body {
   background: rgba(255, 255, 255, 0.92) !important;
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #0f172a !important;
+}
+/* ✅ Force scrollbar visible */
+.show-scrollbar {
+  scrollbar-width: auto;     /* Firefox */
+  scrollbar-gutter: stable;  /* keeps space for scrollbar */
+}
+
+.show-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.65);
+  border-radius: 10px;
+}
+
+.show-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.08);
 }
