@@ -886,14 +886,14 @@ export default function History({ username }) {
                           <span
                             className={[
                               "px-3 py-1 rounded-xl text-xs font-extrabold tracking-wide",
-                              "ring-1 shadow-lg backdrop-blur-xl",
+                              "ring-1 backdrop-blur-xl",
                               isBuy
                                 ? (isDark
-                                  ? "shadow-[0_0_14px_rgba(16,185,129,0.28),0_0_42px_rgba(16,185,129,0.18)]"
-                                  : "shadow-[0_0_14px_rgba(16,185,129,0.40),0_0_55px_rgba(16,185,129,0.22)]")
+                                  ? "shadow-[0_12px_24px_rgba(16,185,129,0.50),0_6px_12px_rgba(16,185,129,0.26)]"
+                                  : "shadow-[0_12px_24px_rgba(16,185,129,0.34),0_6px_12px_rgba(16,185,129,0.18)]")
                                 : (isDark
-                                  ? "shadow-[0_0_14px_rgba(244,63,94,0.24),0_0_42px_rgba(244,63,94,0.16)]"
-                                  : "shadow-[0_0_14px_rgba(244,63,94,0.34),0_0_55px_rgba(244,63,94,0.20)]"),
+                                  ? "shadow-[0_12px_24px_rgba(244,63,94,0.46),0_6px_12px_rgba(244,63,94,0.24)]"
+                                  : "shadow-[0_12px_24px_rgba(244,63,94,0.32),0_6px_12px_rgba(244,63,94,0.16)]"),
 
                               isBuy
                                 ? isDark
@@ -1031,18 +1031,18 @@ export default function History({ username }) {
                             className={[
                               "inline-flex items-center gap-2",
                               "px-4 py-2 rounded-2xl",
-                              "shadow-lg ring-1",
+                              "ring-1", // ✅ remove shadow-lg
                               pnlNum > 0
                                 ? (isDark
-                                  ? "shadow-[0_0_18px_rgba(16,185,129,0.35),0_0_55px_rgba(16,185,129,0.22)]"
-                                  : "shadow-[0_0_18px_rgba(16,185,129,0.45),0_0_70px_rgba(16,185,129,0.28)]")
+                                  ? "shadow-[0_14px_28px_rgba(16,185,129,0.55),0_6px_14px_rgba(16,185,129,0.30)]"
+                                  : "shadow-[0_14px_28px_rgba(16,185,129,0.40),0_6px_14px_rgba(16,185,129,0.22)]")
                                 : pnlNum < 0
                                   ? (isDark
-                                    ? "shadow-[0_0_18px_rgba(244,63,94,0.32),0_0_55px_rgba(244,63,94,0.20)]"
-                                    : "shadow-[0_0_18px_rgba(244,63,94,0.42),0_0_70px_rgba(244,63,94,0.26)]")
+                                    ? "shadow-[0_14px_28px_rgba(244,63,94,0.50),0_6px_14px_rgba(244,63,94,0.28)]"
+                                    : "shadow-[0_14px_28px_rgba(244,63,94,0.36),0_6px_14px_rgba(244,63,94,0.20)]")
                                   : (isDark
-                                    ? "shadow-[0_0_14px_rgba(148,163,184,0.18),0_0_40px_rgba(148,163,184,0.10)]"
-                                    : "shadow-[0_0_14px_rgba(148,163,184,0.22),0_0_45px_rgba(148,163,184,0.12)]"),
+                                    ? "shadow-[0_14px_26px_rgba(148,163,184,0.22),0_6px_14px_rgba(148,163,184,0.12)]"
+                                    : "shadow-[0_14px_26px_rgba(148,163,184,0.18),0_6px_14px_rgba(148,163,184,0.10)]"),
 
                               "backdrop-blur-xl",
                               pnlNum > 0
