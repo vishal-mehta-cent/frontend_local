@@ -48,28 +48,29 @@ export default function Payments({ username }) {
   const [utr, setUtr] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState(null); // null | "submitted" | "success"
+  const [openedUPI, setOpenedUPI] = useState(false);
 
   const [sub, setSub] = useState(null);
   const [subLoading, setSubLoading] = useState(true);
   const isLoggedIn = !!userId;
 
   const refreshSubscription = async () => {
-  if (!userId) {
-    setSub(null);
-    setSubLoading(false);
-    return;
-  }
-  setSubLoading(true);
-  try {
-    const data = await getJSON(`${API}/payments/subscription/${encodeURIComponent(userId)}`);
-    setSub(data);
-  } catch (e) {
-    console.error("subscription error:", e?.message);
-  } finally {
-    setSubLoading(false);
-  }
-};
-
+    if (!userId) {
+      setSub(null);
+      setSubLoading(false);
+      return;
+    }
+    setSubLoading(true);
+    try {
+      const data = await getJSON(`${API}/payments/subscription/${encodeURIComponent(userId)}`);
+      setSub(data);
+    } catch (e) {
+      console.error("subscription error:", e?.message);
+    } finally {
+      setSubLoading(false);
+    }
+  };
 
   useEffect(() => {
     refreshSubscription();
@@ -104,6 +105,7 @@ export default function Payments({ username }) {
         const data = await getJSON(`${API}/payments/upi/status/${tr}`);
         if (data.status === "success") {
           setSuccess(true);
+          setPaymentStatus("success");
           clearInterval(timer);
           await refreshSubscription();
 
@@ -115,6 +117,8 @@ export default function Payments({ username }) {
             setUtr("");
             setVerifying(false);
             setSuccess(false);
+            setPaymentStatus(null);
+            setOpenedUPI(false);
           }, 1200);
         }
       } catch { }
@@ -139,6 +143,8 @@ export default function Payments({ username }) {
     setUpiQR(null);
     setUtr("");
     setVerifying(false);
+    setPaymentStatus(null);
+    setOpenedUPI(false);
 
     const transactionRef = makeTR();
     setTr(transactionRef);
@@ -158,18 +164,50 @@ export default function Payments({ username }) {
 
   const verifyWithUTR = async () => {
     if (!tr) return;
+
     const u = String(utr || "").trim();
-    if (!u) {
-      alert("Please enter UTR / Reference number from your UPI app.");
+
+    const isUpiTxn = /^\d{10,18}$/.test(u);
+    const isAppTxn = /^(?=.*\d)[A-Za-z0-9]{8,25}$/.test(u);
+
+    if (!isUpiTxn && !isAppTxn) {
+      alert("Invalid UTR. Enter UPI Transaction ID (10-18 digits) or App Transaction ID (8-25 alphanumeric with at least 1 number).");
       return;
     }
 
     setVerifying(true);
+
     try {
-      await postJSON(`${API}/payments/upi/confirm`, { tr, utr: u });
-      // poll will detect success and close QR
+      const res = await fetch(`${API}/payments/upi/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tr, utr: u }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        alert(data.detail || "Payment verification failed");
+        return;
+      }
+
+      setPaymentStatus(data.status || null);
+
+      if (data.status === "success") {
+        alert("Payment confirmed ✅");
+        setSuccess(true);
+        await refreshSubscription();
+        return;
+      }
+
+      if (data.status === "submitted") {
+        alert("UTR submitted ✅. (If AUTO_CONFIRM_UPI=false, it may stay submitted)");
+        return;
+      }
+
+      alert("Unexpected response: " + JSON.stringify(data));
     } catch (e) {
-      alert(e?.message || "Verification failed");
+      alert(e?.message || "Network error");
     } finally {
       setVerifying(false);
     }
@@ -184,6 +222,8 @@ export default function Payments({ username }) {
       setUtr("");
       setVerifying(false);
       setSuccess(false);
+      setPaymentStatus(null);
+      setOpenedUPI(false);
       return;
     }
     if (window.history.length > 1) nav(-1);
@@ -216,24 +256,24 @@ export default function Payments({ username }) {
 
         {view === "PLANS" && (
           <>
-          {!isLoggedIn && (
-  <div className="text-center mt-5 mb-6">
-    <p className="text-sm text-slate-300 mb-3">
-      Create your account to start your free trial and activate a plan.
-    </p>
+            {!isLoggedIn && (
+              <div className="text-center mt-5 mb-6">
+                <p className="text-sm text-slate-300 mb-3">
+                  Create your account to start your free trial and activate a plan.
+                </p>
 
-    <button
-      onClick={() => {
-        localStorage.setItem("post_login_redirect", "/payments");
-        nav("/login");
-      }}
-      className="px-10 py-3 rounded-full font-bold text-black bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]
+                <button
+                  onClick={() => {
+                    localStorage.setItem("post_login_redirect", "/payments");
+                    nav("/login");
+                  }}
+                  className="px-10 py-3 rounded-full font-bold text-black bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]
                  hover:shadow-2xl hover:scale-105 transition-all"
-    >
-      Get Started
-    </button>
-  </div>
-)}
+                >
+                  Get Started
+                </button>
+              </div>
+            )}
 
             <h1 className="text-3xl font-bold text-center mb-2">Upgrade your plan</h1>
 
@@ -317,22 +357,21 @@ export default function Payments({ username }) {
                       </p>
 
                       <button
-  disabled={!isLoggedIn || disabled}
-  onClick={() => {
-    if (!isLoggedIn) return;
-    startPayment(plan);
-  }}
-  className={`mb-6 ${(!isLoggedIn || disabled) ? disabledBtn : primaryBtn}`}
->
-  {!isLoggedIn
-    ? "Login to choose plan"
-    : isCurrent
-      ? "Your current plan"
-      : isQueued
-        ? "Queued"
-        : `Get ${plan.name}`}
-</button>
-
+                        disabled={!isLoggedIn || disabled}
+                        onClick={() => {
+                          if (!isLoggedIn) return;
+                          startPayment(plan);
+                        }}
+                        className={`mb-6 ${(!isLoggedIn || disabled) ? disabledBtn : primaryBtn}`}
+                      >
+                        {!isLoggedIn
+                          ? "Login to choose plan"
+                          : isCurrent
+                            ? "Your current plan"
+                            : isQueued
+                              ? "Queued"
+                              : `Get ${plan.name}`}
+                      </button>
 
                       <ul className="space-y-3 text-sm text-slate-200">
                         {plan.features.map((f, i) => (
@@ -343,7 +382,6 @@ export default function Payments({ username }) {
                         ))}
                       </ul>
 
-                      {/* Show these ONLY for non-free plans */}
                       {plan.id !== "free" && (
                         <>
                           <div className="mt-5 rounded-xl border border-white/15 bg-white/5 p-3">
@@ -365,7 +403,6 @@ export default function Payments({ username }) {
                           </div>
                         </>
                       )}
-
                     </div>
                   </div>
                 );
@@ -453,13 +490,27 @@ export default function Payments({ username }) {
                     <img src={`data:image/png;base64,${upiQR.qr_b64}`} alt="UPI QR" className="w-64 h-64" />
                   </div>
 
-                  <a
-                    href={upiQR.upi_uri}
+                  {/* ✅ Must mark opened in backend before redirect */}
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        if (tr) {
+                          await fetch(`${API}/payments/upi/opened`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ tr }),
+                          });
+                        }
+                      } catch { }
+                      setOpenedUPI(true);
+                      window.location.href = upiQR.upi_uri;
+                    }}
                     className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 text-black font-semibold"
                   >
                     <Smartphone className="w-4 h-4" />
-                    Open in UPI App
-                  </a>
+                    Click Here  and Then Scan QR  and fill Transaction ID
+                  </button>
 
                   <div className="flex items-center gap-2 text-slate-300 text-sm">
                     <Loader className="w-4 h-4 animate-spin" />
@@ -467,22 +518,37 @@ export default function Payments({ username }) {
                   </div>
 
                   <div className="w-full mt-4 bg-white/5 border border-white/15 rounded-2xl p-4">
-                    <div className="text-sm font-semibold mb-2">After payment, enter UTR / Reference number</div>
+                    <div className="text-sm font-semibold mb-2">After payment, Enter UPI  Transaction ID </div>
+
                     <input
                       value={utr}
                       onChange={(e) => setUtr(e.target.value)}
                       placeholder="UTR / Reference (letters/numbers)"
                       className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/20 outline-none text-white placeholder:text-white/40"
                     />
+
                     <button
                       onClick={verifyWithUTR}
-                      disabled={verifying}
-                      className={`mt-3 ${verifying ? disabledBtn : primaryBtn}`}
+                      disabled={!openedUPI || verifying || paymentStatus === "submitted" || success}
+                      className={`mt-3 ${(!openedUPI || verifying || paymentStatus === "submitted" || success) ? disabledBtn : primaryBtn}`}
                     >
-                      {verifying ? "Verifying..." : "Verify Payment"}
+                      {!openedUPI
+                        ? "Open UPI App first"
+                        : verifying
+                          ? "Verifying..."
+                          : paymentStatus === "submitted"
+                            ? "Submitted"
+                            : "Verify Payment"}
                     </button>
+
+                    {paymentStatus === "submitted" && (
+                      <div className="text-xs text-amber-200 mt-2">
+                        UTR submitted. Waiting for verification…
+                      </div>
+                    )}
+
                     <div className="text-xs text-slate-400 mt-2">
-                      QR will disappear only after verification (to avoid false paid status).
+                      QR will disappear only after verification 
                     </div>
                   </div>
                 </div>
