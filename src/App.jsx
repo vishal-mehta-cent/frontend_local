@@ -83,6 +83,7 @@ export default function App() {
     }
   }, [username]);
 
+
   const handleLoginSuccess = (user) => {
     setUsername(user);
 
@@ -242,7 +243,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             path="/login"
             element={
               username ? (
-                <Navigate to="/trade" replace />
+                <Navigate to="/menu" replace />
               ) : (
                 <AuthScreen onLoginSuccess={onLoginSuccess} />
               )
