@@ -89,6 +89,7 @@ export default function Sell() {
   // ✅ NOW it’s safe
   const isAddToExistingShort = Boolean(prefill?.fromAdd && prefill?.fromPosition && prefill?.short_first);
   const allowShort = Boolean(!isExit && (isAddToExistingShort || (confirmedShort && !prefill.skipSellFirstCheck)));
+  const isSellFirstModify = isModify && Boolean(prefill?.short_first);
 
 
 
@@ -481,7 +482,7 @@ export default function Sell() {
       // ================================
       if (
         orderMode === "LIMIT" &&
-        allowShort === true &&
+        (allowShort || isSellFirstModify) === true &&
         Number.isFinite(livePrice)
       ) {
         const limitPx = Number(payload.price);
