@@ -114,6 +114,8 @@ export default function Sell() {
   const [lotSize, setLotSize] = useState(1);
   const [lotQty, setLotQty] = useState(0);
   const [totalInvestment, setTotalInvestment] = useState(0);
+  const displaySymbol = (symbol || "").replace(/-/g, "-"); // non-breaking hyphen
+
 
   const [orderMode, setOrderMode] = useState(prefill.orderMode || "MARKET");
   useEffect(() => {
@@ -732,45 +734,73 @@ export default function Sell() {
       {/* Content Container */}
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6 min-h-screen flex flex-col">
         {/* Header */}
-        <div
-          className={`${glassClass} rounded-2xl p-4 mb-6 flex items-center justify-between shadow-2xl`}
-        >
-          {/* ✅ MATCH Buy.jsx back target */}
-          <BackButton to={returnTo || (isAddMode ? "/portfolio" : "/orders")} />
-          <div className="flex items-center space-x-2">
-            <TrendingDown className="w-5 h-5 text-red-400" />
-            <h2 className="font-bold text-lg bg-gradient-to-r from-red-400 to-rose-400 bg-clip-text text-transparent">
-              {isExit ? `EXIT ${symbol}` : isAdd ? `ADD ${symbol}` : isModify ? `MODIFY ${symbol}` : `SELL ${symbol}`}
-            </h2>
-          </div>
-          {!isModify && !isAdd && !isPositionModify && !isExit && (
-            <button
-              type="button"
-              onClick={() =>
-                nav(`/buy/${symbol}`, {
-                  state: {
-                    ...prefill,
-                    qty,
-                    exchange,
-                    segment,
-                    stoploss,
-                    target,
-                    orderMode,
-                    price,
-                  },
-                })
-              }
-              className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
-    ${isDark
-                  ? "bg-emerald-500/15 border-emerald-400/25 text-emerald-100 hover:bg-emerald-500/25"
-                  : "bg-emerald-100 border-emerald-200 text-emerald-700 hover:bg-emerald-200"
-                }`}
-            >
-              BUY
-            </button>
-          )}
+        <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-2xl`}>
+          <div className="grid grid-cols-3 items-center">
+            {/* Left */}
+            <div className="justify-self-start">
+              <BackButton to={returnTo || (isAddMode ? "/portfolio" : "/orders")} />
+            </div>
 
+            {/* Center (ALWAYS centered) */}
+            <div className="justify-self-center text-center">
+              <div className="flex items-center justify-center gap-3">
+                <div className="relative">
+                  <TrendingDown className="w-6 h-6 text-red-400 animate-pulse" />
+                  {marketOpen && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping" />
+                  )}
+                </div>
+
+                <div className="text-center">
+                  <h2 className="whitespace-nowrap font-bold text-lg bg-gradient-to-r from-red-400 to-rose-400 bg-clip-text text-transparent">
+                    {isExit
+                      ? `EXIT ${displaySymbol}`
+                      : isAdd
+                        ? `ADD ${displaySymbol}`
+                        : isModify
+                          ? `MODIFY ${displaySymbol}`
+                          : `SELL ${displaySymbol}`}
+                  </h2>
+
+                  <p className={`text-xs ${textSecondaryClass}`}>
+                    {marketOpen ? "Market Open" : "Market Closed"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right */}
+            <div className="justify-self-end">
+              {!isModify && !isAdd && !isPositionModify && !isExit && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    nav(`/buy/${symbol}`, {
+                      state: {
+                        ...prefill,
+                        qty,
+                        exchange,
+                        segment,
+                        stoploss,
+                        target,
+                        orderMode,
+                        price,
+                      },
+                    })
+                  }
+                  className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
+            ${isDark
+                      ? "bg-emerald-500/15 border-emerald-400/25 text-emerald-100 hover:bg-emerald-500/25"
+                      : "bg-emerald-100 border-emerald-200 text-emerald-700 hover:bg-emerald-200"
+                    }`}
+                >
+                  BUY
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+
 
         {/* Error Message */}
         {errorMsg && (
