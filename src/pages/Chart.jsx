@@ -622,6 +622,13 @@ export default function ChartPage() {
   const [desc3, setDesc3] = useState("");
   const [desc4, setDesc4] = useState("");
 
+  const [features, setFeatures] = useState({
+  allow_generate_signals: false,
+  allow_chart_recommendation: false,
+  allow_recommendation_page: false,
+});
+
+
   const [latestSignals, setLatestSignals] = useState([]);
   const [latestReco, setLatestReco] = useState([]);
   const [latestRecoDesc, setLatestRecoDesc] = useState([]);
@@ -636,6 +643,8 @@ export default function ChartPage() {
   const [freezeChartAtSignal, setFreezeChartAtSignal] = useState(false);
 
   const [recoMode, setRecoMode] = useState(false);
+  // 🔒 Lock Recommendations button if user doesn't have access
+  const [recoLocked, setRecoLocked] = useState(false);
 
   const [isDark, setIsDark] = useState(false);
   // ✅ Premium popup state (replaces alert())
@@ -765,6 +774,41 @@ export default function ChartPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchItems, setSearchItems] = useState([]);
   const searchInputRef = useRef(null);
+
+  useEffect(() => {
+  let alive = true;
+  const u = localStorage.getItem("username") || "";
+  if (!u) return;
+
+  fetch(`${API}/features/access/${encodeURIComponent(u)}`, { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+    .then((j) => {
+      if (!alive) return;
+      setFeatures({
+        allow_generate_signals: !!j.allow_generate_signals,
+        allow_chart_recommendation: !!j.allow_chart_recommendation,
+        allow_recommendation_page: !!j.allow_recommendation_page,
+      });
+      setRecoLocked(!j.allow_recommendation_page);
+
+    })
+    .catch(() => {
+      if (!alive) return;
+      setFeatures({
+        allow_generate_signals: false,
+        allow_chart_recommendation: false,
+        allow_recommendation_page: false,
+      });
+    });
+
+  return () => {
+    alive = false;
+  };
+}, []);
+
+  // 🔒 Check Recommendations page access (backend returns 403 when locked)
+
+
 
   // Focus input when modal opens
   useEffect(() => {
@@ -1050,13 +1094,13 @@ export default function ChartPage() {
         const tsSec = Math.floor(Number(sig.timestamp) / 1000); // 🔥 FIX
 
         return {
-          time: Number(sig.timestamp), // MUST be seconds
-          price: sig.close_price,
-          position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
-          shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
-          color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-          text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
-        };
+  time: tsSec, // ✅ MUST be seconds
+  position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
+  shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
+  color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
+  text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
+};
+
       });
 
       // --------------------------------------------------
@@ -1137,6 +1181,7 @@ export default function ChartPage() {
 
 
       console.log("🔥 Auto Recommendation Mode");
+      recoModeRef.current = true;
 
       setRecoMode(true);
       localStorage.setItem("NC_recoMode_" + symbol, "true");
@@ -2774,6 +2819,10 @@ const isUp = useMemo(() => {
   // ---------------------------------------------------------
   async function generateSignal() {
     console.log("=== GENERATE SIGNAL CLICKED ===");
+    if (!features.allow_generate_signals) {
+  showPopup("Locked", "Generate Signals is enabled only for approved users.");
+  return;
+}
 
     // -------------------------------------
     // ⭐ 1. OFF MODE (SECOND CLICK)
@@ -2905,6 +2954,10 @@ const isUp = useMemo(() => {
   // ======================================================================
   async function openRecommendations() {
     console.log("📌 Recommendation button clicked");
+        if (recoLocked) {
+      showPopup("Locked", "Recommendations are available only for approved users.");
+      return;
+    }
 
     // -----------------------
     // 🌟 STOP MODE
