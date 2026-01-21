@@ -11,6 +11,7 @@ import {
   Home,
 } from "lucide-react";
 import BackButton from "../components/BackButton";
+import { useLocation } from "react-router-dom";
 
 const API = (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
   .trim()
@@ -79,9 +80,6 @@ const DEFAULT_RATES = {
 
 
 export default function Funds({ username }) {
-  const nav = useNavigate();
-
-
   const ratesStorageKey = username ? `nc_rates_${username}` : "nc_rates";
   const [rates, setRates] = useState(() => {
     try {
@@ -106,13 +104,7 @@ export default function Funds({ username }) {
       return DEFAULT_RATES;
     }
   });
-
-
-
-
-  // Persist edits so refresh keeps user values
-
-
+// Persist edits so refresh keeps user values
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     return saved === "dark";
@@ -144,7 +136,9 @@ export default function Funds({ username }) {
   const [ok, setOk] = useState("");
   const [savingRates, setSavingRates] = useState(false);
   const [ratesMsg, setRatesMsg] = useState("");
-
+const nav = useNavigate();
+const location = useLocation();
+const from = location.state?.from;
 
   useEffect(() => {
     if (!username) return;
@@ -277,7 +271,12 @@ export default function Funds({ username }) {
 
       <div className="relative z-10 w-full max-w-none mx-auto px-2 sm:px-3 lg:px-4 py-4">
         <div className="flex items-center justify-between mb-6">
-          <BackButton to="/profile" />
+            <BackButton
+  onClick={() => {
+    if (from) nav(from);
+    else nav(-1); // fallback: browser back
+  }}
+/>
 
           <div className="flex items-center gap-3">
             <button
