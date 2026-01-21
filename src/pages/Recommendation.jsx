@@ -983,7 +983,7 @@ export default function Recommendations() {
 
 
       {/* ===== MAIN CONTENT (STEP 5) ===== */}
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 pt-[140px] sm:pt-[195px]">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
 
         <div className="mb-6">
           <h2 className={`text-4xl font-bold ${textClass} mb-2`}>
