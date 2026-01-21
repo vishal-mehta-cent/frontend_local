@@ -286,8 +286,21 @@ export default function Trade({ username }) {
       }
     }
 
-    const tailNum = Q.match(/(\d+)(?!.*\d)/);
-    const strike = tailNum ? tailNum[1] : "";
+    // ✅ STRIKE should be digits AFTER month (e.g. NIFTY26JAN23500CE -> 23500)
+// ❌ Do NOT treat "26" (year) as strike in NIFTY26JAN
+let strike = "";
+
+if (mIdx >= 0 && month) {
+  // digits immediately after month
+  const afterMonth = Q.slice(mIdx + month.length);
+  const mStrike = afterMonth.match(/^(\d+)/);
+  strike = mStrike ? mStrike[1] : "";
+} else {
+  // fallback (no month case)
+  const tailNum = Q.match(/(\d+)(?!.*\d)/);
+  strike = tailNum ? tailNum[1] : "";
+}
+
 
     let year2 = "";
     if (mIdx >= 0) {
