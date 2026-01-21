@@ -590,7 +590,7 @@ export default function Orders({ username }) {
           returnTo: "/orders",
           returnTab: tab === "open" ? "open" : "positions",
           // ✅ REQUIRED for backend modify_position
-          short_first: Boolean(selectedOrder.short_first),
+          short_first: Boolean(order.short_first),
           positionDatetime: selectedOrder.datetime, // ✅ anchor datetime
         },
       }
