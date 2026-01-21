@@ -30,18 +30,6 @@ const DEFAULT_RATES = {
   tax_delivery_pct: "0.0011",
 };
 
-const getRatesKey = (username) => (username ? `nc_rates_${username}` : "nc_rates");
-
-const loadRates = (username) => {
-  try {
-    const raw = localStorage.getItem(getRatesKey(username));
-    const parsed = raw ? JSON.parse(raw) : null;
-    if (!parsed || typeof parsed !== "object") return DEFAULT_RATES;
-    return { ...DEFAULT_RATES, ...parsed };
-  } catch {
-    return DEFAULT_RATES;
-  }
-};
 
 const toF = (v, fallback = 0) => {
   const n = Number(v);
@@ -210,6 +198,33 @@ const PnlArrowBox = ({ up }) => {
   );
 };
 
+// ✅ Freeze closed-row values (so later brokerage changes won't affect old closed trades)
+const closedSnapKey = (who, o) => {
+  const sym = (o.script || o.symbol || "").toUpperCase();
+  const seg = (o.segment || "delivery").toLowerCase();
+  const dt = (o.datetime || o.updated_at || o.created_at || "").toString();
+  const qty = Number(o.qty || 0);
+  const entry = Number(o.price || 0);
+  const exitp = o.exit_price != null ? Number(o.exit_price) : "";
+  const side = (o.type || o.order_type || "").toUpperCase();
+  return `nc_closed_snap|${who}|${sym}|${seg}|${side}|${dt}|${qty}|${entry}|${exitp}`;
+};
+
+const readClosedSnap = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeClosedSnap = (key, snap) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(snap));
+  } catch { }
+};
+
 
 export default function Orders({ username }) {
   const location = useLocation();
@@ -238,6 +253,7 @@ export default function Orders({ username }) {
   const prevPriceRef = useRef({});
   const [priceFlash, setPriceFlash] = useState({});
   const isInactiveSel = Boolean(selectedOrder?.inactive);
+  const closedSnapRef = useRef({});
 
 
   const { isDark } = useTheme();
@@ -356,28 +372,20 @@ export default function Orders({ username }) {
     if (!whoRates) return;
 
     (async () => {
-      // 1) Try backend first
       try {
         const res = await fetch(`${API}/orders/brokerage-settings/${whoRates}`);
         if (res.ok) {
           const data = await res.json();
-          const merged = { ...DEFAULT_RATES, ...data };
-          setRates(merged);
-
-          // optional: keep local cache
-          try {
-            localStorage.setItem(getRatesKey(whoRates), JSON.stringify(merged));
-          } catch { }
-          return;
+          setRates({ ...DEFAULT_RATES, ...data });
+        } else {
+          setRates(DEFAULT_RATES);
         }
       } catch {
-        // ignore and fallback
+        setRates(DEFAULT_RATES);
       }
-
-      // 2) Fallback to localStorage
-      setRates(loadRates(whoRates));
     })();
   }, [whoRates]);
+
 
 
 
@@ -496,23 +504,43 @@ export default function Orders({ username }) {
   const totalPnl = positions.reduce((sum, o) => {
     const qty = toNum(o.qty) ?? 0;
     const entry = toNum(o.price) ?? 0;
+    const isBuy = (o.type || o.order_type) === "BUY";
 
-    // ✅ Freeze with exit_price if inactive
-    const effectivePrice =
+    const livePx =
       o.inactive && o.exit_price != null
         ? toNum(o.exit_price)
         : (toNum(quotes[(o.script || o.symbol || "").toUpperCase()]?.price) ??
           toNum(o.live_price) ??
           entry);
 
-    const isBuy = (o.type || o.order_type) === "BUY";
-    const perShare = entry && effectivePrice
-      ? (isBuy ? (effectivePrice - entry) : (entry - effectivePrice))
-      : 0;
-    const pnl = perShare * qty;
+    const investment = entry * qty;
+
+    const entryAdditionalCost = calcAdditionalCost({
+      rates,
+      segment: o.segment,
+      investment,
+    });
+
+    let netInvestment = isBuy
+      ? (investment + entryAdditionalCost)
+      : (investment - entryAdditionalCost);
+
+    if (o.inactive && o.exit_price != null) {
+      const key = closedSnapKey(who, o);
+      const frozen = readClosedSnap(key);
+      if (frozen?.netInvestment != null) netInvestment = frozen.netInvestment;
+    }
+
+
+    const liveValue = (livePx ?? 0) * qty;
+
+    const pnl = isBuy
+      ? (liveValue - netInvestment)
+      : (netInvestment - liveValue);
 
     return sum + (Number.isFinite(pnl) ? pnl : 0);
   }, 0);
+
 
   // auto-switch to Positions when orders trigger
   useEffect(() => {
@@ -548,6 +576,8 @@ export default function Orders({ username }) {
     prevOpenRef.current = openOrders;
     prevPosRef.current = positions;
   }, [openOrders, positions, tab]);
+
+
 
   // ---------- Action handlers ----------
   const handleCancel = async (orderId) => {
@@ -752,7 +782,7 @@ export default function Orders({ username }) {
 
 
       {/* ✅ Main content */}
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 pt-[140px] sm:pt-[195px]">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
 
 
         {/* Page header + Tabs + Refresh button */}
@@ -846,9 +876,13 @@ export default function Orders({ username }) {
                 : (investment - entryAdditionalCost);
 
               // Exit side (only if closed)
+              // ✅ Exit total investment (exitPrice * qty)
               const exitInvestment =
-                o.inactive && o.exit_price != null ? (toNum(o.exit_price) ?? 0) * (qty || 0) : 0;
+                o.inactive && o.exit_price != null
+                  ? (toNum(o.exit_price) ?? 0) * (qty || 0)
+                  : 0;
 
+              // ✅ Exit charges (tax + brokerage on exit investment)
               const exitAdditionalCost =
                 o.inactive && o.exit_price != null
                   ? calcAdditionalCost({
@@ -858,31 +892,77 @@ export default function Orders({ username }) {
                   })
                   : 0;
 
-              // Exit is opposite side
-              // ✅ Exit is opposite of entry side:
-              // BUY position exits with SELL, SELL position exits with BUY
-              const exitIsSell = isBuy;
+              // ✅ Total additional cost till exit = entry charges + exit charges
+              const totalAdditionalCostTillExit =
+                o.inactive && o.exit_price != null
+                  ? (entryAdditionalCost + exitAdditionalCost)
+                  : 0;
 
-              // ✅ Your required logic:
-              // Exit SELL (closing BUY)  -> netInvestment - exitAdditionalCost
-              // Exit BUY  (closing SELL) -> netInvestment + exitAdditionalCost
+              // ✅ Exit Net Investment = exitInvestment - totalAdditionalCostTillExit
               const exitNetInvestment =
                 o.inactive && o.exit_price != null
-                  ? (exitIsSell ? (netInvestment - exitAdditionalCost) : (netInvestment + exitAdditionalCost))
+                  ? (exitInvestment - exitAdditionalCost)
                   : 0;
+              const additionalCostToShow =
+                o.inactive && o.exit_price != null
+                  ? totalAdditionalCostTillExit   // ✅ entry + exit
+                  : entryAdditionalCost;          // ✅ only entry for active
+
+              // ✅ Freeze values when row becomes inactive (gray)
+              let frozen = null;
+
+              if (o.inactive && o.exit_price != null) {
+                const key = closedSnapKey(who, o);
+
+                frozen = closedSnapRef.current[key] || readClosedSnap(key);
+
+                if (!frozen) {
+                  frozen = {
+                    additionalCost: totalAdditionalCostTillExit, // ✅ entry + exit
+                    netInvestment,                               // ✅ freeze netInvestment at close time
+                    exitNetInvestment,                           // ✅ freeze exitNetInvestment at close time
+                    frozenAt: Date.now(),
+                  };
+                  closedSnapRef.current[key] = frozen;
+                  writeClosedSnap(key, frozen);
+                } else {
+                  closedSnapRef.current[key] = frozen;
+                }
+              }
+
+              // ✅ Use frozen values for gray rows, live values for active rows
+              const displayAdditionalCost = (o.inactive && frozen) ? frozen.additionalCost : additionalCostToShow;
+              const displayNetInvestment = (o.inactive && frozen) ? frozen.netInvestment : netInvestment;
+              const displayExitNetInvestment = (o.inactive && frozen) ? frozen.exitNetInvestment : exitNetInvestment;
 
 
               const effectivePrice =
                 o.inactive && o.exit_price != null ? toNum(o.exit_price) : live;
 
               // ✅ side-aware P&L (BUY and SELL both correct)
-              const perShare =
-                entryPrice && effectivePrice
-                  ? (isBuy ? (effectivePrice - entryPrice) : (entryPrice - effectivePrice))
-                  : 0;
+              // ✅ Net-investment based P&L (includes entry charges via netInvestment)
+              const liveValue = (effectivePrice ?? 0) * (qty || 0);
 
-              const pct = entryPrice ? (perShare / entryPrice) * 100 : 0;
-              const total = perShare * qty;
+              // Active row: P&L = liveValue - netInvestment (BUY)
+              // Active row: P&L = netInvestment - liveValue (SELL)
+              const activePnl = liveValue - netInvestment;
+
+
+              // Grey/closed row: P&L = exitNetInvestment - netInvestment (BUY)
+              // Grey/closed row: P&L = netInvestment - exitNetInvestment (SELL)
+              const closedPnl = isBuy
+                ? (displayExitNetInvestment - investment)
+                : (investment - displayExitNetInvestment);
+
+
+              // ✅ This is your "script_pnl" now:
+              const total = (o.inactive && o.exit_price != null) ? closedPnl : activePnl;
+
+              // Optional: show per-share + pct using net investment base (not entryPrice base)
+              const perShare = qty ? (total / qty) : 0;
+              const pctBase = Math.abs(netInvestment) || 0;
+              const pct = pctBase ? (total / pctBase) * 100 : 0;
+
 
               const pnlUp = total >= 0;
               const pnlColor = pnlUp ? "text-emerald-400" : "text-rose-400";
@@ -1124,7 +1204,7 @@ export default function Orders({ username }) {
                     <div className="flex-shrink-0 min-w-[170px] sm:min-w-0">
                       <div className={`text-xs font-semibold ${textSecondaryClass}`}>Additional Cost</div>
                       <div className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-cyan-200" : "text-sky-600"} whitespace-nowrap`}>
-                        {money(entryAdditionalCost)}
+                        {money(displayAdditionalCost)}
                       </div>
                     </div>
 
@@ -1132,7 +1212,7 @@ export default function Orders({ username }) {
                     <div className="flex-shrink-0 min-w-[190px] sm:min-w-0">
                       <div className={`text-xs font-semibold ${textSecondaryClass}`}>Net Investment</div>
                       <div className={`mt-1 text-lg sm:text-xl font-extrabold ${textClass} whitespace-nowrap`}>
-                        {money(netInvestment)}
+                        {money(displayNetInvestment)}
                       </div>
                     </div>
 
@@ -1164,7 +1244,7 @@ export default function Orders({ username }) {
                             className={`mt-1 text-lg sm:text-xl font-extrabold ${isDark ? "text-amber-200" : "text-amber-700"
                               } whitespace-nowrap`}
                           >
-                            {money(exitNetInvestment)}
+                            {money(displayExitNetInvestment)}
                           </div>
                         </div>
                       </>
