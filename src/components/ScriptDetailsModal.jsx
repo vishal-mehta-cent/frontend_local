@@ -230,7 +230,7 @@ export default function ScriptDetailsModal({
         <div className="relative z-10 p-6 border-b border-white/10">
           <div className="flex justify-between items-start">
             <div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
                 {sym}
               </h2>
               <p className={`text-sm ${textSecondaryClass} mt-1`}>Stock Details</p>
