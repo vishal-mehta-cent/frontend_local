@@ -96,9 +96,9 @@ export default function Settings() {
                 <Mail className="w-6 h-6 text-white" />
               </div>
               <div className="text-left">
-                <div className="font-semibold">Change Email</div>
+                <div className="font-semibold">Your Email</div>
                 <div className={`text-sm ${textSecondaryClass}`}>
-                  Update your email address
+                  Your email address
                 </div>
               </div>
             </div>
