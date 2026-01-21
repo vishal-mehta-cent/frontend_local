@@ -680,7 +680,7 @@ if (mIdx >= 0 && month) {
  <AppHeader />
 
       {/* MAIN CONTENT */}
-     <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 pt-[140px] sm:pt-[195px]">
+    <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
         <div className="space-y-6">
           {/* Tabs + Funds (same line) */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
