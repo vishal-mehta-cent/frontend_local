@@ -16,7 +16,7 @@ import "react-toastify/dist/ReactToastify.css";
 // ✅ add
 import AlertModal from "./components/AlertModal";
 import { useTheme } from "./context/ThemeContext";
-
+import RequireSubscription from "./components/RequireSubscription";
 // Pages
 import Landing from "./pages/Landing";
 import LoginRegister from "./pages/LoginRegister";
@@ -125,6 +125,28 @@ export default function App() {
     </BrowserRouter>
   );
 }
+
+const handleLoginSuccess = async (user) => {
+  setUsername(user);
+
+  // ✅ auto-create free trial on first login (by calling subscription endpoint once)
+  try {
+    const u = String(user || "").trim().toLowerCase();
+    await fetch(`${API}/payments/subscription/${encodeURIComponent(u)}`);
+  } catch (e) {
+    // ignore if offline; user can still open /payments later
+  }
+
+  const redirectTo = localStorage.getItem("post_login_redirect");
+  if (redirectTo) {
+    localStorage.removeItem("post_login_redirect");
+    window.location.href = redirectTo;
+    return;
+  }
+
+  window.location.href = "/menu";
+};
+
 
 function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   const location = useLocation();
@@ -338,7 +360,18 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           />
 
           <Route path="/payments" element={<Payments username={username} />} />
-
+          <Route
+  path="/trade"
+  element={
+    username ? (
+      <RequireSubscription>
+        <Trade username={username} />
+      </RequireSubscription>
+    ) : (
+      <Navigate to="/" replace />
+    )
+  }
+/>
           <Route
             path="/history"
             element={
@@ -390,7 +423,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
         </Routes>
         
       </AnimatePresence>
-
+       
       {/* ✅ Chart-style popup modal */}
       <AlertModal
         open={popup.open}
