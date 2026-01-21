@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef, startTransition } from "react";
 import "./Recommendations.css";
 import SignalCard from "../components/SignalCard";
@@ -101,6 +100,8 @@ export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const navigate = useNavigate();
+  const [locked, setLocked] = useState(false);
+
 
 
   const [segment, setSegment] = useState("Equity");
@@ -286,6 +287,7 @@ export default function Recommendations() {
         `${API}/quotes/price?symbol=${encodeURIComponent(script)}`
       );
       const json = await res.json();
+
       return Number(
         json?.price || json?.ltp || json?.last_price || json?.currentPrice
       );
@@ -393,10 +395,26 @@ export default function Recommendations() {
 
     const fetchOnce = async () => {
       try {
+        const username = localStorage.getItem("username") || "";
         const res = await fetch(
-          `${API}/recommendations/data?ts=${Date.now()}`,
+          `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
           { cache: "no-store" }
         );
+
+        // ✅ LOCK HANDLING (CRITICAL)
+        if (res.status === 403) {
+          if (!alive) return;
+          setLocked(true);
+          setRows([]);
+          setInitialLoading(false);
+          return;
+        }
+
+        // ✅ if any other error, stop safely
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          throw new Error(`recommendations/data failed: ${res.status} ${errText}`);
+        }
 
         const json = await res.json();
         if (!alive) return;
@@ -612,6 +630,25 @@ export default function Recommendations() {
   // COUNTS for showing below the speedometer
   const buyClosedCount = buyClosedSignals.length;
   const sellClosedCount = sellClosedSignals.length;
+
+  if (locked) {
+    return (
+      <div className={`min-h-screen ${bgClass} ${textClass} flex items-center justify-center p-6`}>
+        <div className={`${glassClass} rounded-3xl p-8 max-w-md w-full text-center shadow-2xl`}>
+          <h2 className="text-2xl font-bold mb-2">Recommendations Locked</h2>
+          <p className={`${textSecondaryClass} mb-6`}>
+            This feature is enabled only for approved users.
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white font-semibold shadow-lg"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // -------------------------------------------------------
   // SIGNALS LAYOUT
