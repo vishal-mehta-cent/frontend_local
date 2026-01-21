@@ -428,7 +428,7 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
   note: "Change Password",
   icon: <Lock size={28} />,
   color: "from-slate-400 to-gray-500",
-  onClick: () => nav("/passwordchange"),
+  onClick: () => nav("/settings"),
 },
   ];
 
