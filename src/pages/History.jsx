@@ -698,7 +698,7 @@ export default function History({ username }) {
 
        <AppHeader />
 
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 pt-[140px] sm:pt-[195px]">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className={`text-4xl font-bold ${textClass}`}>History</h2>
