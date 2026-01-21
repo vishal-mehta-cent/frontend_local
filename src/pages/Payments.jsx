@@ -36,8 +36,12 @@ export default function Payments({ username }) {
   const nav = useNavigate();
 
   const userId = useMemo(() => {
-    const u = username || localStorage.getItem("username") || localStorage.getItem("user") || "";
-    return String(u || "").trim();
+    const u =
+      username ||
+      localStorage.getItem("username") ||
+      localStorage.getItem("user") ||
+      "";
+    return String(u || "").trim().toLowerCase();
   }, [username]);
 
   const [view, setView] = useState("PLANS");
@@ -55,6 +59,10 @@ export default function Payments({ username }) {
   const [subLoading, setSubLoading] = useState(true);
   const isLoggedIn = !!userId;
 
+  const safeSub = sub || {};
+  const currentPlanId = safeSub.active ? safeSub.plan_id : null;
+  const freeTrialStatus = safeSub.free_trial_status || null; // ✅ from backend
+
   const refreshSubscription = async () => {
     if (!userId) {
       setSub(null);
@@ -67,6 +75,7 @@ export default function Payments({ username }) {
       setSub(data);
     } catch (e) {
       console.error("subscription error:", e?.message);
+      setSub(null);
     } finally {
       setSubLoading(false);
     }
@@ -77,16 +86,18 @@ export default function Payments({ username }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  const currentPlanId = sub?.active ? sub?.plan_id : null;
+  useEffect(() => {
+    if (userId) localStorage.setItem("username", userId);
+  }, [userId]);
 
   const queuedPlanIds = useMemo(() => {
     const ids = new Set();
-    const arr = Array.isArray(sub?.queued) ? sub.queued : [];
+    const arr = Array.isArray(safeSub.queued) ? safeSub.queued : [];
     for (const p of arr) ids.add(p.plan_id);
     return ids;
-  }, [sub]);
+  }, [safeSub.queued]);
 
-  const upcomingPlanId = sub?.upcoming?.plan_id || null;
+  const upcomingPlanId = safeSub?.upcoming?.plan_id || null;
 
   const plansWithStatus = useMemo(() => {
     return PLANS.map((p) => ({
@@ -95,6 +106,14 @@ export default function Payments({ username }) {
       isQueued: queuedPlanIds.has(p.id) && currentPlanId !== p.id,
     }));
   }, [currentPlanId, queuedPlanIds]);
+
+  // ✅ Hide FREE card after trial expired/unavailable. Paid plans always visible.
+  const visiblePlans = useMemo(() => {
+    return plansWithStatus.filter((p) => {
+      if (p.id !== "free") return true;
+      return !(freeTrialStatus === "expired" || freeTrialStatus === "unavailable");
+    });
+  }, [plansWithStatus, freeTrialStatus]);
 
   // Poll status (ONLY becomes success after user verifies with UTR)
   useEffect(() => {
@@ -276,6 +295,10 @@ export default function Payments({ username }) {
             )}
 
             <h1 className="text-3xl font-bold text-center mb-2">Upgrade your plan</h1>
+            <div className="text-center text-xs sm:text-sm text-amber-200/90 mt-2 mb-4">
+  <span className="font-semibold">All payments are final and non-refundable.</span>{" "}
+ 
+</div>
 
             <div className="text-center text-sm text-slate-300 mb-2">
               {subLoading ? (
@@ -283,10 +306,10 @@ export default function Payments({ username }) {
                   <Loader className="w-4 h-4 animate-spin" />
                   Loading your current plan...
                 </span>
-              ) : sub?.active ? (
+              ) : safeSub?.active ? (
                 <span>
-                  Current plan: <b className="text-cyan-200">{sub.plan_id}</b>{" "}
-                  (expires in <b className="text-cyan-200">{sub.days_left}</b> days)
+                  Current plan: <b className="text-cyan-200">{safeSub.plan_id}</b>{" "}
+                  (expires in <b className="text-cyan-200">{safeSub.days_left}</b> days)
                 </span>
               ) : (
                 <span>No active plan.</span>
@@ -295,15 +318,15 @@ export default function Payments({ username }) {
 
             {!subLoading && upcomingPlanId ? (
               <div className="text-center text-xs text-slate-300 mb-8">
-                Next plan: <b className="text-cyan-200">{sub.upcoming.plan_id}</b>{" "}
-                (starts in <b className="text-cyan-200">{sub.upcoming.starts_in_days}</b> days)
+                Next plan: <b className="text-cyan-200">{safeSub.upcoming.plan_id}</b>{" "}
+                (starts in <b className="text-cyan-200">{safeSub.upcoming.starts_in_days}</b> days)
               </div>
             ) : (
               <div className="mb-8" />
             )}
 
             <div className="flex gap-6 overflow-x-auto overflow-y-visible pb-6 pt-8 flex-nowrap px-2">
-              {plansWithStatus.map((plan) => {
+              {visiblePlans.map((plan) => {
                 const isCurrent = plan.current;
                 const isQueued = plan.isQueued;
                 const disabled = isCurrent || isQueued;
@@ -490,7 +513,6 @@ export default function Payments({ username }) {
                     <img src={`data:image/png;base64,${upiQR.qr_b64}`} alt="UPI QR" className="w-64 h-64" />
                   </div>
 
-                  {/* ✅ Must mark opened in backend before redirect */}
                   <button
                     type="button"
                     onClick={async () => {
@@ -509,7 +531,7 @@ export default function Payments({ username }) {
                     className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 text-black font-semibold"
                   >
                     <Smartphone className="w-4 h-4" />
-                    Click Here  and Then Scan QR  and fill Transaction ID
+                    Click Here and Then Scan QR and fill Transaction ID
                   </button>
 
                   <div className="flex items-center gap-2 text-slate-300 text-sm">
@@ -518,7 +540,7 @@ export default function Payments({ username }) {
                   </div>
 
                   <div className="w-full mt-4 bg-white/5 border border-white/15 rounded-2xl p-4">
-                    <div className="text-sm font-semibold mb-2">After payment, Enter UPI  Transaction ID </div>
+                    <div className="text-sm font-semibold mb-2">After payment, Enter UPI Transaction ID</div>
 
                     <input
                       value={utr}
@@ -548,7 +570,7 @@ export default function Payments({ username }) {
                     )}
 
                     <div className="text-xs text-slate-400 mt-2">
-                      QR will disappear only after verification 
+                      QR will disappear only after verification
                     </div>
                   </div>
                 </div>
