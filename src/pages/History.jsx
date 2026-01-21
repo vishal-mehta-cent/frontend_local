@@ -17,7 +17,7 @@ import { formatToIST_YMDHMS } from "../utils/time";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css"; // keep for base structure (we override styles)
 import "./datepicker-neurocrest.css"; // ✅ create this file (next step)
-
+import AppHeader from "../components/AppHeader";
 
 
 const API =
@@ -696,36 +696,9 @@ export default function History({ username }) {
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
-        <div className="w-full px-4 md:px-6 py-4">
-          <div className="relative flex items-start justify-between mb-4">
-            <div className="flex flex-col items-start">
-              <BackButton />
+       <AppHeader />
 
-              <div className="mt-1">
-                <div
-                  className={`text-2xl sm:text-2xl font-extrabold uppercase tracking-wide
-              bg-clip-text text-transparent ${brandGradient}`}
-                >
-                  NEUROCREST
-                </div>
-                <div className={`text-xs ${textSecondaryClass}`}>
-                  Next-Gen Trading
-                </div>
-              </div>
-            </div>
-
-            <HeaderActions
-              glassClass={glassClass}
-              cardHoverClass={cardHoverClass}
-            />
-          </div>
-
-          <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
-        </div>
-      </div>
-
-      <div className="w-full px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 pt-[140px] sm:pt-[195px]">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className={`text-4xl font-bold ${textClass}`}>History</h2>
