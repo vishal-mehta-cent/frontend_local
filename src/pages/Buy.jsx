@@ -133,6 +133,8 @@ export default function Buy() {
 
   const userEditedPrice = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
+  const displaySymbol = (symbol || "").replace(/-/g, "-"); // non-breaking hyphen
+
 
   // ✅ NEW: On EXIT, force Market + lock trade controls
   const lockTradeControls = Boolean(isExit);
@@ -631,66 +633,78 @@ export default function Buy() {
         {/* Header */}
         <div className="sticky top-3 z-40">
           <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-2xl`}>
-            <div className="flex items-center justify-between">
-              <BackButton
-                to={returnTo || "/orders"}
-                state={returnTo === "/orders" ? { tab: returnTab || "positions", refresh: true } : { refresh: true }}
-              />
+            <div className="grid grid-cols-3 items-center">
+              {/* Left */}
+              <div className="justify-self-start">
+                <BackButton
+                  to={returnTo || "/orders"}
+                  state={
+                    returnTo === "/orders"
+                      ? { tab: returnTab || "positions", refresh: true }
+                      : { refresh: true }
+                  }
+                />
+              </div>
 
+              {/* Center (ALWAYS centered) */}
+              <div className="justify-self-center text-center">
+                <div className="flex items-center justify-center space-x-3">
+                  <div className="relative">
+                    <TrendingUp className="w-6 h-6 text-green-400 animate-pulse" />
+                    {marketOpen && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping" />
+                    )}
+                  </div>
 
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <TrendingUp className="w-6 h-6 text-green-400 animate-pulse" />
-                  {marketOpen && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-ping" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="font-bold text-xl bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                    {isExit
-                      ? `EXIT ${symbol}`
-                      : isAdd
-                        ? `ADD ${symbol}`
-                        : isModify
-                          ? `MODIFY ${symbol}`
-                          : `BUY ${symbol}`}
-                  </h2>
-                  <p className={`text-xs ${textSecondaryClass}`}>
-                    {marketOpen ? "Market Open" : "Market Closed"}
-                  </p>
+                  <div className="text-center">
+                    <h2 className="whitespace-nowrap font-bold text-xl bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                      {isExit
+                        ? `EXIT ${displaySymbol}`
+                        : isAdd
+                          ? `ADD ${displaySymbol}`
+                          : isModify
+                            ? `MODIFY ${displaySymbol}`
+                            : `BUY ${displaySymbol}`}
+                    </h2>
+
+                    <p className={`text-xs ${textSecondaryClass}`}>
+                      {marketOpen ? "Market Open" : "Market Closed"}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {!isExit && !isModify && !isPositionModify && (
-                <button
-                  type="button"
-                  onClick={() =>
-                    nav(`/sell/${symbol}`, {
-                      state: {
-                        ...prefill,
-                        qty,
-                        exchange,
-                        segment,
-                        stoploss,
-                        target,
-                        orderMode,
-                        price,
-                      },
-                    })
-                  }
-                  className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
-    ${isDark
-                      ? "bg-rose-500/15 border-rose-400/25 text-rose-100 hover:bg-rose-500/25"
-                      : "bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200"
-                    }`}
-                >
-
-
-                  SELL
-                </button>
-              )}
-
+              {/* Right */}
+              <div className="justify-self-end">
+                {!isExit && !isModify && !isPositionModify && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      nav(`/sell/${symbol}`, {
+                        state: {
+                          ...prefill,
+                          qty,
+                          exchange,
+                          segment,
+                          stoploss,
+                          target,
+                          orderMode,
+                          price,
+                        },
+                      })
+                    }
+                    className={`px-4 py-2 rounded-xl font-bold text-sm shadow-lg border transition-all
+          ${isDark
+                        ? "bg-rose-500/15 border-rose-400/25 text-rose-100 hover:bg-rose-500/25"
+                        : "bg-rose-100 border-rose-200 text-rose-700 hover:bg-rose-200"
+                      }`}
+                  >
+                    SELL
+                  </button>
+                )}
+              </div>
             </div>
+
           </div>
         </div>
 
