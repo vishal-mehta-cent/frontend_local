@@ -80,31 +80,10 @@ const DEFAULT_RATES = {
 
 
 export default function Funds({ username }) {
-  const ratesStorageKey = username ? `nc_rates_${username}` : "nc_rates";
-  const [rates, setRates] = useState(() => {
-    try {
-      const raw = localStorage.getItem(ratesStorageKey);
-      const parsed = raw ? JSON.parse(raw) : null;
+  const whoRates = username || localStorage.getItem("username");
+  const [rates, setRates] = useState(DEFAULT_RATES);
 
-      if (!parsed || typeof parsed !== "object") return DEFAULT_RATES;
-
-      const merged = { ...DEFAULT_RATES, ...parsed };
-
-      // ✅ MIGRATION: if older saved modes exist, convert to new single mode
-      if (!merged.brokerage_mode) {
-        merged.brokerage_mode = parsed.brokerage_intraday_mode || "ABS";
-      }
-
-      // optional cleanup (not required but keeps storage clean)
-      delete merged.brokerage_intraday_mode;
-      delete merged.brokerage_delivery_mode;
-
-      return merged;
-    } catch {
-      return DEFAULT_RATES;
-    }
-  });
-// Persist edits so refresh keeps user values
+  // Persist edits so refresh keeps user values
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem("theme");
     return saved === "dark";
@@ -115,6 +94,24 @@ export default function Funds({ username }) {
     if (isDark) document.documentElement.classList.add("dark");
     else document.documentElement.classList.remove("dark");
   }, [isDark]);
+  useEffect(() => {
+    if (!whoRates) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API}/orders/brokerage-settings/${whoRates}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRates({ ...DEFAULT_RATES, ...data });
+        } else {
+          setRates(DEFAULT_RATES);
+        }
+      } catch {
+        setRates(DEFAULT_RATES);
+      }
+    })();
+  }, [whoRates]);
+
 
   const bgClass = isDark
     ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
@@ -136,20 +133,22 @@ export default function Funds({ username }) {
   const [ok, setOk] = useState("");
   const [savingRates, setSavingRates] = useState(false);
   const [ratesMsg, setRatesMsg] = useState("");
-const nav = useNavigate();
-const location = useLocation();
-const from = location.state?.from;
+  const nav = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from;
 
   useEffect(() => {
-    if (!username) return;
+    if (!whoRates) return;
     reload();
-  }, [username]);
+  }, [whoRates]);
+
 
   const reload = () => {
     setLoading(true);
     setErr("");
     setOk("");
-    fetch(`${API}/funds/available/${username}`)
+    fetch(`${API}/funds/available/${whoRates}`)
+
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch funds");
         return r.json();
@@ -202,7 +201,8 @@ const from = location.state?.from;
       const res = await fetch(`${API}/funds/add`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, amount: n }),
+        body: JSON.stringify({ username: whoRates, amount: n }),
+
       });
 
       const data = await res.json().catch(() => ({}));
@@ -223,14 +223,26 @@ const from = location.state?.from;
       setRates((p) => ({ ...p, [key]: v }));
     }
   };
-
-  const resetRates = () => {
-    setRates(DEFAULT_RATES);
+  const resetRates = async () => {
+    const defaults = { ...DEFAULT_RATES };
+    setRates(defaults);
     setRatesMsg("Reset to default.");
+    setSavingRates(true);
+
     try {
-      localStorage.removeItem(ratesStorageKey);
-    } catch { }
-    setTimeout(() => setRatesMsg(""), 2000);
+      // ✅ persist defaults in DB too
+      const res = await fetch(`${API}/orders/brokerage-settings/${whoRates}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(defaults),
+      });
+      if (!res.ok) throw new Error("reset failed");
+    } catch {
+      setRatesMsg("Reset failed. Please try again.");
+    } finally {
+      setSavingRates(false);
+      setTimeout(() => setRatesMsg(""), 2000);
+    }
   };
 
   const saveRates = async () => {
@@ -238,16 +250,13 @@ const from = location.state?.from;
     setSavingRates(true);
 
     try {
-      // ✅ Save locally (works immediately)
-      localStorage.setItem(ratesStorageKey, JSON.stringify(rates));
-
-      // ✅ OPTIONAL (later): save to backend
-      await fetch(`${API}/settings/brokerage`, {
+      const res = await fetch(`${API}/orders/brokerage-settings/${whoRates}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, rates }),
+        body: JSON.stringify(rates),
       });
 
+      if (!res.ok) throw new Error("save failed");
       setRatesMsg("Saved successfully.");
     } catch (e) {
       setRatesMsg("Save failed. Please try again.");
@@ -256,6 +265,7 @@ const from = location.state?.from;
       setTimeout(() => setRatesMsg(""), 2000);
     }
   };
+
 
   return (
     <div
@@ -271,12 +281,12 @@ const from = location.state?.from;
 
       <div className="relative z-10 w-full max-w-none mx-auto px-2 sm:px-3 lg:px-4 py-4">
         <div className="flex items-center justify-between mb-6">
-            <BackButton
-  onClick={() => {
-    if (from) nav(from);
-    else nav(-1); // fallback: browser back
-  }}
-/>
+          <BackButton
+            onClick={() => {
+              if (from) nav(from);
+              else nav(-1); // fallback: browser back
+            }}
+          />
 
           <div className="flex items-center gap-3">
             <button
