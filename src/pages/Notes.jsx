@@ -40,7 +40,7 @@ export default function Notes() {
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved !== null) setNote(saved);
-    } catch {}
+    } catch { }
   }, [storageKey, sym]);
 
   const handleSave = () => {
@@ -58,7 +58,7 @@ export default function Notes() {
     try {
       localStorage.removeItem(storageKey);
       setNote("");
-    } catch {}
+    } catch { }
   };
 
   if (!sym) {
@@ -85,7 +85,7 @@ export default function Notes() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
       </div>
 
-      <div className="relative z-10 max-w-3xl mx-auto px-4 py-6 flex flex-col min-h-screen">
+      <div className="relative z-10 w-full max-w-none mx-0 px-0 py-6 flex flex-col min-h-screen">
         {/* Header */}
         <div className={`${glassClass} rounded-2xl p-4 mb-6 shadow-2xl`}>
           <div className="flex items-center justify-between">
