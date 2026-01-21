@@ -10,9 +10,7 @@ import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
 import { ArrowLeft, Sun, Moon } from "lucide-react";
 import HeaderActions from "../components/HeaderActions";
-
-
-
+import AppHeader from "../components/AppHeader";
 
 const API = (import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com")
   .trim()
@@ -750,43 +748,11 @@ export default function Orders({ username }) {
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-      {/* HEADER */}
-      <div className={`sticky top-0 z-50 ${glassClass} shadow-2xl relative`}>
-        <div className="w-full px-3 sm:px-4 md:px-6 py-4">
-
-          {/* Top Row: Logo, Title, Theme Toggle, Profile */}
-          <div className="relative flex items-start justify-between mb-4">
-            {/* Left: Back ABOVE Title */}
-            <div className="flex flex-col items-start">
-              <BackButton />
-
-              <div className="mt-1">
-                <div className={`text-2xl font-extrabold uppercase tracking-wide bg-clip-text text-transparent ${brandGradient}`}>
-                  NEUROCREST
-                </div>
-
-                <div className={`text-xs ${textSecondaryClass}`}>
-                  Next-Gen Trading
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Profile */}
-            {/* Right: Theme + Profile (global) */}
-            <HeaderActions glassClass={glassClass} cardHoverClass={cardHoverClass} />
-
-          </div>
-
-          {/* ✅ Global swipe navigation (ONLY ONE ROW) */}
-          <SwipeNav glassClass={glassClass} cardHoverClass={cardHoverClass} />
-
-
-        </div>
-      </div>
+      <AppHeader />
 
 
       {/* ✅ Main content */}
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 overflow-x-hidden">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24 pt-[140px] sm:pt-[195px]">
 
 
         {/* Page header + Tabs + Refresh button */}
