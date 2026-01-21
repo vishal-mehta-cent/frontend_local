@@ -724,7 +724,7 @@ export default function History({ username }) {
                   : `${textSecondaryClass} hover:opacity-90`
                   }`}
               >
-                All History
+                Trades Tracker
               </button>
             </div>
           </div>
