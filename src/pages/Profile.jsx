@@ -18,6 +18,7 @@ import {
   Sparkles,
   Pencil,
   Camera,
+  Settings,
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 
@@ -37,7 +38,7 @@ async function postJSON(url, body) {
   let data = null;
   try {
     data = await res.json();
-  } catch {}
+  } catch { }
   return { ok: res.ok, status: res.status, data };
 }
 
@@ -120,8 +121,8 @@ export default function Profile({ username, logout }) {
   const [funds, setFunds] = useState(0);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [hoveredTile, setHoveredTile] = useState(null);
- const [showResetConfirm, setShowResetConfirm] = useState(false);
-const [resetResult, setResetResult] = useState({ open: false, title: "", message: "" });
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetResult, setResetResult] = useState({ open: false, title: "", message: "" });
 
   const safeUser = String(username || "");
   const userEmail = `${safeUser.toLowerCase().replace(/ /g, "")}@gmail.com`;
@@ -192,12 +193,12 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
     setAvatarDataUrl("");
     try {
       localStorage.removeItem(avatarKey);
-    } catch {}
+    } catch { }
   };
   const isMobile = useMemo(() => {
-  if (typeof navigator === "undefined") return false;
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}, []);
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }, []);
 
 
   const onAvatarSelected = (e) => {
@@ -226,7 +227,7 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
       setAvatarDataUrl(result);
       try {
         localStorage.setItem(avatarKey, result);
-      } catch {}
+      } catch { }
     };
     reader.readAsDataURL(file);
 
@@ -298,7 +299,7 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
         handler: function () {
           alert("Payment processing. Confirmation will appear shortly.");
         },
-        modal: { ondismiss: () => {} },
+        modal: { ondismiss: () => { } },
       });
       rzp.open();
     } catch (e) {
@@ -350,53 +351,53 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
   };
 
   const handleResetAccount = async () => {
-  if (!username) return;
+    if (!username) return;
 
-  try {
-    const res = await fetch(
-      `${API}/users/${encodeURIComponent(username)}/reset`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "RESET", delete_files: true }),
-      }
-    );
-
-    if (!res.ok) {
-      let msg = `HTTP ${res.status}`;
-      try {
-        const j = await res.json();
-        if (j?.detail) msg = j.detail;
-      } catch {}
-      throw new Error(msg);
-    }
-
-    const out = await res.json().catch(() => null);
-    console.log("RESET RESPONSE:", out);
-
-    // Frontend cleanup
     try {
-      const prefix = `notes:${username}:`;
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(prefix)) localStorage.removeItem(k);
-      }
-    } catch {}
+      const res = await fetch(
+        `${API}/users/${encodeURIComponent(username)}/reset`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ confirm: "RESET", delete_files: true }),
+        }
+      );
 
-    // ✅ show Chart-style result modal
-    setResetResult({
-      open: true,
-      title: "Reset done",
-      message: `✅ Reset done\}`,
-    });
-  } catch (e) {
-    setResetResult({
-      open: true,
-      title: "Reset failed",
-      message: e?.message || "Reset failed",
-    });
-  }
-};
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const j = await res.json();
+          if (j?.detail) msg = j.detail;
+        } catch { }
+        throw new Error(msg);
+      }
+
+      const out = await res.json().catch(() => null);
+      console.log("RESET RESPONSE:", out);
+
+      // Frontend cleanup
+      try {
+        const prefix = `notes:${username}:`;
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(prefix)) localStorage.removeItem(k);
+        }
+      } catch { }
+
+      // ✅ show Chart-style result modal
+      setResetResult({
+        open: true,
+        title: "Reset done",
+        message: `✅ Reset done\}`,
+      });
+    } catch (e) {
+      setResetResult({
+        open: true,
+        title: "Reset failed",
+        message: e?.message || "Reset failed",
+      });
+    }
+  };
 
 
   // ✅ Menu-style tiles (right side)
@@ -424,12 +425,13 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
     },
 
     {
-  label: "Password",
-  note: "Change Password",
-  icon: <Lock size={28} />,
-  color: "from-slate-400 to-gray-500",
-  onClick: () => nav("/settings"),
-},
+      label: "Settings",
+      note: "Account & security",
+      icon: <Settings size={28} />,
+      color: "from-slate-400 to-gray-500",
+      onClick: () => nav("/settings"),
+    },
+
   ];
 
   const dangerTiles = [
@@ -457,19 +459,16 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
       {/* Background glow blobs (same as Menu) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className={`absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl ${
-            isDark ? "bg-blue-500/20" : "bg-blue-400/20"
-          }`}
+          className={`absolute top-0 left-1/4 w-96 h-96 rounded-full blur-3xl ${isDark ? "bg-blue-500/20" : "bg-blue-400/20"
+            }`}
         ></div>
         <div
-          className={`absolute bottom-0 right-1/4 w-96 h-96 rounded-full blur-3xl ${
-            isDark ? "bg-cyan-500/20" : "bg-cyan-400/20"
-          }`}
+          className={`absolute bottom-0 right-1/4 w-96 h-96 rounded-full blur-3xl ${isDark ? "bg-cyan-500/20" : "bg-cyan-400/20"
+            }`}
         ></div>
         <div
-          className={`absolute top-1/2 left-1/2 w-96 h-96 rounded-full blur-3xl ${
-            isDark ? "bg-blue-400/10" : "bg-blue-300/15"
-          }`}
+          className={`absolute top-1/2 left-1/2 w-96 h-96 rounded-full blur-3xl ${isDark ? "bg-blue-400/10" : "bg-blue-300/15"
+            }`}
         ></div>
       </div>
 
@@ -500,11 +499,10 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
                 type="button"
                 onClick={() => nav("/trade")}
                 className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95
-          ${
-            isDark
-              ? "bg-white/10 border border-white/20 text-white"
-              : "bg-white/70 border border-white text-slate-900"
-          }`}
+          ${isDark
+                    ? "bg-white/10 border border-white/20 text-white"
+                    : "bg-white/70 border border-white text-slate-900"
+                  }`}
                 title="Home"
               >
                 <Home className="w-5 h-5" />
@@ -515,11 +513,10 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
                 type="button"
                 onClick={toggle}
                 className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-lg transition-all hover:scale-105 active:scale-95
-          ${
-            isDark
-              ? "bg-white/10 border border-white/20 text-white"
-              : "bg-white/70 border border-white text-slate-900"
-          }`}
+          ${isDark
+                    ? "bg-white/10 border border-white/20 text-white"
+                    : "bg-white/70 border border-white text-slate-900"
+                  }`}
                 title={isDark ? "Light mode" : "Dark mode"}
               >
                 {isDark ? (
@@ -541,7 +538,7 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
             {/* Body */}
             <div className="p-10 pb-24 relative overflow-hidden">
               {/* Edit */}
-              
+
 
               <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl pointer-events-none"></div>
 
@@ -551,23 +548,23 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
 
                   {/* Hidden input: Gallery */}
                   {/* Hidden input: Gallery */}
-<input
-  ref={galleryInputRef}
-  type="file"
-  accept="image/png,image/jpeg,.png,.jpg,.jpeg"
-  onChange={onAvatarSelected}
-  className="absolute -left-[9999px] w-px h-px opacity-0"
-/>
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,.png,.jpg,.jpeg"
+                    onChange={onAvatarSelected}
+                    className="absolute -left-[9999px] w-px h-px opacity-0"
+                  />
 
-{/* Hidden input: Camera (Live photo) */}
-<input
-  ref={cameraInputRef}
-  type="file"
-  accept="image/*"
-  capture="environment"
-  onChange={onAvatarSelected}
-  className="absolute -left-[9999px] w-px h-px opacity-0"
-/>
+                  {/* Hidden input: Camera (Live photo) */}
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={onAvatarSelected}
+                    className="absolute -left-[9999px] w-px h-px opacity-0"
+                  />
 
 
                   <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-cyan-400 p-1 shadow-2xl">
@@ -592,10 +589,9 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
                     onClick={openAvatarOptions}
                     title="Change photo"
                     className={`absolute bottom-2 right-2 w-10 h-10 rounded-full grid place-items-center shadow-lg transition-all hover:scale-110 active:scale-95
-                      ${
-                        isDark
-                          ? "bg-white/10 border border-white/20 text-white"
-                          : "bg-white/80 border border-white text-slate-900"
+                      ${isDark
+                        ? "bg-white/10 border border-white/20 text-white"
+                        : "bg-white/80 border border-white text-slate-900"
                       }`}
                   >
                     <Camera className="w-5 h-5" />
@@ -616,10 +612,9 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
                   onClick={() => setShowResetConfirm(true)}
 
                   className={`px-5 py-3 rounded-2xl font-semibold text-sm shadow-lg transition-all hover:scale-105 active:scale-95
-                    ${
-                      isDark
-                        ? "bg-white/10 border border-white/20 text-white"
-                        : "bg-white/70 border border-white text-slate-900"
+                    ${isDark
+                      ? "bg-white/10 border border-white/20 text-white"
+                      : "bg-white/70 border border-white text-slate-900"
                     }
                   `}
                   title="Reset"
@@ -674,9 +669,8 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
                       {/* ✅ Menu-like hover glow (LIGHT ONLY, not full color) */}
                       {isHovered && (
                         <div
-                          className={`absolute inset-0 bg-gradient-to-br ${t.color} ${
-                            isDark ? "opacity-10" : "opacity-5"
-                          } transition-opacity duration-300`}
+                          className={`absolute inset-0 bg-gradient-to-br ${t.color} ${isDark ? "opacity-10" : "opacity-5"
+                            } transition-opacity duration-300`}
                         />
                       )}
 
@@ -698,9 +692,8 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
                       {/* Label */}
                       <div className="mt-4 text-center relative z-10">
                         <div
-                          className={`text-sm font-bold ${
-                            isDark ? "text-white" : "text-slate-800"
-                          }`}
+                          className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-800"
+                            }`}
                         >
                           {t.label}
                         </div>
@@ -724,277 +717,263 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
 
       {/* ✅ Avatar Options Modal */}
       {/* ✅ Avatar Options Modal (NeuroCrest glass UI) */}
-{showAvatarOptions && (
-  <div
-    className="fixed inset-0 z-[10060] flex items-center justify-center px-3"
-    onMouseDown={closeAvatarOptions}
-  >
-    {/* Backdrop with glow */}
-    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      {showAvatarOptions && (
+        <div
+          className="fixed inset-0 z-[10060] flex items-center justify-center px-3"
+          onMouseDown={closeAvatarOptions}
+        >
+          {/* Backdrop with glow */}
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
-    {/* Modal */}
-    <div
-      className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden ${
-        isDark
-          ? "bg-white/5 border border-white/10"
-          : "bg-white/60 border border-white/40"
-      }`}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      {/* Top glow strip */}
-      <div className="absolute inset-x-0 -top-10 h-32 bg-gradient-to-r from-blue-500/30 via-cyan-500/25 to-blue-500/30 blur-2xl pointer-events-none" />
+          {/* Modal */}
+          <div
+            className={`relative w-full max-w-md rounded-3xl shadow-2xl overflow-hidden ${isDark
+              ? "bg-white/5 border border-white/10"
+              : "bg-white/60 border border-white/40"
+              }`}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {/* Top glow strip */}
+            <div className="absolute inset-x-0 -top-10 h-32 bg-gradient-to-r from-blue-500/30 via-cyan-500/25 to-blue-500/30 blur-2xl pointer-events-none" />
 
-      {/* Header */}
-      <div className="px-6 pt-6 pb-4 flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-3">
 
-            <div>
-              <div className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                Profile Photo
+
+                  <div>
+                    <div className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                      Profile Photo
+                    </div>
+                    <div className={`text-sm mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                      Choose an option
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className={`text-sm mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                Choose an option
+
+              <button
+                type="button"
+                onClick={closeAvatarOptions}
+                className={`w-10 h-10 rounded-xl grid place-items-center transition shadow-md hover:rotate-90 duration-300 active:scale-95  ${isDark
+                  ? "bg-white/10 hover:bg-white/15 border border-white/10 text-white"
+                  : "bg-white/70 hover:bg-white border border-white text-slate-900"
+                  }`}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Options */}
+            <div className="px-6 pb-6">
+              <div className="grid gap-3">
+                {/* Camera (only on mobile) */}
+                {isMobile && (
+                  <button
+                    type="button"
+                    onClick={takeFromCamera}
+                    className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${isDark
+                      ? "bg-white/5 border border-white/10 hover:border-white/20"
+                      : "bg-white/70 border border-white hover:border-slate-200"
+                      }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+                        <Camera className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="text-left">
+                        <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                          Camera
+                        </div>
+                        <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                          Live photo capture
+                        </div>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-semibold ${isDark ? "text-blue-300" : "text-blue-700"}`}>
+                      Open
+                    </span>
+                  </button>
+                )}
+
+
+                {/* Gallery */}
+                <button
+                  type="button"
+                  onClick={pickFromGallery}
+                  className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${isDark
+                    ? "bg-white/5 border border-white/10 hover:border-white/20"
+                    : "bg-white/70 border border-white hover:border-slate-200"
+                    }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+                      <span className="text-white text-lg">🖼️</span>
+                    </div>
+                    <div className="text-left">
+                      <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                        Gallery
+                      </div>
+                      <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                        Upload JPG/PNG
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-semibold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
+                    Choose
+                  </span>
+                </button>
+
+                {/* No profile */}
+                <button
+                  type="button"
+                  onClick={clearAvatar}
+                  className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${isDark
+                    ? "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
+                    : "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
+                    }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
+                      <span className="text-white text-lg">⛔</span>
+                    </div>
+                    <div className="text-left">
+                      <div className={`font-bold ${isDark ? "text-rose-100" : "text-rose-700"}`}>
+                        No Profile
+                      </div>
+                      <div className={`text-xs mt-0.5 ${isDark ? "text-rose-200/80" : "text-rose-700/80"}`}>
+                        Show initials only
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`text-sm font-semibold ${isDark ? "text-rose-200" : "text-rose-700"}`}>
+                    Remove
+                  </span>
+                </button>
               </div>
+
+
             </div>
           </div>
         </div>
-
-        <button
-          type="button"
-          onClick={closeAvatarOptions}
-          className={`w-10 h-10 rounded-xl grid place-items-center transition shadow-md hover:rotate-90 duration-300 active:scale-95  ${
-            isDark
-              ? "bg-white/10 hover:bg-white/15 border border-white/10 text-white"
-              : "bg-white/70 hover:bg-white border border-white text-slate-900"
-          }`}
-          title="Close"
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Options */}
-      <div className="px-6 pb-6">
-        <div className="grid gap-3">
-          {/* Camera (only on mobile) */}
-{isMobile && (
-  <button
-    type="button"
-    onClick={takeFromCamera}
-    className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
-      isDark
-        ? "bg-white/5 border border-white/10 hover:border-white/20"
-        : "bg-white/70 border border-white hover:border-slate-200"
-    }`}
-  >
-    <div className="flex items-center gap-4">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-cyan-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
-        <Camera className="w-5 h-5 text-white" />
-      </div>
-      <div className="text-left">
-        <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
-          Camera
-        </div>
-        <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-          Live photo capture
-        </div>
-      </div>
-    </div>
-    <span className={`text-sm font-semibold ${isDark ? "text-blue-300" : "text-blue-700"}`}>
-      Open
-    </span>
-  </button>
-)}
-
-
-          {/* Gallery */}
-          <button
-            type="button"
-            onClick={pickFromGallery}
-            className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
-              isDark
-                ? "bg-white/5 border border-white/10 hover:border-white/20"
-                : "bg-white/70 border border-white hover:border-slate-200"
-            }`}
+      )}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
+          <div
+            className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${isDark
+              ? "bg-[#0b1220] border border-white/10"
+              : "bg-white border border-black/10"
+              }`}
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
-                <span className="text-white text-lg">🖼️</span>
-              </div>
-              <div className="text-left">
-                <div className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
-                  Gallery
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div
+                  className={`text-[17px] font-semibold tracking-tight ${isDark ? "text-blue-300" : "text-blue-700"
+                    }`}
+                  style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+                >
+                  Reset Account
                 </div>
-                <div className={`text-xs mt-0.5 ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-                  Upload JPG/PNG
+
+                <div
+                  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${isDark ? "text-slate-300" : "text-slate-600"
+                    }`}
+                  style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+                >
+                  Reset account? This will delete your trades, portfolio, watchlist and funds.
+                  Your subscription/plan will NOT be reset.
                 </div>
               </div>
+
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className={`w-9 h-9 rounded-xl grid place-items-center ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+                  } transition`}
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
-            <span className={`text-sm font-semibold ${isDark ? "text-emerald-300" : "text-emerald-700"}`}>
-              Choose
-            </span>
-          </button>
 
-          {/* No profile */}
-          <button
-            type="button"
-            onClick={clearAvatar}
-            className={`group w-full rounded-2xl px-5 py-4 flex items-center justify-between transition-all shadow-lg hover:shadow-2xl hover:-translate-y-0.5 active:scale-[0.99] ${
-              isDark
-                ? "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
-                : "bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/15"
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-rose-500 grid place-items-center shadow-lg group-hover:scale-105 transition">
-                <span className="text-white text-lg">⛔</span>
-              </div>
-              <div className="text-left">
-                <div className={`font-bold ${isDark ? "text-rose-100" : "text-rose-700"}`}>
-                  No Profile
-                </div>
-                <div className={`text-xs mt-0.5 ${isDark ? "text-rose-200/80" : "text-rose-700/80"}`}>
-                  Show initials only
-                </div>
-              </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                className={`px-5 py-2 rounded-xl font-semibold transition ${isDark
+                  ? "bg-white/10 hover:bg-white/15 text-white"
+                  : "bg-black/5 hover:bg-black/10 text-slate-800"
+                  }`}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  setShowResetConfirm(false);
+                  await handleResetAccount();
+                }}
+                className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
+              >
+                OK
+              </button>
             </div>
-            <span className={`text-sm font-semibold ${isDark ? "text-rose-200" : "text-rose-700"}`}>
-              Remove
-            </span>
-          </button>
-        </div>
-
-        
-      </div>
-    </div>
-  </div>
-)}
-{showResetConfirm && (
-  <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
-    <div
-      className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
-        isDark
-          ? "bg-[#0b1220] border border-white/10"
-          : "bg-white border border-black/10"
-      }`}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div
-            className={`text-[17px] font-semibold tracking-tight ${
-              isDark ? "text-blue-300" : "text-blue-700"
-            }`}
-            style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
-          >
-            Reset Account
-          </div>
-
-          <div
-            className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
-              isDark ? "text-slate-300" : "text-slate-600"
-            }`}
-            style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-          >
-            Reset account? This will delete your trades, portfolio, watchlist and funds.
-            Your subscription/plan will NOT be reset.
           </div>
         </div>
-
-        <button
-          onClick={() => setShowResetConfirm(false)}
-          className={`w-9 h-9 rounded-xl grid place-items-center ${
-            isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
-          } transition`}
-          title="Close"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="mt-5 flex justify-end gap-3">
-        <button
-          onClick={() => setShowResetConfirm(false)}
-          className={`px-5 py-2 rounded-xl font-semibold transition ${
-            isDark
-              ? "bg-white/10 hover:bg-white/15 text-white"
-              : "bg-black/5 hover:bg-black/10 text-slate-800"
-          }`}
-        >
-          Cancel
-        </button>
-
-        <button
-          onClick={async () => {
-            setShowResetConfirm(false);
-            await handleResetAccount();
-          }}
-          className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
-        >
-          OK
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-{resetResult.open && (
-  <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
-    <div
-      className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
-        isDark
-          ? "bg-[#0b1220] border border-white/10"
-          : "bg-white border border-black/10"
-      }`}
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      )}
+      {resetResult.open && (
+        <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
           <div
-            className={`text-[17px] font-semibold tracking-tight ${
-              isDark ? "text-blue-300" : "text-blue-700"
-            }`}
-            style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+            className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${isDark
+              ? "bg-[#0b1220] border border-white/10"
+              : "bg-white border border-black/10"
+              }`}
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            {resetResult.title}
-          </div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div
+                  className={`text-[17px] font-semibold tracking-tight ${isDark ? "text-blue-300" : "text-blue-700"
+                    }`}
+                  style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
+                >
+                  {resetResult.title}
+                </div>
 
-          <div
-            className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
-              isDark ? "text-slate-300" : "text-slate-600"
-            }`}
-            style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-          >
-            {resetResult.message}
+                <div
+                  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${isDark ? "text-slate-300" : "text-slate-600"
+                    }`}
+                  style={{ fontFamily: "Inter, system-ui, sans-serif" }}
+                >
+                  {resetResult.message}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setResetResult({ open: false, title: "", message: "" })}
+                className={`w-9 h-9 rounded-xl grid place-items-center ${isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+                  } transition`}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={() => {
+                  setResetResult({ open: false, title: "", message: "" });
+                  nav("/menu");
+                }}
+                className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
+              >
+                OK
+              </button>
+            </div>
           </div>
         </div>
-
-        <button
-          onClick={() => setResetResult({ open: false, title: "", message: "" })}
-          className={`w-9 h-9 rounded-xl grid place-items-center ${
-            isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
-          } transition`}
-          title="Close"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div className="mt-5 flex justify-end">
-        <button
-          onClick={() => {
-            setResetResult({ open: false, title: "", message: "" });
-            nav("/menu");
-          }}
-          className="px-5 py-2 rounded-xl font-semibold text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:scale-105 transition"
-        >
-          OK
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
 
       {/* Logout Modal */}
@@ -1002,28 +981,25 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
       {showLogoutConfirm && (
         <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
           <div
-            className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
-              isDark
-                ? "bg-[#0b1220] border border-white/10"
-                : "bg-white border border-black/10"
-            }`}
+            className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${isDark
+              ? "bg-[#0b1220] border border-white/10"
+              : "bg-white border border-black/10"
+              }`}
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div
-                  className={`text-[17px] font-semibold tracking-tight ${
-                    isDark ? "text-blue-300" : "text-blue-700"
-                  }`}
+                  className={`text-[17px] font-semibold tracking-tight ${isDark ? "text-blue-300" : "text-blue-700"
+                    }`}
                   style={{ fontFamily: "'Segoe UI', Inter, system-ui" }}
                 >
                   Logout
                 </div>
 
                 <div
-                  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${
-                    isDark ? "text-slate-300" : "text-slate-600"
-                  }`}
+                  className={`mt-3 text-[14.5px] leading-[1.7] whitespace-pre-line ${isDark ? "text-slate-300" : "text-slate-600"
+                    }`}
                   style={{ fontFamily: "Inter, system-ui, sans-serif" }}
                 >
                   Are you sure you want to logout from your account?
@@ -1032,11 +1008,10 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
 
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className={`w-9 h-9 rounded-xl grid place-items-center ${
-                  isDark
-                    ? "bg-white/10 hover:bg-white/15"
-                    : "bg-black/5 hover:bg-black/10"
-                } transition`}
+                className={`w-9 h-9 rounded-xl grid place-items-center ${isDark
+                  ? "bg-white/10 hover:bg-white/15"
+                  : "bg-black/5 hover:bg-black/10"
+                  } transition`}
                 title="Close"
               >
                 ✕
@@ -1046,11 +1021,10 @@ const [resetResult, setResetResult] = useState({ open: false, title: "", message
             <div className="mt-5 flex justify-end gap-3">
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className={`px-5 py-2 rounded-xl font-semibold transition ${
-                  isDark
-                    ? "bg-white/10 hover:bg-white/15 text-white"
-                    : "bg-black/5 hover:bg-black/10 text-slate-800"
-                }`}
+                className={`px-5 py-2 rounded-xl font-semibold transition ${isDark
+                  ? "bg-white/10 hover:bg-white/15 text-white"
+                  : "bg-black/5 hover:bg-black/10 text-slate-800"
+                  }`}
               >
                 Cancel
               </button>
