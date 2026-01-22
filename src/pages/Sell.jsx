@@ -322,21 +322,22 @@ export default function Sell() {
         if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
           throw new Error("❌ Please enter a valid quantity (> 0).");
         }
-
         const exitPayload = {
           username,
           script: symbol.toUpperCase(),
-          order_type: "SELL",          // ✅ REQUIRED by backend OrderData
+          order_type: "SELL",
+
+          // ✅ Full exit: let backend decide owned_total
           qty: qtyNum,
+
           exchange: (exchange || "NSE").toUpperCase(),
           segment: (segment || prefill.segment || "intraday").toLowerCase(),
-
-          // ✅ optional but safe (matches OrderData fields)
           price: null,
           stoploss: null,
           target: null,
           allow_short: false,
         };
+
 
 
         const res = await fetch(`${API}/orders/exit`, {
@@ -1090,7 +1091,7 @@ export default function Sell() {
       {successModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-4 animate-fadeIn">
           <div className={`${glassClass} rounded-3xl p-8 text-center max-w-sm w-full shadow-2xl`}>
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500/20 to-rose-500/20 flex items-center justify-center mx-auto mb-4 animate-bounce">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500/20 to-rose-500/20 flex items-center justify-center mx-auto mb-4 animate-pulse">
               <CheckCircle2 className="w-10 h-10 text-red-400" />
             </div>
             <p className="text-xl font-bold text-red-400">{successText || "Order saved"}</p>
