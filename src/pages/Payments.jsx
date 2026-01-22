@@ -5,15 +5,95 @@ import { useNavigate } from "react-router-dom";
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 const PLANS = [
-  { id: "free", name: "Free", price: 0, trial: "3 Days Free Trial", desc: "Try NeuroCrest for 3 days", strike: null, period: "Only for 3 days", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
-  { id: "monthly", name: "Monthly", price: 149, strike: 500, desc: "Introductory monthly access", period: "Per month", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
-  { id: "quarterly", name: "Quarterly", price: 399, strike: 1500, desc: "Best value for consistency", period: "Per quarter", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
-  { id: "halfyearly", name: "Half-yearly", price: 699, strike: 3000, desc: "Great value for 6 months", period: "Per 6 months", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
-  { id: "annual", name: "Annual", price: 999, strike: 6000, desc: "Maximum savings for long-term users", period: "Per year", features: ["Trading App (Watchlist, Orders, Portfolio, History + Real-time charts & tracking)"] },
+  {
+    id: "free",
+    name: "Free",
+    price: 0,
+    trial: "3 Days Free Trial",
+    desc: "Try NeuroCrest for 3 days",
+    strike: null,
+    period: "Only for 3 days",
+    features: [
+      "Full Trading App access",
+      "Watchlist",
+      "Orders",
+      "Portfolio",
+      "History",
+      "Real-time charts & tracking",
+    ],
+  },
+  {
+    id: "monthly",
+    name: "Monthly",
+    price: 149,
+    strike: 500,
+    desc: "Introductory monthly access",
+    period: "Per month",
+    features: [
+      "Full Trading App access",
+      "Watchlist",
+      "Orders",
+      "Portfolio",
+      "History",
+      "Real-time charts & tracking",
+    ],
+  },
+  {
+    id: "quarterly",
+    name: "Quarterly",
+    price: 399,
+    strike: 1500,
+    desc: "Best value for consistency",
+    period: "Per quarter",
+    features: [
+      "Full Trading App access",
+      "Watchlist",
+      "Orders",
+      "Portfolio",
+      "History",
+      "Real-time charts & tracking",
+    ],
+  },
+  {
+    id: "halfyearly",
+    name: "Half-yearly",
+    price: 699,
+    strike: 3000,
+    desc: "Great value for 6 months",
+    period: "Per 6 months",
+    features: [
+      "Full Trading App access",
+      "Watchlist",
+      "Orders",
+      "Portfolio",
+      "History",
+      "Real-time charts & tracking",
+    ],
+  },
+  {
+    id: "annual",
+    name: "Annual",
+    price: 999,
+    strike: 6000,
+    desc: "Maximum savings for long-term users",
+    period: "Per year",
+    features: [
+      "Full Trading App access",
+      "Watchlist",
+      "Orders",
+      "Portfolio",
+      "History",
+      "Real-time charts & tracking",
+    ],
+  },
 ];
 
 async function postJSON(url, body) {
-  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   const out = await res.json().catch(() => null);
   if (!res.ok) throw new Error(out?.detail || "Request failed");
   return out;
@@ -170,7 +250,7 @@ export default function Payments({ username }) {
 
     const data = await postJSON(`${API}/payments/upi/init`, {
       user_id: userId,
-      pa: "9426817879.etb@icici",
+       pa: "neurocrest.app@oksbi",
       pn: "NEUROCREST",
       amount_inr: plan.price,
       tr: transactionRef,
@@ -296,9 +376,8 @@ export default function Payments({ username }) {
 
             <h1 className="text-3xl font-bold text-center mb-2">Upgrade your plan</h1>
             <div className="text-center text-xs sm:text-sm text-amber-200/90 mt-2 mb-4">
-  <span className="font-semibold">All payments are final and non-refundable.</span>{" "}
- 
-</div>
+              <span className="font-semibold">All payments are final and non-refundable.</span>{" "}
+            </div>
 
             <div className="text-center text-sm text-slate-300 mb-2">
               {subLoading ? (
@@ -330,6 +409,9 @@ export default function Payments({ username }) {
                 const isCurrent = plan.current;
                 const isQueued = plan.isQueued;
                 const disabled = isCurrent || isQueued;
+
+                const saveAmt = plan.strike ? (plan.strike - plan.price) : 0;
+                const offPct = plan.strike ? Math.round((saveAmt / plan.strike) * 100) : 0;
 
                 return (
                   <div
@@ -411,18 +493,81 @@ export default function Payments({ username }) {
                             <div className="text-xs font-semibold text-slate-100">
                               Upcoming features (Coming soon)
                             </div>
-                            <div className="text-xs text-slate-300 mt-1">
-                              Event based Alerts (News / Bulk deals etc.) • IPO Tracking • Portfolio Intelligence
-                            </div>
+                            <ul className="mt-2 space-y-1 text-xs text-slate-300">
+                              <li className="flex gap-2">
+                                <Check className="w-3.5 h-3.5 text-green-400 mt-0.5" />
+                                Event based Alerts (News / Bulk deals etc.)
+                              </li>
+                              <li className="flex gap-2">
+                                <Check className="w-3.5 h-3.5 text-green-400 mt-0.5" />
+                                IPO Tracking
+                              </li>
+                              <li className="flex gap-2">
+                                <Check className="w-3.5 h-3.5 text-green-400 mt-0.5" />
+                                Portfolio Intelligence
+                              </li>
+                            </ul>
                           </div>
 
-                          <div className="mt-4 rounded-xl border border-amber-300/30 bg-amber-300/10 p-3">
-                            <div className="text-xs font-semibold text-amber-200">
-                              Introductory offer
+                          <div className="mt-4 relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent p-4 nc-shimmer">
+                            <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full bg-amber-400/25 blur-3xl" />
+
+                            <div className="absolute top-0 right-0">
+                              <div className="absolute -right-10 top-4 rotate-45">
+                                <div className="px-6 py-1 text-[10px] font-extrabold tracking-widest uppercase
+                      bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-200 text-black
+                      shadow-[0_12px_25px_rgba(251,191,36,0.25)]">
+                                  Limited
+                                </div>
+                              </div>
                             </div>
-                            <div className="text-xs text-amber-100/90 mt-1">
-                              These are introductory offers only — grab it before they are gone.
+
+                            <div className="relative flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center
+                    shadow-[0_12px_25px_rgba(251,191,36,0.25)]">
+                                <span className="text-black text-lg">⚡</span>
+                              </div>
+
+                              <div className="flex-1">
+                                <div className="text-sm font-extrabold text-amber-200">
+                                  Introductory Offer
+                                </div>
+
+                                <div className="mt-1 text-xs text-slate-200/80">
+                                  Early user pricing — grab it before it ends.
+                                </div>
+
+                                {plan.strike ? (
+                                  <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full relative overflow-hidden
+                        bg-gradient-to-r from-amber-300/20 via-orange-300/15 to-amber-300/20
+                        border border-amber-300/35 text-amber-200 shadow-[0_10px_25px_rgba(251,191,36,0.12)]">
+                                    <span className="text-[11px] font-extrabold">
+                                      SAVE ₹{saveAmt.toLocaleString("en-IN")}
+                                    </span>
+                                    <span className="w-1 h-1 rounded-full bg-amber-300/70" />
+                                    <span className="text-[11px] font-extrabold">
+                                      {offPct}% OFF
+                                    </span>
+
+                                    <span className="absolute -inset-y-6 -left-10 w-16 rotate-12 bg-white/15 blur-md animate-[nc-shimmer_2.6s_ease-in-out_infinite]" />
+                                  </div>
+                                ) : null}
+
+                                <div className="mt-3 flex items-center justify-between text-[11px] text-slate-300">
+                                  <div className="flex items-center gap-2">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-300/70" />
+                                    Price may increase later.
+                                  </div>
+                                  {plan.strike ? (
+                                    <div className="text-slate-400">
+                                      MRP ₹{plan.strike.toLocaleString("en-IN")}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
                             </div>
+
+                            <div className="mt-4 h-[1px] w-full bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" />
                           </div>
                         </>
                       )}
@@ -432,66 +577,121 @@ export default function Payments({ username }) {
               })}
             </div>
 
-            <div className="mt-10 rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl p-6 shadow-[0_20px_40px_rgba(0,0,0,0.25)] max-w-[1700px] mx-auto">
-              <div className="flex items-start gap-3">
-                <div className="mt-1">
-                  <Info className="w-5 h-5 text-cyan-300" />
+            <div className="mt-10 max-w-[1700px] mx-auto">
+              <div className="relative overflow-hidden rounded-3xl border border-white/15 bg-white/5 backdrop-blur-xl p-6 sm:p-8 shadow-[0_20px_40px_rgba(0,0,0,0.25)]">
+                <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-cyan-400/20 blur-3xl" />
+                <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-amber-400/15 blur-3xl" />
+
+                <div className="absolute top-0 right-0">
+                  <div className="absolute -right-12 top-6 rotate-45">
+                    <div className="px-10 py-1 text-[10px] font-extrabold tracking-widest uppercase
+                        bg-gradient-to-r from-amber-300 via-orange-300 to-yellow-200 text-black
+                        shadow-[0_12px_25px_rgba(251,191,36,0.25)]">
+                      Premium Offer
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <h3 className="text-lg font-bold">Want advanced access?</h3>
-                  <p className="text-sm text-slate-200 mt-1">
-                    If you want access to our premium offerings, please contact us for:
-                  </p>
-
-                  <ul className="mt-4 space-y-2 text-sm text-slate-200">
-                    <li className="flex gap-2">
-                      <Check className="w-4 h-4 text-green-400 mt-0.5" />
-                      AI/Algo generated real-time alerts directly on the chart
-                    </li>
-                    <li className="flex gap-2">
-                      <Check className="w-4 h-4 text-green-400 mt-0.5" />
-                      Trading recommendations for Intraday, BTST and Short-term trading based on highly researched quant strategies
-                    </li>
-                    <li className="flex gap-2">
-                      <Check className="w-4 h-4 text-green-400 mt-0.5" />
-                      Real-time WhatsApp alerts for recommendations / chart alerts on your WhatsApp
-                    </li>
-                  </ul>
-
-                  <div className="mt-5 text-sm text-slate-200">
-                    <span className="font-semibold text-slate-100">
-                      Please contact us:
-                    </span>{" "}
-                    <span className="text-cyan-200 font-semibold">
-                      (9426817879)
-                    </span>
+                <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-1">
+                      <Info className="w-6 h-6 text-cyan-300" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl sm:text-2xl font-extrabold">
+                        Want advanced access?
+                      </h3>
+                      <p className="text-sm text-slate-200/85 mt-1">
+                        Upgrade to premium offerings — real-time alerts, recommendations, and custom algo support.
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="mt-6 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <div className="text-sm font-semibold text-slate-100">
-                      Important disclaimer
+                  <div className="relative flex flex-wrap gap-3">
+                    <a
+                      href="tel:9426001601"
+                      className="px-5 py-2.5 rounded-xl font-bold text-black
+                     bg-gradient-to-r from-[#22d3ee] to-[#1ea7ff]
+                     hover:scale-[1.02] transition shadow-[0_12px_30px_rgba(34,211,238,0.25)]"
+                    >
+                      Call: 9426001601
+                    </a>
+
+                    <a
+                      href="https://wa.me/919426817879"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-5 py-2.5 rounded-xl font-bold text-black
+                     bg-gradient-to-r from-[#22c55e] to-[#86efac]
+                     hover:scale-[1.02] transition shadow-[0_12px_30px_rgba(34,197,94,0.25)]"
+                    >
+                      WhatsApp
+                    </a>
+                  </div>
+                </div>
+
+                <div className="relative mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/7 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan-300 to-sky-500 flex items-center justify-center">
+                        <span className="text-black text-lg">📈</span>
+                      </div>
+                      <div className="font-bold text-slate-100">Chart Alerts</div>
                     </div>
-                    <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-                      Please note that we are not a SEBI registered organization yet. We do not share any insider tips and we do not speculate.
-                      Any insights/recommendations are purely based on our researched strategies and advanced technical analysis.
-                      If you are curious and excited to learn trading for educational purposes, please reach out.
+                    <div className="text-sm text-slate-200/80 mt-2 leading-relaxed">
+                      AI/Algo generated real-time alerts directly on the chart.
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/7 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center">
+                        <span className="text-black text-lg">🧠</span>
+                      </div>
+                      <div className="font-bold text-slate-100">Recommendations</div>
+                    </div>
+                    <div className="text-sm text-slate-200/80 mt-2 leading-relaxed">
+                      Intraday, BTST & short-term calls based on researched quant strategies.
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4 hover:bg-white/7 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-300 to-green-500 flex items-center justify-center">
+                        <span className="text-black text-lg">💬</span>
+                      </div>
+                      <div className="font-bold text-slate-100">WhatsApp Alerts</div>
+                    </div>
+                    <div className="text-sm text-slate-200/80 mt-2 leading-relaxed">
+                      Real-time WhatsApp alerts for recommendations / chart alerts.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4">
+                    <div className="text-sm font-extrabold text-amber-200 flex items-center gap-2">
+                      <span>⚠️</span> Important disclaimer
+                    </div>
+                    <p className="text-xs text-slate-200/80 mt-2 leading-relaxed">
+                      Please note that we are not a SEBI registered organization yet. We do not share insider tips and we do not speculate.
+                      Any insights/recommendations are based on researched strategies and advanced technical analysis.
                     </p>
                   </div>
 
-                  <div className="mt-4 rounded-2xl border border-white/15 bg-white/5 p-4">
-                    <div className="text-sm font-semibold text-slate-100">
-                      Want to convert your own strategy into an Algo?
+                  <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4">
+                    <div className="text-sm font-extrabold text-cyan-200 flex items-center gap-2">
+                      <span>⚙️</span> Convert your strategy into an Algo
                     </div>
-                    <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-                      If you want to convert your own strategy into an Algo and receive real-time alerts just for yourself, please contact us.
-                      Costing for any ad-hoc development and enabling Alerts/Recommendations would be separate.
+                    <p className="text-xs text-slate-200/80 mt-2 leading-relaxed">
+                      Want your strategy automated with real-time alerts just for you?
+                      Ad-hoc development and enabling alerts/recommendations is priced separately.
                     </p>
                   </div>
+                </div>
 
-                  <div className="mt-3 text-xs text-slate-300">
-                    *Please note: pricing for advanced alerts/recommendations and any custom development is separate from these introductory plans.
-                  </div>
+                <div className="relative mt-4 text-[11px] text-slate-300">
+                  *Pricing for advanced alerts/recommendations and any custom development is separate from these introductory plans.
                 </div>
               </div>
             </div>
