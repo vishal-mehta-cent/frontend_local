@@ -100,7 +100,9 @@ export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const navigate = useNavigate();
-  const [locked, setLocked] = useState(false);
+  const [locked, setLocked] = useState(true); // ✅ show locked UI immediately
+  const [accessChecked, setAccessChecked] = useState(false); // ✅ after API replies
+  const hasAccessRef = useRef(false); // ✅ don't flip to locked on transient errors
 
 
 
@@ -390,86 +392,121 @@ export default function Recommendations() {
   // ----------------------------------------------------
   // FETCH CSV DATA EVERY 5 SECONDS
   // ----------------------------------------------------
-  useEffect(() => {
-    let alive = true;
+ useEffect(() => {
+  let alive = true;
 
-    const fetchOnce = async () => {
-      try {
-        const username = localStorage.getItem("username") || "";
-        const res = await fetch(
-          `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
-          { cache: "no-store" }
-        );
+  const fetchOnce = async () => {
+    try {
+      const username = (localStorage.getItem("username") || "").trim();
 
-        // ✅ LOCK HANDLING (CRITICAL)
-        if (res.status === 403) {
-          if (!alive) return;
+      // if username missing → lock immediately
+      if (!username) {
+        if (!alive) return;
+        setLocked(true);
+        setRows([]);
+        setInitialLoading(false);
+        setAccessChecked(true);
+        return;
+      }
+
+      const res = await fetch(
+        `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
+        { cache: "no-store" }
+      );
+
+      // ✅ access checked (any response means server replied)
+      if (!alive) return;
+      setAccessChecked(true);
+
+      // ✅ if NOT allowed
+     setAccessChecked(true);
+
+if (res.status === 403 || res.status === 401) {
+  setLocked(true);
+  setRows([]);
+  setInitialLoading(false);
+  return;
+}
+
+// ✅ add this
+if (res.status === 404) {
+  setLocked(false);
+  setRows([]);
+  setInitialLoading(false);
+  return;
+}
+
+      // ✅ if CSV missing or endpoint error etc.
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        console.error("recommendations/data failed:", res.status, errText);
+
+        // IMPORTANT:
+        // if user was previously allowed, don’t flip UI to locked on transient errors
+        if (!hasAccessRef.current) {
           setLocked(true);
           setRows([]);
-          setInitialLoading(false);
-          return;
         }
-
-        // ✅ if any other error, stop safely
-        if (!res.ok) {
-          const errText = await res.text().catch(() => "");
-          throw new Error(`recommendations/data failed: ${res.status} ${errText}`);
-        }
-
-        const json = await res.json();
-        if (!alive) return;
-
-        const normalized = (Array.isArray(json) ? json : []).map(normalize);
-
-        const seen = new Set();
-        const ordered = [];
-
-        for (const r of normalized) {
-          if (!r.script || r.script === "N/A") continue;
-          if (seen.has(r.id)) continue;
-          seen.add(r.id);
-          ordered.push(r);
-        }
-
-        const uniqueScreeners = [
-          "All",
-          ...new Set(ordered.map((r) => r.screener)),
-        ];
-        const uniqueAlertTypes = [
-          "All",
-          ...new Set(ordered.map((r) => r.alertType)),
-        ];
-
-        const uniquePriceCloseTo = [
-          "All",
-          ...new Set(
-            ordered
-              .map((r) => r.priceCloseTo)
-              .filter(Boolean)
-          ),
-        ];
-
-
-        startTransition(() => {
-          setScreenerList(uniqueScreeners);
-          setAlertTypeList(uniqueAlertTypes);
-          setPriceCloseList(uniquePriceCloseTo); // ⭐ ADD THIS
-          setRows(ordered);
-          setInitialLoading(false);
-        });
-      } catch (e) {
-        console.error("Fetch failed:", e);
         setInitialLoading(false);
+        return;
       }
-    };
 
-    fetchOnce();
-    const id = setInterval(fetchOnce, 5000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [closedPriceMap]);
+      // ✅ allowed + data ok
+      const json = await res.json();
+      hasAccessRef.current = true;
+      setLocked(false);
+
+      const normalized = (Array.isArray(json) ? json : []).map(normalize);
+
+      const seen = new Set();
+      const ordered = [];
+
+      for (const r of normalized) {
+        if (!r.script || r.script === "N/A") continue;
+        if (seen.has(r.id)) continue;
+        seen.add(r.id);
+        ordered.push(r);
+      }
+
+      const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
+      const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
+      const uniquePriceCloseTo = [
+        "All",
+        ...new Set(ordered.map((r) => r.priceCloseTo).filter(Boolean)),
+      ];
+
+      startTransition(() => {
+        setScreenerList(uniqueScreeners);
+        setAlertTypeList(uniqueAlertTypes);
+        setPriceCloseList(uniquePriceCloseTo);
+        setRows(ordered);
+        setInitialLoading(false);
+      });
+    } catch (e) {
+      console.error("Fetch failed:", e);
+      if (!alive) return;
+
+      // ✅ access checked (fetch finished, but error)
+      setAccessChecked(true);
+
+      // don’t flip to locked if previously allowed
+      if (!hasAccessRef.current) {
+        setLocked(true);
+        setRows([]);
+      }
+      setInitialLoading(false);
+    }
+  };
+
+  fetchOnce();
+  const id = setInterval(fetchOnce, 5000);
+
+  return () => {
+    alive = false;
+    clearInterval(id);
+  };
+}, [API]); // ✅ keep dependency stable (don’t use closedPriceMap here)
+
 
   // -------------------------------------------------------
   // FILTERING
@@ -631,14 +668,19 @@ export default function Recommendations() {
   const buyClosedCount = buyClosedSignals.length;
   const sellClosedCount = sellClosedSignals.length;
 
-  if (locked) {
+    // ✅ Show locked screen immediately (even while checking access)
+  if (locked || !accessChecked) {
     return (
       <div className={`min-h-screen ${bgClass} ${textClass} flex items-center justify-center p-6`}>
         <div className={`${glassClass} rounded-3xl p-8 max-w-md w-full text-center shadow-2xl`}>
           <h2 className="text-2xl font-bold mb-2">Recommendations Locked</h2>
+
           <p className={`${textSecondaryClass} mb-6`}>
-            This feature is enabled only for approved users.
+            {accessChecked
+              ? "This feature is enabled only for approved users."
+              : "Checking access…"}
           </p>
+
           <button
             onClick={() => navigate(-1)}
             className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white font-semibold shadow-lg"
@@ -648,9 +690,7 @@ export default function Recommendations() {
         </div>
       </div>
     );
-  }
-
-  // -------------------------------------------------------
+  }// -------------------------------------------------------
   // SIGNALS LAYOUT
   // -------------------------------------------------------
   const renderSignalLayout = () => (
