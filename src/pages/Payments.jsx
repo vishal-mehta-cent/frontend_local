@@ -80,6 +80,16 @@ export default function Payments({ username }) {
       setSubLoading(false);
     }
   };
+useEffect(() => {
+  if (subLoading) return;
+  if (!safeSub?.active) return;
+
+  const target = localStorage.getItem("post_payment_redirect");
+  if (target && target !== "/payments") {
+    localStorage.removeItem("post_payment_redirect");
+    nav(target, { replace: true });
+  }
+}, [subLoading, safeSub?.active, nav]);
 
   useEffect(() => {
     refreshSubscription();
@@ -233,6 +243,11 @@ export default function Payments({ username }) {
   };
 
   const handleBack = () => {
+  // ✅ If plan is expired/inactive, don't allow leaving the paywall
+  if (isLoggedIn && !subLoading && !safeSub?.active) {
+    nav("/payments", { replace: true });
+    return;
+  }
     if (view === "QR") {
       setView("PLANS");
       setSelectedPlan(null);
