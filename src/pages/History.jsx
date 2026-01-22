@@ -24,6 +24,42 @@ const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
   "https://paper-trading-backend.onrender.com";
 
+// ---------- Brokerage helpers (History: additional_tax + net_investment) ----------
+const DEFAULT_RATES = {
+  brokerage_mode: "ABS",
+  brokerage_intraday_pct: "0.0005",
+  brokerage_intraday_abs: "20",
+  brokerage_delivery_pct: "0.005",
+  brokerage_delivery_abs: "0",
+  tax_intraday_pct: "0.00018",
+  tax_delivery_pct: "0.0011",
+};
+
+const toF = (v, fallback = 0) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const calcAdditionalCost = ({ rates, segment, investment }) => {
+  const seg = (segment || "delivery").toLowerCase();
+  const isIntra = seg === "intraday";
+
+  const brokerage = (() => {
+    if ((rates?.brokerage_mode || "ABS") === "PCT") {
+      const pct = isIntra ? toF(rates.brokerage_intraday_pct) : toF(rates.brokerage_delivery_pct);
+      return investment * pct;
+    } else {
+      return isIntra ? toF(rates.brokerage_intraday_abs) : toF(rates.brokerage_delivery_abs);
+    }
+  })();
+
+  const taxPct = isIntra ? toF(rates.tax_intraday_pct) : toF(rates.tax_delivery_pct);
+  const tax = investment * taxPct;
+
+  const additional = brokerage + tax;
+  return Number.isFinite(additional) ? additional : 0;
+};
+
 export default function History({ username }) {
   const { isDark } = useTheme();
   // ✅ Desktop: convert vertical mouse wheel to horizontal scroll inside table
@@ -61,6 +97,25 @@ export default function History({ username }) {
     () => username || params.username || localStorage.getItem("username") || "",
     [username, params.username]
   );
+  const [rates, setRates] = useState(DEFAULT_RATES);
+
+  useEffect(() => {
+    if (!who) return;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API}/orders/brokerage-settings/${encodeURIComponent(who)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setRates({ ...DEFAULT_RATES, ...data });
+        } else {
+          setRates(DEFAULT_RATES);
+        }
+      } catch {
+        setRates(DEFAULT_RATES);
+      }
+    })();
+  }, [who]);
 
   const bgClass = isDark
     ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
@@ -438,23 +493,44 @@ export default function History({ username }) {
 
       const market = normalizeMarket(a.exchange || a.market || a.exch || "");
       const segment = normalizeSegment(a.segment || a.product || "");
-
-      const addTax = pickAdditionalTax(a);
       const inv =
         qty > 0 && price !== null && Number.isFinite(qty * price) ? qty * price : null;
+
+      // ✅ Prefer backend values if present; otherwise compute like Orders.jsx
+      let addTax = pickAdditionalTax(a);
+      if (addTax === null && inv !== null) {
+        const segKey = segment === "Intraday" ? "intraday" : "delivery";
+        addTax = calcAdditionalCost({ rates, segment: segKey, investment: inv });
+      }
+
+      // detect sell-side
+      const typ = String(a.activity_type ?? a.action ?? "").toUpperCase().trim();
+      const isSell =
+        typ.includes("SELL_FIRST") ||
+        typ === "EXIT" ||
+        typ.startsWith("SELL");
+
+      // ✅ YOUR RULE (fallback if backend doesn't send it)
+      let netInv = asNum(a.net_investment ?? a.netInvestment);
+      if (netInv === null && inv !== null) {
+        netInv = isSell ? inv - (addTax || 0) : inv + (addTax || 0);
+      }
 
       return {
         datetime: dt,
         symbol,
-        side: sideLabel, // ✅ will show ADD/EXIT/SELL_FIRST too
+        side: sideLabel,
         market,
         segment,
         qty,
         price,
         additional_tax: addTax,
-        investment: inv,
+        net_investment: netInv,
+        // (optional) keep gross investment only if you need it later
+        gross_investment: inv,
         notes: a.notes || "",
       };
+
     });
 
     // sort latest first
@@ -462,7 +538,7 @@ export default function History({ username }) {
 
     // date filter
     return applyLedgerDateFilter(rows);
-  }, [activity, startDate, endDate]);
+  }, [activity, startDate, endDate, rates]);
 
 
   // -------------------- What to render --------------------
@@ -489,7 +565,7 @@ export default function History({ username }) {
         "QTY",
         "PRICE",
         "Additional tax",
-        "Investment",
+        "Net Investment",
       ];
 
       const rows =
@@ -503,7 +579,7 @@ export default function History({ username }) {
             const qty = asNum(r.qty) ?? "";
             const price = asNum(r.price);
             const tax = asNum(r.additional_tax);
-            const inv = asNum(r.investment);
+            const netInv = asNum(r.net_investment);
 
             return [
               dt,
@@ -514,10 +590,11 @@ export default function History({ username }) {
               qty,
               price !== null ? price.toFixed(2) : "",
               tax !== null ? tax.toFixed(2) : "",
-              inv !== null ? inv.toFixed(2) : "",
+              netInv !== null ? netInv.toFixed(2) : "",
             ];
           })
           : [];
+
 
       const thead =
         "<tr>" +
@@ -696,7 +773,7 @@ export default function History({ username }) {
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
-       <AppHeader />
+      <AppHeader />
 
       <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -810,7 +887,7 @@ export default function History({ username }) {
                   <div>QTY</div>
                   <div>PRICE</div>
                   <div>Additional tax</div>
-                  <div>Investment</div>
+                  <div>Net Investment</div>
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto nc-scrollbar nc-scrollbar-overlay pr-0">
@@ -904,10 +981,11 @@ export default function History({ username }) {
                         </div>
 
                         <div className="text-center font-extrabold">
-                          {asNum(r.investment) !== null
-                            ? fmtMoney(r.investment)
+                          {asNum(r.net_investment) !== null
+                            ? fmtMoney(r.net_investment)
                             : "—"}
                         </div>
+
                       </div>
                     );
                   })}
