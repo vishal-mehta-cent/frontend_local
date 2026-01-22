@@ -35,16 +35,14 @@ function makeTR() {
 export default function Payments({ username }) {
   const nav = useNavigate();
 
-const userId = useMemo(() => {
-  const u =
-    username ||
-    localStorage.getItem("user_id") ||   // ✅ add this
-    localStorage.getItem("username") ||
-    localStorage.getItem("user") ||
-    "";
-  return String(u || "").trim().toLowerCase();
-}, [username]);
-
+  const userId = useMemo(() => {
+    const u =
+      username ||
+      localStorage.getItem("username") ||
+      localStorage.getItem("user") ||
+      "";
+    return String(u || "").trim().toLowerCase();
+  }, [username]);
 
   const [view, setView] = useState("PLANS");
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -82,16 +80,6 @@ const userId = useMemo(() => {
       setSubLoading(false);
     }
   };
-useEffect(() => {
-  if (subLoading) return;
-  if (!safeSub?.active) return;
-
-  const target = localStorage.getItem("post_payment_redirect");
-  if (target && target !== "/payments") {
-    localStorage.removeItem("post_payment_redirect");
-    nav(target, { replace: true });
-  }
-}, [subLoading, safeSub?.active, nav]);
 
   useEffect(() => {
     refreshSubscription();
@@ -99,12 +87,8 @@ useEffect(() => {
   }, [userId]);
 
   useEffect(() => {
-  if (userId) {
-    localStorage.setItem("user_id", userId);
-    localStorage.setItem("username", userId);
-  }
-}, [userId]);
-
+    if (userId) localStorage.setItem("username", userId);
+  }, [userId]);
 
   const queuedPlanIds = useMemo(() => {
     const ids = new Set();
@@ -249,11 +233,6 @@ useEffect(() => {
   };
 
   const handleBack = () => {
-  // ✅ If plan is expired/inactive, don't allow leaving the paywall
-  if (isLoggedIn && !subLoading && !safeSub?.active) {
-    nav("/payments", { replace: true });
-    return;
-  }
     if (view === "QR") {
       setView("PLANS");
       setSelectedPlan(null);
@@ -267,8 +246,7 @@ useEffect(() => {
       return;
     }
     if (window.history.length > 1) nav(-1);
-    else nav(isLoggedIn ? "/menu" : "/login");
-
+    else nav("/menu");
   };
 
   const primaryBtn =
