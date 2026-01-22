@@ -48,15 +48,8 @@ import LiveChart from "./pages/LiveChart";
 import Whatsapp from "./pages/Whatsapp";
 
 // ✅ Backend API base
-const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
-
-// ---------- tiny fetch helper (local to App) ----------
-async function getJSON(url) {
-  const res = await fetch(url);
-  const out = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(out?.detail || "Request failed");
-  return out;
-}
+const API =
+  import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
 /** Fixed logo shown on every non-auth page (rendered to body via portal) */
 
@@ -133,7 +126,6 @@ export default function App() {
   );
 }
 
-/*
 const handleLoginSuccess = async (user) => {
   setUsername(user);
 
@@ -154,77 +146,12 @@ const handleLoginSuccess = async (user) => {
 
   window.location.href = "/menu";
 };
-*/
+
 
 function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { isDark } = useTheme();
-
-  // ---------------- Subscription guard ----------------
-  const [sub, setSub] = useState(null);
-  const [subLoading, setSubLoading] = useState(false);
-
-  const refreshSubscription = async () => {
-    const u =
-      username ||
-      localStorage.getItem("user_id") ||
-      localStorage.getItem("username") ||
-      "";
-
-    const userId = String(u || "").trim().toLowerCase();
-
-    if (!userId) {
-      setSub(null);
-      setSubLoading(false);
-      return;
-    }
-
-    setSubLoading(true);
-    try {
-      const data = await getJSON(
-        `${API}/payments/subscription/${encodeURIComponent(userId)}`
-      );
-      setSub(data);
-    } catch (e) {
-      console.error("subscription error:", e?.message);
-      setSub(null);
-    } finally {
-      setSubLoading(false);
-    }
-  };
-
-  // Refresh on login AND on route changes (so after payment we re-check quickly)
-  useEffect(() => {
-    refreshSubscription();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username, location.pathname]);
-
-  const hasActivePlan = !!sub?.active;
-
-  // Wrapper for pages that require an active plan
-  const RequirePlan = ({ children }) => {
-    if (!username) return <Navigate to="/" replace />;
-
-    // While checking subscription, show a minimal loader so we don't flicker routes
-    if (subLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-[#0b1220] text-white">
-          <div className="text-sm text-white/80">Checking subscription…</div>
-        </div>
-      );
-    }
-
-    if (hasActivePlan) return children;
-
-    // Save where user wanted to go (so after payment you can send them back)
-    try {
-      const intended = `${location.pathname}${location.search || ""}`;
-      localStorage.setItem("post_payment_redirect", intended);
-    } catch {}
-
-    return <Navigate to="/payments" replace />;
-  };
 
   // ✅ Chart-style popup state (replaces browser alert)
   const [popup, setPopup] = useState({ open: false, title: "", message: "" });
@@ -248,14 +175,16 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
       navigate(`/trade/${encodeURIComponent(symbol)}`);
     }
     window.addEventListener("open-script-details", onOpenDetails);
-    return () => window.removeEventListener("open-script-details", onOpenDetails);
+    return () =>
+      window.removeEventListener("open-script-details", onOpenDetails);
   }, [navigate]);
 
   // -------------------------------------------------------
   // 🔥 ZERODHA-STYLE SINGLE SESSION WATCHER
   // -------------------------------------------------------
   useEffect(() => {
-    const user = localStorage.getItem("user_id") || localStorage.getItem("username");
+    const user =
+      localStorage.getItem("user_id") || localStorage.getItem("username");
     const session = localStorage.getItem("session_id");
 
     if (!user || !session) return;
@@ -281,7 +210,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           setPopup({
             open: true,
             title: "Logged out",
-            message: "You were logged out because you logged in from another device.",
+            message:
+              "You were logged out because you logged in from another device.",
           });
 
           // ❌ do not call onLogout here; it will run when user clicks OK
@@ -304,15 +234,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           {/* 🌐 LANDING PAGE */}
           <Route
             path="/"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Navigate to="/menu" replace />
-                </RequirePlan>
-              ) : (
-                <Landing />
-              )
-            }
+            element={username ? <Navigate to="/menu" replace /> : <Landing />}
           />
 
           {/* 🔐 LOGIN PAGE */}
@@ -320,9 +242,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             path="/login"
             element={
               username ? (
-                <RequirePlan>
-                  <Navigate to="/menu" replace />
-                </RequirePlan>
+                <Navigate to="/trade" replace />
               ) : (
                 <AuthScreen onLoginSuccess={onLoginSuccess} />
               )
@@ -332,13 +252,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           <Route
             path="/menu"
             element={
-              username ? (
-                <RequirePlan>
-                  <Menu logout={onLogout} />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
+              username ? <Menu logout={onLogout} /> : <Navigate to="/" replace />
             }
           />
 
@@ -346,22 +260,17 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             path="/trade"
             element={
               username ? (
-                <RequirePlan>
-                  <Trade username={username} />
-                </RequirePlan>
+                <Trade username={username} />
               ) : (
                 <Navigate to="/" replace />
               )
             }
           />
-
           <Route
             path="/trade/:symbol"
             element={
               username ? (
-                <RequirePlan>
-                  <ScriptDetail username={username} />
-                </RequirePlan>
+                <ScriptDetail username={username} />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -372,100 +281,43 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             path="/orders"
             element={
               username ? (
-                <RequirePlan>
-                  <Orders username={username} />
-                </RequirePlan>
+                <Orders username={username} />
               ) : (
                 <Navigate to="/" replace />
               )
             }
           />
-
           <Route
             path="/buy/:symbol"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Buy />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <Buy /> : <Navigate to="/" replace />}
           />
-
           <Route
             path="/sell/:symbol"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Sell />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <Sell /> : <Navigate to="/" replace />}
           />
-
           <Route
             path="/trade-success"
-            element={
-              username ? (
-                <RequirePlan>
-                  <TradeSuccess />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <TradeSuccess /> : <Navigate to="/" replace />}
           />
 
           <Route
             path="/chart/:symbol"
-            element={
-              username ? (
-                <RequirePlan>
-                  <ChartPage />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <ChartPage /> : <Navigate to="/" replace />}
           />
-
           <Route
             path="/alert/:symbol"
-            element={
-              username ? (
-                <RequirePlan>
-                  <SetAlert />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <SetAlert /> : <Navigate to="/" replace />}
           />
-
           <Route
             path="/notes/:symbol"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Notes />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <Notes /> : <Navigate to="/" replace />}
           />
 
           <Route
             path="/portfolio"
             element={
               username ? (
-                <RequirePlan>
-                  <Portfolio username={username} />
-                </RequirePlan>
+                <Portfolio username={username} />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -475,40 +327,18 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           <Route
             path="/recommendations"
             element={
-              username ? (
-                <RequirePlan>
-                  <Recommendation />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
+              username ? <Recommendation /> : <Navigate to="/" replace />
             }
           />
 
           <Route
             path="/insight"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Insight />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <Insight /> : <Navigate to="/" replace />}
           />
 
           <Route
             path="/ipo-tracker"
-            element={
-              username ? (
-                <RequirePlan>
-                  <IpoTracker />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <IpoTracker /> : <Navigate to="/" replace />}
           />
 
           <Route path="/feedback" element={<Feedback username={username} />} />
@@ -517,9 +347,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             path="/profile"
             element={
               username ? (
-                <RequirePlan>
-                  <Profile username={username} logout={onLogout} />
-                </RequirePlan>
+                <Profile username={username} logout={onLogout} />
               ) : (
                 <Navigate to="/" replace />
               )
@@ -528,144 +356,74 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route
             path="/profile/funds"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Funds username={username} />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={<Funds username={username} />}
           />
 
-          {/* ✅ Payments must stay accessible even when plan is inactive */}
           <Route path="/payments" element={<Payments username={username} />} />
-
-          {/*
           <Route
-            path="/trade"
-            element={
-              username ? (
-                <RequireSubscription>
-                  <Trade username={username} />
-                </RequireSubscription>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
-          */}
-
+  path="/trade"
+  element={
+    username ? (
+      <RequireSubscription>
+        <Trade username={username} />
+      </RequireSubscription>
+    ) : (
+      <Navigate to="/" replace />
+    )
+  }
+/>
           <Route
             path="/history"
             element={
-              username ? (
-                <RequirePlan>
-                  <History username={username} />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
+              username ? <History username={username} /> : <Navigate to="/" replace />
             }
           />
 
           <Route
-            path="/settings"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Settings />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+  path="/settings"
+  element={username ? <Settings /> : <Navigate to="/" replace />}
+/>
 
-          <Route
-            path="/settings/change-password"
-            element={
-              username ? (
-                <RequirePlan>
-                  <PasswordChange username={username} />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+<Route
+  path="/settings/change-password"
+  element={
+    username ? <PasswordChange username={username} /> : <Navigate to="/" replace />
+  }
+/>
 
-          {/* ✅ Short route for Profile tile */}
-          <Route
-            path="/passwordchange"
-            element={
-              username ? (
-                <RequirePlan>
-                  <PasswordChange username={username} />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+{/* ✅ Short route for Profile tile */}
+<Route
+  path="/passwordchange"
+  element={
+    username ? <PasswordChange username={username} /> : <Navigate to="/" replace />
+  }
+/>
 
-          <Route
-            path="/settings/change-email"
-            element={
-              username ? (
-                <RequirePlan>
-                  <EmailChange username={username} />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+<Route
+  path="/settings/change-email"
+  element={
+    username ? <EmailChange username={username} /> : <Navigate to="/" replace />
+  }
+/>
 
-          <Route
-            path="/modify/:id"
-            element={
-              username ? (
-                <RequirePlan>
-                  <ModifyOrderPage />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+
+          <Route path="/modify/:id" element={<ModifyOrderPage />} />
 
           <Route
             path="/live"
-            element={
-              username ? (
-                <RequirePlan>
-                  <LiveChart />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <LiveChart /> : <Navigate to="/" replace />}
           />
 
           <Route
             path="/whatsapp"
-            element={
-              username ? (
-                <RequirePlan>
-                  <Whatsapp />
-                </RequirePlan>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+            element={username ? <Whatsapp /> : <Navigate to="/" replace />}
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        
       </AnimatePresence>
-
+       
       {/* ✅ Chart-style popup modal */}
       <AlertModal
         open={popup.open}
