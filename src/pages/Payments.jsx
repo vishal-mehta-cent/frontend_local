@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Check, Loader, Smartphone, CreditCard, Info, ArrowLeft } from "lucide-react";
+import { Check, X, Loader, Smartphone, CreditCard, Info, ArrowLeft } from "lucide-react";
+
 import { useNavigate } from "react-router-dom";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
@@ -13,14 +14,17 @@ const PLANS = [
     desc: "Try NeuroCrest for 3 days",
     strike: null,
     period: "Only for 3 days",
-    features: [
-      "Full Trading App access",
-      "Watchlist",
-      "Orders",
-      "Portfolio",
-      "History",
-      "Real-time charts & tracking",
-    ],
+   features: [
+  { text: "Full Trading App access(Interactive Charts)", included: true },
+  { text: "Portfolio Performance Monitoring", included: true },
+  { text: "Trade Tracer", included: true },
+  { text: "Report Download", included: true },
+
+  // ❌ force cross
+  { text: "Alerts on Chart and Recommendations", included: false },
+  { text: "WhatsApp/Email Alerts", included: false },
+],
+
   },
   {
     id: "monthly",
@@ -30,13 +34,15 @@ const PLANS = [
     desc: "Introductory monthly access",
     period: "Per month",
     features: [
-      "Full Trading App access",
-      "Watchlist",
-      "Orders",
-      "Portfolio",
-      "History",
-      "Real-time charts & tracking",
-    ],
+  { text: "Full Trading App access(Interactive Charts)", included: true },
+  { text: "Portfolio Performance Monitoring", included: true },
+  { text: "Trade Tracer", included: true },
+  { text: "Report Download", included: true },
+
+  // ❌ force cross
+  { text: "Alerts on Chart and Recommendations", included: false },
+  { text: "WhatsApp/Email Alerts", included: false },
+],
   },
   {
     id: "quarterly",
@@ -45,14 +51,16 @@ const PLANS = [
     strike: 1500,
     desc: "Best value for consistency",
     period: "Per quarter",
-    features: [
-      "Full Trading App access",
-      "Watchlist",
-      "Orders",
-      "Portfolio",
-      "History",
-      "Real-time charts & tracking",
-    ],
+      features: [
+  { text: "Full Trading App access(Interactive Charts)", included: true },
+  { text: "Portfolio Performance Monitoring", included: true },
+  { text: "Trade Tracer", included: true },
+  { text: "Report Download", included: true },
+
+  // ❌ force cross
+  { text: "Alerts on Chart and Recommendations", included: false },
+  { text: "WhatsApp/Email Alerts", included: false },
+],
   },
   {
     id: "halfyearly",
@@ -61,14 +69,16 @@ const PLANS = [
     strike: 3000,
     desc: "Great value for 6 months",
     period: "Per 6 months",
-    features: [
-      "Full Trading App access",
-      "Watchlist",
-      "Orders",
-      "Portfolio",
-      "History",
-      "Real-time charts & tracking",
-    ],
+       features: [
+  { text: "Full Trading App access(Interactive Charts)", included: true },
+  { text: "Portfolio Performance Monitoring", included: true },
+  { text: "Trade Tracer", included: true },
+  { text: "Report Download", included: true },
+
+  // ❌ force cross
+  { text: "Alerts on Chart and Recommendations", included: false },
+  { text: "WhatsApp/Email Alerts", included: false },
+],
   },
   {
     id: "annual",
@@ -77,16 +87,22 @@ const PLANS = [
     strike: 6000,
     desc: "Maximum savings for long-term users",
     period: "Per year",
-    features: [
-      "Full Trading App access",
-      "Watchlist",
-      "Orders",
-      "Portfolio",
-      "History",
-      "Real-time charts & tracking",
-    ],
+      features: [
+  { text: "Full Trading App access(Interactive Charts)", included: true },
+  { text: "Portfolio Performance Monitoring", included: true },
+  { text: "Trade Tracer", included: true },
+  { text: "Report Download", included: true },
+
+  // ❌ force cross
+  { text: "Alerts on Chart and Recommendations", included: false },
+  { text: "WhatsApp/Email Alerts", included: false },
+],
   },
 ];
+const X_FEATURES = new Set([
+  "Alerts on Chart and Recommendations",
+  "WhatsApp/Email Alerts",
+]);
 
 async function postJSON(url, body) {
   const res = await fetch(url, {
@@ -376,7 +392,7 @@ export default function Payments({ username }) {
 
             <h1 className="text-3xl font-bold text-center mb-2">Upgrade your plan</h1>
             <div className="text-center text-xs sm:text-sm text-amber-200/90 mt-2 mb-4">
-              <span className="font-semibold">All payments are final and non-refundable.</span>{" "}
+              <span className="font-semibold">All payments are  non-refundable.</span>{" "}
             </div>
 
             <div className="text-center text-sm text-slate-300 mb-2">
@@ -478,14 +494,52 @@ export default function Payments({ username }) {
                               : `Get ${plan.name}`}
                       </button>
 
-                      <ul className="space-y-3 text-sm text-slate-200">
-                        {plan.features.map((f, i) => (
-                          <li key={i} className="flex gap-2">
-                            <Check className="w-4 h-4 text-green-400 mt-0.5" />
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
+   <ul className="space-y-3 text-sm text-slate-200">
+  {plan.features.map((f, i) => {
+    const text = typeof f === "string" ? f : (f?.text || "");
+
+    // ✅ if string: show ❌ only when text is in X_FEATURES
+    // ✅ if object: use included true/false
+    const included =
+      typeof f === "string" ? !X_FEATURES.has(text) : !!f?.included;
+
+    return (
+      <li key={i} className="flex gap-2">
+        {included ? (
+          <Check className="w-4 h-4 text-green-400 mt-0.5" />
+        ) : (
+          <X className="w-4 h-4 text-red-400 mt-0.5" />
+        )}
+        <span>{text}</span>
+      </li>
+    );
+  })}
+</ul>
+
+<div className="mt-4 rounded-xl border border-amber-300/25 bg-amber-300/10 p-3">
+  <div className="text-xs font-extrabold text-amber-200 flex items-center gap-2">
+    <span>⚠️</span> Important
+  </div>
+
+  <div className="mt-1 text-xs text-slate-200/85 leading-relaxed">
+    To activate alerts &amp; recommendations contact support:{" "}
+    <a
+      href="tel:9426001601"
+      className="underline text-cyan-200 hover:text-cyan-100"
+    >
+      9426001601
+    </a>
+    {" "}and email:{" "}
+    <a
+      href="mailto:neurocrest.app@gmail.com"
+      className="underline text-cyan-200 hover:text-cyan-100"
+    >
+      neurocrest.app@gmail.com
+    </a>
+  </div>
+</div>
+
+
 
                       {plan.id !== "free" && (
                         <>
@@ -496,15 +550,15 @@ export default function Payments({ username }) {
                             <ul className="mt-2 space-y-1 text-xs text-slate-300">
                               <li className="flex gap-2">
                                 <Check className="w-3.5 h-3.5 text-green-400 mt-0.5" />
-                                Event based Alerts (News / Bulk deals etc.)
+                               On Demand Script Insights(chat Bot)
                               </li>
                               <li className="flex gap-2">
                                 <Check className="w-3.5 h-3.5 text-green-400 mt-0.5" />
-                                IPO Tracking
+                                IPO Tracking/Intelligence
                               </li>
                               <li className="flex gap-2">
                                 <Check className="w-3.5 h-3.5 text-green-400 mt-0.5" />
-                                Portfolio Intelligence
+                                Event based Alerts 
                               </li>
                             </ul>
                           </div>
