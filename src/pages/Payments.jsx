@@ -35,14 +35,16 @@ function makeTR() {
 export default function Payments({ username }) {
   const nav = useNavigate();
 
-  const userId = useMemo(() => {
-    const u =
-      username ||
-      localStorage.getItem("username") ||
-      localStorage.getItem("user") ||
-      "";
-    return String(u || "").trim().toLowerCase();
-  }, [username]);
+const userId = useMemo(() => {
+  const u =
+    username ||
+    localStorage.getItem("user_id") ||   // ✅ add this
+    localStorage.getItem("username") ||
+    localStorage.getItem("user") ||
+    "";
+  return String(u || "").trim().toLowerCase();
+}, [username]);
+
 
   const [view, setView] = useState("PLANS");
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -97,8 +99,12 @@ useEffect(() => {
   }, [userId]);
 
   useEffect(() => {
-    if (userId) localStorage.setItem("username", userId);
-  }, [userId]);
+  if (userId) {
+    localStorage.setItem("user_id", userId);
+    localStorage.setItem("username", userId);
+  }
+}, [userId]);
+
 
   const queuedPlanIds = useMemo(() => {
     const ids = new Set();
@@ -261,7 +267,8 @@ useEffect(() => {
       return;
     }
     if (window.history.length > 1) nav(-1);
-    else nav("/menu");
+    else nav(isLoggedIn ? "/menu" : "/login");
+
   };
 
   const primaryBtn =
