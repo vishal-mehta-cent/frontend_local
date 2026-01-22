@@ -821,9 +821,16 @@ export default function Orders({ username }) {
           <div className="mb-4 text-center">
             <div className={`inline-block px-4 py-2 ${glassClass} rounded-xl shadow text-xl font-semibold`}>
               Total P&L:{" "}
-              <span className={totalPnl >= 0 ? "text-green-400" : "text-red-400"}>
+              <span
+                className={
+                  totalPnl >= 0
+                    ? (isDark ? "text-emerald-400" : "text-emerald-600")
+                    : (isDark ? "text-rose-400" : "text-rose-600")
+                }
+              >
                 {money(totalPnl)}
               </span>
+
             </div>
           </div>
         )}
@@ -965,8 +972,14 @@ export default function Orders({ username }) {
 
 
               const pnlUp = total >= 0;
-              const pnlColor = pnlUp ? "text-emerald-400" : "text-rose-400";
-              const pctColor = pnlUp ? "text-emerald-300" : "text-rose-300";
+
+              const pnlColor = pnlUp
+                ? (isDark ? "text-emerald-400" : "text-emerald-600")
+                : (isDark ? "text-rose-400" : "text-rose-600");
+
+              const pctColor = pnlUp
+                ? (isDark ? "text-emerald-300" : "text-emerald-600")
+                : (isDark ? "text-rose-300" : "text-rose-600");
 
 
               const sl = toNum(o.stoploss);
