@@ -19,7 +19,6 @@ import "react-datepicker/dist/react-datepicker.css"; // keep for base structure 
 import "./datepicker-neurocrest.css"; // ✅ create this file (next step)
 import AppHeader from "../components/AppHeader";
 
-
 const API =
   import.meta.env.VITE_BACKEND_BASE_URL ||
   "https://paper-trading-backend.onrender.com";
@@ -46,10 +45,14 @@ const calcAdditionalCost = ({ rates, segment, investment }) => {
 
   const brokerage = (() => {
     if ((rates?.brokerage_mode || "ABS") === "PCT") {
-      const pct = isIntra ? toF(rates.brokerage_intraday_pct) : toF(rates.brokerage_delivery_pct);
+      const pct = isIntra
+        ? toF(rates.brokerage_intraday_pct)
+        : toF(rates.brokerage_delivery_pct);
       return investment * pct;
     } else {
-      return isIntra ? toF(rates.brokerage_intraday_abs) : toF(rates.brokerage_delivery_abs);
+      return isIntra
+        ? toF(rates.brokerage_intraday_abs)
+        : toF(rates.brokerage_delivery_abs);
     }
   })();
 
@@ -83,7 +86,6 @@ export default function History({ username }) {
   const [history, setHistory] = useState([]);
   const [activity, setActivity] = useState([]); // ✅ all trade_activity rows
 
-
   const [error, setError] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -104,7 +106,9 @@ export default function History({ username }) {
 
     (async () => {
       try {
-        const res = await fetch(`${API}/orders/brokerage-settings/${encodeURIComponent(who)}`);
+        const res = await fetch(
+          `${API}/orders/brokerage-settings/${encodeURIComponent(who)}`
+        );
         if (res.ok) {
           const data = await res.json();
           setRates({ ...DEFAULT_RATES, ...data });
@@ -169,9 +173,7 @@ export default function History({ username }) {
       .then(async (res) => {
         if (!res.ok) {
           const txt = await res.text();
-          throw new Error(
-            `HTTP ${res.status}: ${txt || "Failed to fetch history"}`
-          );
+          throw new Error(`HTTP ${res.status}: ${txt || "Failed to fetch history"}`);
         }
         return res.json();
       })
@@ -199,9 +201,7 @@ export default function History({ username }) {
       .then(async (res) => {
         if (!res.ok) {
           const txt = await res.text();
-          throw new Error(
-            `HTTP ${res.status}: ${txt || "Failed to fetch activity"}`
-          );
+          throw new Error(`HTTP ${res.status}: ${txt || "Failed to fetch activity"}`);
         }
         return res.json();
       })
@@ -215,9 +215,7 @@ export default function History({ username }) {
       .finally(() => setLoadingActivity(false));
   }, [who, tab]);
 
-
   // -------------------- Helpers --------------------
-
 
   const asNum = (v) => {
     if (v === null || v === undefined) return null;
@@ -328,8 +326,6 @@ export default function History({ username }) {
     });
   };
 
-
-
   // -------------------- Filtered history (date range) --------------------
   const filteredHistory = useMemo(() => {
     return applyDateFilter(history || []);
@@ -337,11 +333,9 @@ export default function History({ username }) {
 
   // -------------------- Convert POSITIONS -> rows that match your table --------------------
 
-
   // -------------------- All History (positions + closed history) --------------------
 
   // ✅ Apply date filter to All History also
-
 
   // -------------------- Ledger view for "All History" (BUY/SELL rows only) --------------------
   const normalizeMarket = (v) => {
@@ -356,7 +350,8 @@ export default function History({ username }) {
     const s = String(v || "").toLowerCase().trim();
     if (!s) return "—";
     if (s.includes("delivery") || s === "c" || s.includes("cnc")) return "Delivery";
-    if (s.includes("intraday") || s.includes("intra") || s.includes("mis")) return "Intraday";
+    if (s.includes("intraday") || s.includes("intra") || s.includes("mis"))
+      return "Intraday";
     return "—";
   };
 
@@ -485,7 +480,9 @@ export default function History({ username }) {
       const dt = String(a.datetime || a.time || "").trim();
 
       // ✅ show activity_type (ADD / EXIT / SELL_FIRST etc) not only BUY/SELL
-      const type = String(a.activity_type || a.action || "").toUpperCase().trim();
+      const type = String(a.activity_type || a.action || "")
+        .toUpperCase()
+        .trim();
       const sideLabel = type || "—";
 
       const qty = asNum(a.qty) ?? 0;
@@ -506,9 +503,7 @@ export default function History({ username }) {
       // detect sell-side
       const typ = String(a.activity_type ?? a.action ?? "").toUpperCase().trim();
       const isSell =
-        typ.includes("SELL_FIRST") ||
-        typ === "EXIT" ||
-        typ.startsWith("SELL");
+        typ.includes("SELL_FIRST") || typ === "EXIT" || typ.startsWith("SELL");
 
       // ✅ YOUR RULE (fallback if backend doesn't send it)
       let netInv = asNum(a.net_investment ?? a.netInvestment);
@@ -530,7 +525,6 @@ export default function History({ username }) {
         gross_investment: inv,
         notes: a.notes || "",
       };
-
     });
 
     // sort latest first
@@ -539,7 +533,6 @@ export default function History({ username }) {
     // date filter
     return applyLedgerDateFilter(rows);
   }, [activity, startDate, endDate, rates]);
-
 
   // -------------------- What to render --------------------
   const displayHistory = useMemo(() => {
@@ -552,6 +545,54 @@ export default function History({ username }) {
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+
+  const computeHistoryCosts = (t) => {
+    const buyQty = asNum(t.buy_qty) ?? 0;
+    const segKey = (t.segment || "delivery").toLowerCase();
+    const entryPx = asNum(t.buy_price) ?? 0;
+
+    const exitPrice = asNum(t.exit_price) ?? asNum(t.sell_avg_price) ?? 0;
+
+    const backendAddCost = asNum(t.additional_cost);
+    const backendNetInv = asNum(t.net_investment);
+    const backendExitNetInv = asNum(t.exit_net_investment);
+
+    let addCost = backendAddCost;
+    let netInv = backendNetInv;
+    let exitNetInv = backendExitNetInv;
+
+    if (addCost === null || netInv === null || exitNetInv === null) {
+      const isShort =
+        !!t.short_first || String(t.entry_side || "").toUpperCase() === "SELL_FIRST";
+
+      const entryInv = entryPx * buyQty;
+      const exitInv = exitPrice * buyQty;
+
+      const entryAdd = calcAdditionalCost({
+        rates,
+        segment: segKey,
+        investment: entryInv,
+      });
+
+      const exitAdd = calcAdditionalCost({
+        rates,
+        segment: segKey,
+        investment: exitInv,
+      });
+
+      addCost = entryAdd + exitAdd;
+
+      netInv = isShort ? entryInv - entryAdd : entryInv + entryAdd;
+      exitNetInv = isShort ? exitInv + exitAdd : exitInv - exitAdd;
+    }
+
+    return {
+      exitPrice,
+      addCost,
+      netInv,
+      exitNetInv,
+    };
+  };
 
   const buildExcelHtml = () => {
     // ✅ Export matches what user is seeing
@@ -595,12 +636,9 @@ export default function History({ username }) {
           })
           : [];
 
-
       const thead =
         "<tr>" +
-        headers
-          .map((h) => `<th style="font-weight:600">${escapeHTML(h)}</th>`)
-          .join("") +
+        headers.map((h) => `<th style="font-weight:600">${escapeHTML(h)}</th>`).join("") +
         "</tr>";
 
       const tbody =
@@ -608,9 +646,7 @@ export default function History({ username }) {
           ? rows
             .map(
               (r) =>
-                "<tr>" +
-                r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
-                "</tr>"
+                "<tr>" + r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") + "</tr>"
             )
             .join("")
           : "";
@@ -646,15 +682,18 @@ export default function History({ username }) {
 </html>`;
     }
 
-    // existing History export (unchanged)
+    // ✅ History export (UPDATED with Orders grey-row values)
     const headers = [
       "Symbol",
       "Row Date",
       "Buy Qty",
       "Buy Date",
       "Buy Price",
+      "Additional Cost",
+      "Net Investment",
       "Sell Qty",
-      "Sell Avg Price",
+      "Exit Price",
+      "Exit Net Investment",
       "Sell Date",
       "Invested",
       "P&L",
@@ -668,9 +707,12 @@ export default function History({ username }) {
           const buyQty = asNum(t.buy_qty) ?? "";
           const buyPrice = asNum(t.buy_price);
           const sellQty = asNum(t.sell_qty) ?? "";
-          const sellAvg = asNum(t.sell_avg_price);
           const invested = asNum(t.invested_value);
-          const pnl = asNum(t.pnl);
+
+          // Prefer net-pnl if backend sends it; fallback to pnl
+          const pnl = asNum(t.net_pnl) ?? asNum(t.pnl);
+
+          const { exitPrice, addCost, netInv, exitNetInv } = computeHistoryCosts(t);
 
           return [
             symbolUpper,
@@ -678,8 +720,11 @@ export default function History({ username }) {
             buyQty,
             dateOnly(t.buy_date),
             buyPrice !== null ? buyPrice.toFixed(2) : "",
+            addCost !== null ? Number(addCost).toFixed(2) : "",
+            netInv !== null ? Number(netInv).toFixed(2) : "",
             sellQty,
-            sellAvg !== null ? sellAvg.toFixed(2) : "",
+            exitPrice ? Number(exitPrice).toFixed(2) : "",
+            exitNetInv !== null ? Number(exitNetInv).toFixed(2) : "",
             dateOnly(t.sell_date),
             invested !== null ? invested.toFixed(2) : "",
             pnl !== null ? pnl.toFixed(2) : "",
@@ -689,9 +734,7 @@ export default function History({ username }) {
 
     const thead =
       "<tr>" +
-      headers
-        .map((h) => `<th style="font-weight:600">${escapeHTML(h)}</th>`)
-        .join("") +
+      headers.map((h) => `<th style="font-weight:600">${escapeHTML(h)}</th>`).join("") +
       "</tr>";
 
     const tbody =
@@ -699,9 +742,7 @@ export default function History({ username }) {
         ? rows
           .map(
             (r) =>
-              "<tr>" +
-              r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") +
-              "</tr>"
+              "<tr>" + r.map((c) => `<td>${escapeHTML(c)}</td>`).join("") + "</tr>"
           )
           .join("")
         : "";
@@ -743,11 +784,7 @@ export default function History({ username }) {
       type: "application/vnd.ms-excel;charset=utf-8;",
     });
     const url = URL.createObjectURL(blob);
-    const stamp = new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace("T", "_")
-      .replace(/:/g, "");
+    const stamp = new Date().toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "");
     const a = document.createElement("a");
     a.href = url;
     a.download = `history_${(who || "user")}_${stamp}.xls`;
@@ -757,16 +794,12 @@ export default function History({ username }) {
     URL.revokeObjectURL(url);
   };
 
-  const goNotes = (s) =>
-    navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`);
+  const goNotes = (s) => navigate(`/notes/${encodeURIComponent((s || "").toUpperCase())}`);
 
   const showLoading = loading || (tab === "all" && loadingActivity);
 
-
   return (
-    <div
-      className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}
-    >
+    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300`}>
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
@@ -779,9 +812,7 @@ export default function History({ username }) {
         <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className={`text-4xl font-bold ${textClass}`}>History</h2>
-            <p className={`${textSecondaryClass}`}>
-              Your trading history and analytics
-            </p>
+            <p className={`${textSecondaryClass}`}>Your trading history and analytics</p>
 
             <div className={`mt-4 inline-flex p-1 rounded-2xl ${glassClass}`}>
               <button
@@ -851,17 +882,11 @@ export default function History({ username }) {
         </div>
 
         {showLoading ? (
-          <div className={`text-center ${textSecondaryClass} mt-20`}>
-            Loading...
-          </div>
+          <div className={`text-center ${textSecondaryClass} mt-20`}>Loading...</div>
         ) : error ? (
-          <div className="text-center text-red-400 whitespace-pre-wrap mt-20">
-            {error}
-          </div>
+          <div className="text-center text-red-400 whitespace-pre-wrap mt-20">{error}</div>
         ) : displayHistory.length === 0 ? (
-          <div className={`text-center ${textSecondaryClass} mt-20`}>
-            No history available.
-          </div>
+          <div className={`text-center ${textSecondaryClass} mt-20`}>No history available.</div>
         ) : tab === "all" ? (
           // ✅ NEW: All History ledger view (only requested columns)
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
@@ -874,9 +899,6 @@ export default function History({ username }) {
               onMouseUp={onDragEnd}
               onMouseLeave={onDragEnd}
             >
-
-
-
               <div className="min-w-[1200px]">
                 <div className="grid grid-cols-9 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
                   <div>Date &amp; Time</div>
@@ -891,7 +913,6 @@ export default function History({ username }) {
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto nc-scrollbar nc-scrollbar-overlay pr-0">
-
                   {displayHistory.map((r, idx) => {
                     const side = String(r.side || "").toUpperCase();
                     const isBuy =
@@ -901,10 +922,7 @@ export default function History({ username }) {
                       side.includes("LONG");
 
                     const isSell =
-                      side.includes("SELL") ||
-                      side === "EXIT" ||
-                      side.includes("SHORT");
-
+                      side.includes("SELL") || side === "EXIT" || side.includes("SHORT");
 
                     return (
                       <div
@@ -913,9 +931,7 @@ export default function History({ username }) {
                           }`}
                       >
                         <div className="text-center text-sm">
-                          <div className="font-medium">
-                            {formatToIST_YMDHMS(r.datetime)}
-                          </div>
+                          <div className="font-medium">{formatToIST_YMDHMS(r.datetime)}</div>
                         </div>
 
                         <div className="flex items-center justify-center gap-2">
@@ -938,13 +954,12 @@ export default function History({ username }) {
                               "px-3 py-1 rounded-xl text-xs font-extrabold tracking-wide",
                               "ring-1 backdrop-blur-xl",
                               isBuy
-                                ? (isDark
+                                ? isDark
                                   ? "shadow-[0_12px_24px_rgba(16,185,129,0.50),0_6px_12px_rgba(16,185,129,0.26)]"
-                                  : "shadow-[0_12px_24px_rgba(16,185,129,0.34),0_6px_12px_rgba(16,185,129,0.18)]")
-                                : (isDark
+                                  : "shadow-[0_12px_24px_rgba(16,185,129,0.34),0_6px_12px_rgba(16,185,129,0.18)]"
+                                : isDark
                                   ? "shadow-[0_12px_24px_rgba(244,63,94,0.46),0_6px_12px_rgba(244,63,94,0.24)]"
-                                  : "shadow-[0_12px_24px_rgba(244,63,94,0.32),0_6px_12px_rgba(244,63,94,0.16)]"),
-
+                                  : "shadow-[0_12px_24px_rgba(244,63,94,0.32),0_6px_12px_rgba(244,63,94,0.16)]",
                               isBuy
                                 ? isDark
                                   ? "bg-emerald-500/15 ring-emerald-400/20 text-emerald-200"
@@ -958,34 +973,23 @@ export default function History({ username }) {
                           </span>
                         </div>
 
-                        <div className="text-center font-medium">
-                          {r.market || "—"}
-                        </div>
+                        <div className="text-center font-medium">{r.market || "—"}</div>
 
-                        <div className="text-center font-medium">
-                          {r.segment || "—"}
-                        </div>
+                        <div className="text-center font-medium">{r.segment || "—"}</div>
 
-                        <div className="text-center font-semibold">
-                          {asNum(r.qty) ?? "—"}
-                        </div>
+                        <div className="text-center font-semibold">{asNum(r.qty) ?? "—"}</div>
 
                         <div className="text-center font-medium">
                           {asNum(r.price) !== null ? fmtMoney(r.price) : "—"}
                         </div>
 
                         <div className="text-center font-medium">
-                          {asNum(r.additional_tax) !== null
-                            ? fmtMoney(r.additional_tax)
-                            : "—"}
+                          {asNum(r.additional_tax) !== null ? fmtMoney(r.additional_tax) : "—"}
                         </div>
 
                         <div className="text-center font-extrabold">
-                          {asNum(r.net_investment) !== null
-                            ? fmtMoney(r.net_investment)
-                            : "—"}
+                          {asNum(r.net_investment) !== null ? fmtMoney(r.net_investment) : "—"}
                         </div>
-
                       </div>
                     );
                   })}
@@ -994,7 +998,7 @@ export default function History({ username }) {
             </div>
           </div>
         ) : (
-          // Existing History view (unchanged)
+          // ✅ History view (UPDATED to show Orders grey-row values)
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
             <div
               ref={xScrollRef}
@@ -1005,41 +1009,51 @@ export default function History({ username }) {
               onMouseUp={onDragEnd}
               onMouseLeave={onDragEnd}
             >
-
-
-
-              <div className="min-w-[1100px]">
-                <div className="grid grid-cols-5 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
-                  <div>Symbol & Time</div>
+              <div className="min-w-[1500px]">
+                {/* ✅ 9-column header */}
+                <div className="grid grid-cols-9 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
+                  <div>Symbol &amp; Time</div>
                   <div>Quantity</div>
                   <div>Buy Details</div>
+                  <div>Invested</div>
+                  <div>Additional Cost</div>
+                  <div>Net Investment</div>
                   <div>P&amp;L</div>
                   <div>Sell Details</div>
+                  <div>Exit Net Investment</div>
                 </div>
 
                 <div className="max-h-[60vh] overflow-y-auto nc-scrollbar nc-scrollbar-overlay pr-0">
-
                   {displayHistory.map((t, idx) => {
                     const buyQty = asNum(t.buy_qty) ?? 0;
-                    const pnlNum = asNum(t.pnl) ?? 0;
 
+                    // ✅ Prefer backend net_pnl if present; else fallback to pnl
                     const sellQty = asNum(t.sell_qty) ?? 0;
                     const sellAvg = asNum(t.sell_avg_price);
                     const investedValue = asNum(t.invested_value);
-
                     const symbolUpper = normSym(t.symbol || "—");
+                    // ✅ Uses backend-first and fallback compute (already in your file)
+                    const { exitPrice, addCost, netInv, exitNetInv } = computeHistoryCosts(t);
+
+                    // ✅ YOUR RULE: P&L = Exit Net Investment - Invested
+                    const pnlNum =
+                      exitNetInv !== null &&
+                        exitNetInv !== undefined &&
+                        investedValue !== null &&
+                        investedValue !== undefined
+                        ? exitNetInv - investedValue
+                        : (asNum(t.net_pnl) ?? asNum(t.pnl) ?? 0);
 
                     return (
                       <div
                         key={`${dedupeKey(t)}-${idx}`}
-                        className={`grid grid-cols-5 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
+                        className={`grid grid-cols-9 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
                           }`}
                       >
+                        {/* 1) Symbol & Time */}
                         <div className="flex flex-col items-center text-center">
                           <div className="inline-flex items-center justify-center gap-2">
-                            <span className="font-bold text-lg">
-                              {symbolUpper}
-                            </span>
+                            <span className="font-bold text-lg">{symbolUpper}</span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1056,45 +1070,56 @@ export default function History({ username }) {
                           </span>
                         </div>
 
-                        <div className="font-medium text-center">
-                          {buyQty || "—"}
-                        </div>
+                        {/* 2) Quantity */}
+                        <div className="font-semibold text-center">{buyQty || "—"}</div>
 
+                        {/* 3) Buy Details */}
                         <div className="text-sm leading-tight text-center">
                           {t.buy_date ? (
                             <>
                               <div className={textSecondaryClass}>
-                                <span className="font-medium">
-                                  {dateOnly(t.buy_date)}
-                                </span>
+                                <span className="font-medium">{dateOnly(t.buy_date)}</span>
                               </div>
-                              <div className={textClass}>
-                                {fmtMoney(t.buy_price)}
-                              </div>
+                              <div className={textClass}>{fmtMoney(t.buy_price)}</div>
                             </>
                           ) : (
                             <span className={textSecondaryClass}>—</span>
                           )}
                         </div>
 
+                        {/* 4) Invested */}
+                        <div className="text-center font-medium">
+                          {investedValue !== null ? fmtMoney(investedValue) : "—"}
+                        </div>
+
+                        {/* 5) Additional Cost */}
+                        <div className="text-center font-medium">
+                          {addCost !== null && addCost !== undefined ? fmtMoney(addCost) : "—"}
+                        </div>
+
+                        {/* 6) Net Investment */}
+                        <div className="text-center font-extrabold">
+                          {netInv !== null && netInv !== undefined ? fmtMoney(netInv) : "—"}
+                        </div>
+
+                        {/* 7) P&L */}
                         <div className="flex justify-center">
                           <div
                             className={[
                               "inline-flex items-center gap-2",
                               "px-4 py-2 rounded-2xl",
-                              "ring-1", // ✅ remove shadow-lg
+                              "ring-1",
                               pnlNum > 0
-                                ? (isDark
+                                ? isDark
                                   ? "shadow-[0_14px_28px_rgba(16,185,129,0.55),0_6px_14px_rgba(16,185,129,0.30)]"
-                                  : "shadow-[0_14px_28px_rgba(16,185,129,0.40),0_6px_14px_rgba(16,185,129,0.22)]")
+                                  : "shadow-[0_14px_28px_rgba(16,185,129,0.40),0_6px_14px_rgba(16,185,129,0.22)]"
                                 : pnlNum < 0
-                                  ? (isDark
+                                  ? isDark
                                     ? "shadow-[0_14px_28px_rgba(244,63,94,0.50),0_6px_14px_rgba(244,63,94,0.28)]"
-                                    : "shadow-[0_14px_28px_rgba(244,63,94,0.36),0_6px_14px_rgba(244,63,94,0.20)]")
-                                  : (isDark
+                                    : "shadow-[0_14px_28px_rgba(244,63,94,0.36),0_6px_14px_rgba(244,63,94,0.20)]"
+                                  : isDark
                                     ? "shadow-[0_14px_26px_rgba(148,163,184,0.22),0_6px_14px_rgba(148,163,184,0.12)]"
-                                    : "shadow-[0_14px_26px_rgba(148,163,184,0.18),0_6px_14px_rgba(148,163,184,0.10)]"),
-
+                                    : "shadow-[0_14px_26px_rgba(148,163,184,0.18),0_6px_14px_rgba(148,163,184,0.10)]",
                               "backdrop-blur-xl",
                               pnlNum > 0
                                 ? isDark
@@ -1112,9 +1137,7 @@ export default function History({ username }) {
                             {pnlNum > 0 ? (
                               <ArrowUpRight
                                 size={18}
-                                className={
-                                  isDark ? "text-emerald-300" : "text-emerald-600"
-                                }
+                                className={isDark ? "text-emerald-300" : "text-emerald-600"}
                               />
                             ) : pnlNum < 0 ? (
                               <TrendingDown
@@ -1124,11 +1147,7 @@ export default function History({ username }) {
                             ) : (
                               <TrendingUp
                                 size={18}
-                                className={
-                                  isDark
-                                    ? "text-slate-300/70"
-                                    : "text-slate-500/70"
-                                }
+                                className={isDark ? "text-slate-300/70" : "text-slate-500/70"}
                               />
                             )}
 
@@ -1153,36 +1172,37 @@ export default function History({ username }) {
                           </div>
                         </div>
 
+                        {/* 8) Sell Details */}
                         <div className="text-sm leading-tight text-center">
                           {sellQty > 0 ? (
                             <>
                               <div className={textSecondaryClass}>
-                                <span className="font-medium">
-                                  {dateOnly(t.sell_date)}
-                                </span>
+                                <span className="font-medium">{dateOnly(t.sell_date)}</span>
                               </div>
                               <div className={textClass}>
-                                Qty:{" "}
-                                <span className="font-medium">{sellQty}</span> •
-                                Avg:{" "}
-                                {sellAvg !== null ? fmtMoney(sellAvg) : "—"}
-                              </div>
-                              <div className={textSecondaryClass}>
-                                Invested:{" "}
-                                {investedValue !== null
-                                  ? fmtMoney(investedValue)
-                                  : "—"}
+                                Qty: <span className="font-medium">{sellQty}</span> • Exit:{" "}
+                                {exitPrice
+                                  ? fmtMoney(exitPrice)
+                                  : sellAvg !== null
+                                    ? fmtMoney(sellAvg)
+                                    : "—"}
                               </div>
                             </>
                           ) : (
                             <span className={textSecondaryClass}>—</span>
                           )}
                         </div>
+
+                        {/* 9) Exit Net Investment */}
+                        <div className="text-center font-extrabold">
+                          {exitNetInv !== null && exitNetInv !== undefined ? fmtMoney(exitNetInv) : "—"}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
+
             </div>
           </div>
         )}
