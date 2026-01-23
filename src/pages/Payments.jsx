@@ -10,10 +10,10 @@ const PLANS = [
     id: "free",
     name: "Free",
     price: 0,
-    trial: "5 Minutes Free Trial",
-    desc: "Try NeuroCrest for 5 minutes",
+    trial: "3 Days Free Trial",
+    desc: "Try NeuroCrest for3 Days",
     strike: null,
-    period: "Only for 5 minutes",
+    period: "Only for 3 Days",
    features: [
   { text: "Full Trading App access(Interactive Charts)", included: true },
   { text: "Portfolio Performance Monitoring", included: true },
@@ -29,7 +29,7 @@ const PLANS = [
   {
     id: "monthly",
     name: "Monthly",
-    price: 1,
+    price: 149,
     strike: 500,
     desc: "Introductory monthly access",
     period: "Per month",
@@ -496,7 +496,8 @@ export default function Payments({ username }) {
               {visiblePlans.map((plan) => {
                 const isCurrent = plan.current;
                 const isQueued = plan.isQueued;
-                const disabled = isCurrent || isQueued || (plan.id === "free" && (freeTrialStatus === "expired" || freeTrialStatus === "unavailable"));
+                const disabled = isCurrent || isQueued || (plan.id === "free");
+
                  const isExpiredFree = plan.id === "free" && (freeTrialStatus === "expired" || freeTrialStatus === "unavailable");
 
                 const saveAmt = plan.strike ? (plan.strike - plan.price) : 0;
