@@ -375,10 +375,18 @@ export default function Portfolio({ username }) {
 
   const handleExit = (symbol, position) => {
     // Detect SELL FIRST / short position
+    const sideStr = String(
+      position?.side ||
+      position?.type ||
+      position?.order_type ||
+      position?.position_type ||   // ✅ important
+      ""
+    ).toUpperCase();
+
     const isShort =
       Boolean(position?.short_first) ||
       Number(position?.qty) < 0 ||
-      String(position?.side || position?.type || position?.order_type || "").toUpperCase() === "SELL";
+      sideStr.includes("SELL");      // ✅ covers SELL, SELL_FIRST, "SELL FIRST"
 
     const qtyAbs = Math.abs(Number(position?.qty || 0));
 
@@ -407,6 +415,7 @@ export default function Portfolio({ username }) {
       },
     });
   };
+
 
   const handleCloseModal = () => setSelected(null);
   const handleNoteIn = (symbol) =>
