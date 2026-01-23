@@ -1,285 +1,569 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+// src/App.jsx
+import React, { useState, useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
+import AlertModal from "./components/AlertModal";
+import { useTheme } from "./context/ThemeContext";
+import RequireSubscription from "./components/RequireSubscription";
+
+// Pages
+import Landing from "./pages/Landing";
+import LoginRegister from "./pages/LoginRegister";
+import Menu from "./pages/Menu";
+import Trade from "./pages/Trade";
+import ScriptDetail from "./pages/ScriptDetail";
+import Portfolio from "./pages/Portfolio";
+import Orders from "./pages/Orders";
+import Recommendation from "./pages/Recommendation";
+import Insight from "./pages/Insight";
+import IpoTracker from "./pages/IpoTracker";
+import Feedback from "./pages/Feedback";
+import Profile from "./pages/Profile";
+import Buy from "./pages/Buy";
+import Sell from "./pages/Sell";
+import TradeSuccess from "./pages/TradeSuccess";
+import ChartPage from "./pages/Chart";
+import SetAlert from "./pages/SetAlert";
+import Notes from "./pages/Notes";
+import Settings from "./pages/Settings";
+import PasswordChange from "./pages/PasswordChange";
+import EmailChange from "./pages/EmailChange";
+import Funds from "./pages/Funds";
+import History from "./pages/History";
+import ModifyOrderPage from "./pages/ModifyOrderPage";
+import Payments from "./pages/Payments.jsx";
+import LiveChart from "./pages/LiveChart";
+import Whatsapp from "./pages/Whatsapp";
+
+// ✅ Backend API base
 const API = (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
   .trim()
   .replace(/\/+$/, "");
 
-// ✅ Daily cache key (one check per day at 7:00 AM IST)
-const SUB_CACHE_KEY = "nc_sub_cache_v1";
-
-// ---------- IST helpers (no external libs) ----------
-function getISTParts(date = new Date()) {
-  const fmt = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-
-  const parts = Object.fromEntries(fmt.formatToParts(date).map((p) => [p.type, p.value]));
-  return {
-    year: Number(parts.year),
-    month: Number(parts.month),
-    day: Number(parts.day),
-    hour: Number(parts.hour),
-    minute: Number(parts.minute),
-    second: Number(parts.second),
-  };
+/** Auth screen */
+function AuthScreen({ onLoginSuccess }) {
+  return (
+    <div className="flex-1 flex items-start justify-center px-4 pb-8">
+      <div className="w-full max-w-md">
+        <LoginRegister onLoginSuccess={onLoginSuccess} />
+      </div>
+    </div>
+  );
 }
 
-// Convert an IST "wall clock" time to UTC epoch ms (IST = UTC+5:30)
-function istWallToUtcMs(y, m, d, hh, mm, ss) {
-  const utcAssumingIST = Date.UTC(y, m - 1, d, hh, mm, ss);
-  return utcAssumingIST - (5 * 60 + 30) * 60 * 1000;
-}
+export default function App() {
+  // ✅ needed for Toast theme
+  const { isDark } = useTheme();
 
-// Next 7:00 AM IST as epoch ms
-function getNext7amISTEpochMs(now = new Date()) {
-  const ist = getISTParts(now);
-
-  const today7Utc = istWallToUtcMs(ist.year, ist.month, ist.day, 7, 0, 0);
-  const nowMs = now.getTime();
-
-  if (nowMs < today7Utc) return today7Utc;
-
-  // next day
-  const tomorrow = new Date(nowMs + 24 * 60 * 60 * 1000);
-  const t = getISTParts(tomorrow);
-  return istWallToUtcMs(t.year, t.month, t.day, 7, 0, 0);
-}
-
-function safeReadCache() {
-  try {
-    const raw = localStorage.getItem(SUB_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function safeWriteCache(obj) {
-  try {
-    localStorage.setItem(SUB_CACHE_KEY, JSON.stringify(obj));
-  } catch {}
-}
-
-function shouldRecheckNow(now = new Date()) {
-  const c = safeReadCache();
-  if (!c || typeof c.nextCheckAtMs !== "number") return true;
-  return now.getTime() >= c.nextCheckAtMs;
-}
-
-// ---------- network ----------
-async function getJSON(url) {
-  const res = await fetch(url);
-  const out = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(out?.detail || "Request failed");
-  return out;
-}
-
-export default function RequireSubscription({ children }) {
-  const nav = useNavigate();
-  const loc = useLocation();
-
-  const userId = useMemo(() => {
-    const u = localStorage.getItem("username") || localStorage.getItem("user") || "";
-    return String(u || "").trim().toLowerCase();
-  }, []);
-
-  const [loading, setLoading] = useState(true);
-  const [locked, setLocked] = useState(false);
-
-  // Pages that must remain accessible even when locked
-  const allowList = useMemo(
-    () =>
-      new Set([
-        "/",
-        "/landing",
-        "/login",
-        "/register",
-        "/payments",
-      ]),
-    []
+  const [username, setUsername] = useState(() =>
+    localStorage.getItem("user_id") || localStorage.getItem("username")
   );
 
-  // prevent duplicate check calls
-  const inFlightRef = useRef(false);
-
   useEffect(() => {
-    let dead = false;
+    if (username) {
+      // Keep BOTH keys for backward compatibility (some pages still read "username")
+      localStorage.setItem("user_id", username);
+      localStorage.setItem("username", username);
+    } else {
+      localStorage.removeItem("user_id");
+      localStorage.removeItem("username");
+    }
+  }, [username]);
 
-    const applyLockState = (isLocked) => {
-      if (dead) return;
-      setLocked(!!isLocked);
+  // ✅ Auto-create free trial on login (call subscription endpoint once)
+  const handleLoginSuccess = async (user) => {
+    const u = String(user || "").trim().toLowerCase();
+    setUsername(u);
 
+    try {
+      // Calling this endpoint should create trial if not exists (backend logic)
+      await fetch(`${API}/payments/subscription/${encodeURIComponent(u)}`);
+    } catch {
+      // ignore if offline; user can still open /payments later
+    }
+
+    const redirectTo = localStorage.getItem("post_login_redirect");
+    if (redirectTo) {
+      localStorage.removeItem("post_login_redirect");
+      window.location.href = redirectTo;
+      return;
+    }
+
+    window.location.href = "/menu";
+  };
+
+  const handleLogout = () => {
+    // Don't nuke *everything* (theme/UI prefs etc.) — just auth/session keys
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("username");
+    localStorage.removeItem("session_id");
+    localStorage.removeItem("email_id");
+    setUsername(null);
+    window.location.replace("/");
+  };
+
+  return (
+    <BrowserRouter>
+      <ToastContainer
+        position="top-center"
+        autoClose={2000}
+        theme={isDark ? "dark" : "light"} // ✅ dark/light toast
+        newestOnTop
+        pauseOnHover
+        closeOnClick
+      />
+
+      <AnimatedRoutes
+        username={username}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
+      />
+    </BrowserRouter>
+  );
+}
+
+function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { isDark } = useTheme();
+
+  // ✅ Chart-style popup state (replaces browser alert)
+  const [popup, setPopup] = useState({ open: false, title: "", message: "" });
+  const [pendingLogout, setPendingLogout] = useState(false);
+
+  const closePopup = () => {
+    setPopup((p) => ({ ...p, open: false }));
+    if (pendingLogout) {
+      setPendingLogout(false);
+      onLogout(); // ✅ logout after OK
+    }
+  };
+
+  // -------------------------------------------------------
+  // Listen to custom open-script-details event
+  // -------------------------------------------------------
+  useEffect(() => {
+    function onOpenDetails(e) {
+      const symbol = e?.detail?.symbol;
+      if (!symbol) return;
+      navigate(`/trade/${encodeURIComponent(symbol)}`);
+    }
+    window.addEventListener("open-script-details", onOpenDetails);
+    return () =>
+      window.removeEventListener("open-script-details", onOpenDetails);
+  }, [navigate]);
+
+  // -------------------------------------------------------
+  // 🔥 ZERODHA-STYLE SINGLE SESSION WATCHER
+  // -------------------------------------------------------
+  useEffect(() => {
+    const user =
+      localStorage.getItem("user_id") || localStorage.getItem("username");
+    const session = localStorage.getItem("session_id");
+
+    if (!user || !session) return;
+
+    let active = true;
+
+    const interval = setInterval(async () => {
       try {
-        if (isLocked) localStorage.setItem("force_payment", "1");
-        else localStorage.removeItem("force_payment");
-      } catch {}
-    };
-
-    const handleRedirects = (isActive, isLocked) => {
-      // ✅ Locked => force to /payments from any protected page
-      if (isLocked && loc.pathname !== "/payments" && !allowList.has(loc.pathname)) {
-        try { localStorage.setItem("payment_expired_notice", "1"); } catch {}
-        nav("/payments", { replace: true });
-        return true;
-      }
-
-      // ✅ Not active (edge) => keep same behavior: protected pages -> /payments
-      if (!isActive && loc.pathname !== "/payments" && !allowList.has(loc.pathname)) {
-        nav("/payments", { replace: true });
-        return true;
-      }
-
-      return false;
-    };
-
-    const runDailyCheckIfNeeded = async () => {
-      // ✅ If not logged in: send to login for protected pages
-      if (!userId) {
-        try { localStorage.removeItem("force_payment"); } catch {}
-        applyLockState(false);
-
-        if (!allowList.has(loc.pathname)) {
-          nav("/login", { replace: true, state: { from: loc.pathname } });
-        }
-
-        if (!dead) setLoading(false);
-        return;
-      }
-
-      // ✅ First: try cached result (no network call on every page)
-      const cache = safeReadCache();
-
-      // If cache exists and nextCheckAtMs is in future => use cached decision
-      if (cache && !shouldRecheckNow(new Date())) {
-        const isActive = !!cache.isActive;
-        const isLocked = !!cache.isLocked;
-
-        applyLockState(isLocked);
-        handleRedirects(isActive, isLocked);
-
-        if (!dead) setLoading(false);
-        return;
-      }
-
-      // ✅ If we should recheck (only at/after 7:00 AM IST), do ONE backend call
-      if (inFlightRef.current) {
-        // another tab/render is already checking; fall back to cache
-        const c2 = safeReadCache();
-        const isActive = !!c2?.isActive;
-        const isLocked = !!c2?.isLocked;
-        applyLockState(isLocked);
-        handleRedirects(isActive, isLocked);
-        if (!dead) setLoading(false);
-        return;
-      }
-
-      inFlightRef.current = true;
-
-      try {
-        const sub = await getJSON(
-          `${API}/payments/subscription/${encodeURIComponent(userId)}`
+        const res = await fetch(
+          `${API}/auth/validate-session?username=${encodeURIComponent(
+            user
+          )}&session_id=${encodeURIComponent(session)}`
         );
 
-        const isActive = !!sub?.active;
-        const freeTrialStatus = sub?.free_trial_status || null;
+        if (!res.ok) throw new Error("Network error");
 
-        // 🔒 Locked only when NO active plan AND free trial is expired/unavailable
-        const isLocked =
-          !isActive &&
-          (freeTrialStatus === "expired" || freeTrialStatus === "unavailable");
+        const data = await res.json();
 
-        // ✅ cache for the rest of the day until next 7 AM IST
-        const nowMs = Date.now();
-        const nextCheckAtMs = getNext7amISTEpochMs(new Date(nowMs));
+        if (active && !data.valid) {
+          active = false;
+          clearInterval(interval);
 
-        safeWriteCache({
-          userId,
-          checkedAtMs: nowMs,
-          nextCheckAtMs,
-          isActive,
-          isLocked,
-          freeTrialStatus,
-        });
-
-        applyLockState(isLocked);
-        handleRedirects(isActive, isLocked);
-      } catch {
-        // ✅ If API fails: DO NOT recheck every page. Use cache if exists; else lock protected pages.
-        const c = safeReadCache();
-        const hasCache = !!c && c.userId === userId;
-
-        const isActive = hasCache ? !!c.isActive : false;
-        const isLocked = hasCache ? !!c.isLocked : true;
-
-        applyLockState(isLocked);
-
-        if (!allowList.has(loc.pathname)) {
-          nav("/payments", { replace: true });
-        }
-
-        // write a nextCheckAt so we don't hammer backend on every page if it's down
-        if (!hasCache) {
-          const nowMs = Date.now();
-          safeWriteCache({
-            userId,
-            checkedAtMs: nowMs,
-            nextCheckAtMs: getNext7amISTEpochMs(new Date(nowMs)),
-            isActive: false,
-            isLocked: true,
-            freeTrialStatus: null,
+          // ✅ REPLACE browser alert with Chart-style popup
+          setPendingLogout(true);
+          setPopup({
+            open: true,
+            title: "Logged out",
+            message:
+              "You were logged out because you logged in from another device.",
           });
+
+          // ❌ do not call onLogout here; it will run when user clicks OK
         }
-      } finally {
-        inFlightRef.current = false;
-        if (!dead) setLoading(false);
+      } catch {
+        clearInterval(interval); // silent stop on network fail
       }
-    };
-
-    runDailyCheckIfNeeded();
-
-    // ✅ Schedule the NEXT daily refresh while app is open
-    // This does NOT run per page; it runs once at next 7 AM IST.
-    const now = new Date();
-    const nextMs = getNext7amISTEpochMs(now);
-    const delay = Math.max(1000, nextMs - now.getTime());
-
-    const timer = setTimeout(() => {
-      // force recheck at 7 AM IST by setting nextCheckAtMs to past
-      const c = safeReadCache();
-      if (c && c.userId === userId) {
-        safeWriteCache({ ...c, nextCheckAtMs: Date.now() - 1000 });
-      }
-      // trigger check by re-running effect logic via small state update
-      // (simplest: just call the function again)
-      // eslint-disable-next-line no-inner-declarations
-      const rerun = async () => {
-        if (dead) return;
-        setLoading(true);
-        await runDailyCheckIfNeeded();
-      };
-      rerun();
-    }, delay);
+    }, 5000);
 
     return () => {
-      dead = true;
-      clearTimeout(timer);
+      active = false;
+      clearInterval(interval);
     };
-    // ❗ IMPORTANT:
-    // We keep loc.pathname so redirects still happen,
-    // but the backend call happens only if daily recheck is due.
-  }, [userId, loc.pathname, nav, allowList]);
+  }, [username, onLogout]);
 
-  // Prevent a flash of protected pages while redirecting
-  if (loading) return null;
-  if (locked && !allowList.has(loc.pathname)) return null;
+  return (
+    <>
+      <AnimatePresence mode="wait" initial={false}>
+        <Routes location={location} key={location.pathname}>
+          {/* 🌐 LANDING PAGE */}
+          <Route
+            path="/"
+            element={username ? <Navigate to="/menu" replace /> : <Landing />}
+          />
 
-  return children;
+          {/* 🔐 LOGIN PAGE */}
+          <Route
+            path="/login"
+            element={
+              username ? (
+                <Navigate to="/trade" replace />
+              ) : (
+                <AuthScreen onLoginSuccess={onLoginSuccess} />
+              )
+            }
+          />
+
+          <Route
+            path="/menu"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Menu logout={onLogout} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/trade"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Trade username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/trade/:symbol"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <ScriptDetail username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/orders"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Orders username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/buy/:symbol"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Buy />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/sell/:symbol"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Sell />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/trade-success"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <TradeSuccess />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/chart/:symbol"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <ChartPage />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/alert/:symbol"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <SetAlert />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/notes/:symbol"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Notes />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/portfolio"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Portfolio username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/recommendations"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Recommendation />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/insight"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Insight />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/ipo-tracker"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <IpoTracker />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route path="/feedback" element={<Feedback username={username} />} />
+
+          <Route
+            path="/profile"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Profile username={username} logout={onLogout} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/profile/funds"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Funds username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route path="/payments" element={<Payments username={username} />} />
+
+          <Route
+            path="/history"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <History username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Settings />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/settings/change-password"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <PasswordChange username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          {/* ✅ Short route for Profile tile */}
+          <Route
+            path="/passwordchange"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <PasswordChange username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/settings/change-email"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <EmailChange />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/modify/:id"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <ModifyOrderPage />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/live"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <LiveChart />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route
+            path="/whatsapp"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Whatsapp />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AnimatePresence>
+
+      {/* ✅ Chart-style popup modal */}
+      <AlertModal
+        open={popup.open}
+        title={popup.title}
+        message={popup.message}
+        onClose={closePopup}
+        isDark={isDark}
+      />
+    </>
+  );
 }
