@@ -388,7 +388,7 @@ export default function Profile({ username, logout }) {
       setResetResult({
         open: true,
         title: "Reset done",
-        message: `✅ Reset done\}`,
+        message: `✅ Reset done`,
       });
     } catch (e) {
       setResetResult({
