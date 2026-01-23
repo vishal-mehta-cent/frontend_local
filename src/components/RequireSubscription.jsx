@@ -25,9 +25,9 @@ export default function RequireSubscription({ children }) {
   }, []);
 
   const [loading, setLoading] = useState(true);
-  const [active, setActive] = useState(false);
+  const [locked, setLocked] = useState(false);
 
-  // pages that must remain accessible
+  // Pages that must remain accessible even when locked
   const allowList = useMemo(
     () =>
       new Set([
@@ -47,10 +47,11 @@ export default function RequireSubscription({ children }) {
       try {
         // If not logged in: send to login for protected pages
         if (!userId) {
+          try { localStorage.removeItem("force_payment"); } catch {}
           if (!allowList.has(loc.pathname)) {
             nav("/login", { replace: true, state: { from: loc.pathname } });
           }
-          if (!dead) setActive(false);
+          if (!dead) setLocked(false);
           return;
         }
 
@@ -59,17 +60,37 @@ export default function RequireSubscription({ children }) {
         );
 
         const isActive = !!sub?.active;
+        const freeTrialStatus = sub?.free_trial_status || null;
 
-        if (!dead) setActive(isActive);
+        // 🔒 Locked only when NO active plan AND free trial is expired/unavailable
+        const isLocked =
+          !isActive &&
+          (freeTrialStatus === "expired" || freeTrialStatus === "unavailable");
 
-        // If no active plan => force to /payments from ANY other page
+        if (!dead) setLocked(isLocked);
+
+        try {
+          if (isLocked) localStorage.setItem("force_payment", "1");
+          else localStorage.removeItem("force_payment");
+        } catch {}
+
+        // If locked => force to /payments from ANY other page (except allowList)
+        if (isLocked && loc.pathname !== "/payments" && !allowList.has(loc.pathname)) {
+          try { localStorage.setItem("payment_expired_notice", "1"); } catch {}
+          nav("/payments", { replace: true });
+          return;
+        }
+
+        // If not active but not locked (edge) => keep same behavior (send to payments for protected pages)
         if (!isActive && loc.pathname !== "/payments" && !allowList.has(loc.pathname)) {
           nav("/payments", { replace: true });
+          return;
         }
       } catch {
-        // if API fails, safest is to gate to payments
+        // If API fails, safest is to gate to payments for protected pages
         if (!allowList.has(loc.pathname)) nav("/payments", { replace: true });
-        if (!dead) setActive(false);
+        if (!dead) setLocked(true);
+        try { localStorage.setItem("force_payment", "1"); } catch {}
       } finally {
         if (!dead) setLoading(false);
       }
@@ -81,6 +102,9 @@ export default function RequireSubscription({ children }) {
     };
   }, [userId, loc.pathname, nav, allowList]);
 
-  if (loading) return null; // or your loader UI
+  // Prevent a flash of protected pages while redirecting
+  if (loading) return null;
+  if (locked && !allowList.has(loc.pathname)) return null;
+
   return children;
 }
