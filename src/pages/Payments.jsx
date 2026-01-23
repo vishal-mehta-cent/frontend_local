@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Check, X, Loader, Smartphone, CreditCard, Info, ArrowLeft } from "lucide-react";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
@@ -10,10 +10,10 @@ const PLANS = [
     id: "free",
     name: "Free",
     price: 0,
-    trial: "3 Days Free Trial",
-    desc: "Try NeuroCrest for 3 days",
+    trial: "5 Minutes Free Trial",
+    desc: "Try NeuroCrest for 5 minutes",
     strike: null,
-    period: "Only for 3 days",
+    period: "Only for 5 minutes",
    features: [
   { text: "Full Trading App access(Interactive Charts)", included: true },
   { text: "Portfolio Performance Monitoring", included: true },
@@ -29,7 +29,7 @@ const PLANS = [
   {
     id: "monthly",
     name: "Monthly",
-    price: 149,
+    price: 1,
     strike: 500,
     desc: "Introductory monthly access",
     period: "Per month",
@@ -130,6 +130,7 @@ function makeTR() {
 
 export default function Payments({ username }) {
   const nav = useNavigate();
+  const location = useLocation();
 
   const userId = useMemo(() => {
     const u =
@@ -155,9 +156,28 @@ export default function Payments({ username }) {
   const [subLoading, setSubLoading] = useState(true);
   const isLoggedIn = !!userId;
 
-  const safeSub = sub || {};
+    const safeSub = sub || {};
   const currentPlanId = safeSub.active ? safeSub.plan_id : null;
-  const freeTrialStatus = safeSub.free_trial_status || null; // ✅ from backend
+  const freeTrialStatus = safeSub.free_trial_status || null; // "active" | "expired" | "unavailable" | null
+
+  // 🔒 Lock ONLY when there is NO active plan AND free-trial is expired/unavailable
+  // (If free trial is still active, user is NOT locked.)
+  const locked = useMemo(() => {
+    if (!isLoggedIn) return false;
+    if (subLoading) return false;
+    return (
+      !safeSub?.active &&
+      (freeTrialStatus === "expired" || freeTrialStatus === "unavailable")
+    );
+  }, [isLoggedIn, subLoading, safeSub?.active, freeTrialStatus]);
+
+  const [showLockModal, setShowLockModal] = useState(false);
+  const lockTitle = "Payment required";
+  const lockMessage =
+    "Your plan has expired and your access is paused. Please purchase a plan to continue using NeuroCrest.";
+  const lockFooter =
+    "After payment confirmation, all pages will be unlocked automatically.";
+
 
   const refreshSubscription = async () => {
     if (!userId) {
@@ -182,6 +202,57 @@ export default function Payments({ username }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+
+    // 🔒 When locked, force user to stay on /payments and block browser-back.
+  useEffect(() => {
+    if (!isLoggedIn) {
+      localStorage.removeItem("force_payment");
+      return;
+    }
+
+    if (!locked) {
+      localStorage.removeItem("force_payment");
+      return;
+    }
+
+    localStorage.setItem("force_payment", "1");
+
+    // If user somehow comes on another path, redirect to /payments
+    if (location?.pathname && location.pathname !== "/payments") {
+      nav("/payments", { replace: true });
+    }
+
+    // Trap browser back: push a state, and when back is pressed, re-push + show popup
+    try {
+      window.history.pushState({ paymentLock: true }, "", window.location.href);
+    } catch {}
+
+    const onPopState = () => {
+      setShowLockModal(true);
+      try {
+        window.history.pushState({ paymentLock: true }, "", window.location.href);
+      } catch {}
+      if (location?.pathname && location.pathname !== "/payments") {
+        nav("/payments", { replace: true });
+      }
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isLoggedIn, locked, location?.pathname, nav]);
+
+
+  // If we arrived here due to an auto-redirect, show the popup once
+  useEffect(() => {
+    if (!locked) return;
+    const flag = localStorage.getItem("payment_expired_notice");
+    if (flag === "1") {
+      localStorage.removeItem("payment_expired_notice");
+      setShowLockModal(true);
+    }
+  }, [locked]);
+
+
   useEffect(() => {
     if (userId) localStorage.setItem("username", userId);
   }, [userId]);
@@ -203,13 +274,10 @@ export default function Payments({ username }) {
     }));
   }, [currentPlanId, queuedPlanIds]);
 
-  // ✅ Hide FREE card after trial expired/unavailable. Paid plans always visible.
+  // ✅ Always show FREE card; show status as "Your current plan" or "Expired"
   const visiblePlans = useMemo(() => {
-    return plansWithStatus.filter((p) => {
-      if (p.id !== "free") return true;
-      return !(freeTrialStatus === "expired" || freeTrialStatus === "unavailable");
-    });
-  }, [plansWithStatus, freeTrialStatus]);
+    return plansWithStatus;
+  }, [plansWithStatus]);
 
   // Poll status (ONLY becomes success after user verifies with UTR)
   useEffect(() => {
@@ -219,23 +287,16 @@ export default function Payments({ username }) {
       try {
         const data = await getJSON(`${API}/payments/upi/status/${tr}`);
         if (data.status === "success") {
-          setSuccess(true);
-          setPaymentStatus("success");
-          clearInterval(timer);
-          await refreshSubscription();
+  setSuccess(true);
+  setPaymentStatus("success");
+  clearInterval(timer);
+  await refreshSubscription();
 
-          setTimeout(() => {
-            setView("PLANS");
-            setSelectedPlan(null);
-            setUpiQR(null);
-            setTr(null);
-            setUtr("");
-            setVerifying(false);
-            setSuccess(false);
-            setPaymentStatus(null);
-            setOpenedUPI(false);
-          }, 1200);
-        }
+  // ✅ unlock + go to menu
+  localStorage.removeItem("force_payment");
+  nav("/menu", { replace: true });
+}
+
       } catch { }
     }, 2500);
 
@@ -309,11 +370,16 @@ export default function Payments({ username }) {
       setPaymentStatus(data.status || null);
 
       if (data.status === "success") {
-        alert("Payment confirmed ✅");
-        setSuccess(true);
-        await refreshSubscription();
-        return;
-      }
+  alert("Payment confirmed ✅");
+  setSuccess(true);
+  await refreshSubscription();
+
+  // ✅ unlock + go to menu
+  localStorage.removeItem("force_payment");
+  nav("/menu", { replace: true });
+  return;
+}
+
 
       if (data.status === "submitted") {
         alert("UTR submitted ✅. (If AUTO_CONFIRM_UPI=false, it may stay submitted)");
@@ -329,6 +395,11 @@ export default function Payments({ username }) {
   };
 
   const handleBack = () => {
+    if (locked) {
+      setShowLockModal(true);
+      return;
+    }
+
     if (view === "QR") {
       setView("PLANS");
       setSelectedPlan(null);
@@ -341,7 +412,7 @@ export default function Payments({ username }) {
       setOpenedUPI(false);
       return;
     }
-    if (window.history.length > 1) nav(-1);
+    if (window.history.length > 1) locked ? setShowLockModal(true) : nav(-1);
     else nav("/menu");
   };
 
@@ -358,6 +429,7 @@ export default function Payments({ username }) {
     "bg-white/20 cursor-not-allowed";
 
   return (
+    <>
     <div className="min-h-screen text-white bg-gradient-to-br from-[#0f172a] via-[#1e3a8a] to-[#020617] px-2 sm:px-4 py-10">
       <div className="w-full max-w-none mx-auto">
         <button
@@ -404,7 +476,7 @@ export default function Payments({ username }) {
               ) : safeSub?.active ? (
                 <span>
                   Current plan: <b className="text-cyan-200">{safeSub.plan_id}</b>{" "}
-                  (expires in <b className="text-cyan-200">{safeSub.days_left}</b> days)
+                  (expires in <b className="text-cyan-200">{safeSub.time_left_label || `${safeSub.days_left} days`}</b>)
                 </span>
               ) : (
                 <span>No active plan.</span>
@@ -424,7 +496,8 @@ export default function Payments({ username }) {
               {visiblePlans.map((plan) => {
                 const isCurrent = plan.current;
                 const isQueued = plan.isQueued;
-                const disabled = isCurrent || isQueued;
+                const disabled = isCurrent || isQueued || (plan.id === "free" && (freeTrialStatus === "expired" || freeTrialStatus === "unavailable"));
+                 const isExpiredFree = plan.id === "free" && (freeTrialStatus === "expired" || freeTrialStatus === "unavailable");
 
                 const saveAmt = plan.strike ? (plan.strike - plan.price) : 0;
                 const offPct = plan.strike ? Math.round((saveAmt / plan.strike) * 100) : 0;
@@ -489,9 +562,11 @@ export default function Payments({ username }) {
                           ? "Login to choose plan"
                           : isCurrent
                             ? "Your current plan"
-                            : isQueued
-                              ? "Queued"
-                              : `Get ${plan.name}`}
+                            : isExpiredFree
+                              ? "Expired"
+                              : isQueued
+                                ? "Queued"
+                                : `Get ${plan.name}`}
                       </button>
 
    <ul className="space-y-3 text-sm text-slate-200">
@@ -672,7 +747,7 @@ export default function Payments({ username }) {
                     </a>
 
                     <a
-                      href="https://wa.me/919426817879"
+                      href="https://wa.me/919426001601"
                       target="_blank"
                       rel="noreferrer"
                       className="px-5 py-2.5 rounded-xl font-bold text-black
@@ -841,5 +916,35 @@ export default function Payments({ username }) {
         )}
       </div>
     </div>
+
+      {/* 🔒 Payment lock modal */}
+      {showLockModal ? (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-slate-900/90 p-5 shadow-2xl">
+            <div className="text-lg font-bold text-white">{lockTitle}</div>
+            <div className="mt-2 text-sm text-slate-200 leading-relaxed">{lockMessage}</div>
+            <div className="mt-3 text-xs text-slate-300">{lockFooter}</div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowLockModal(false)}
+                className="flex-1 py-2.5 rounded-xl font-semibold bg-white/10 text-white hover:bg-white/15 transition"
+              >
+                Stay on Payments
+              </button>
+
+              <a
+                href="tel:9426001601"
+                className="flex-1 text-center py-2.5 rounded-xl font-semibold bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] to-[#22c55e] text-black hover:opacity-90 transition"
+              >
+                Call Support
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+    </>
   );
 }
