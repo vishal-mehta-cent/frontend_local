@@ -29,7 +29,7 @@ const PLANS = [
   {
     id: "monthly",
     name: "Monthly",
-    price: 1,
+    price: 149,
     strike: 500,
     desc: "Introductory monthly access",
     period: "Per month",
@@ -83,7 +83,7 @@ const PLANS = [
   {
     id: "annual",
     name: "Annual",
-    price: 999,
+    price: 1,
     strike: 6000,
     desc: "Maximum savings for long-term users",
     period: "Per year",
