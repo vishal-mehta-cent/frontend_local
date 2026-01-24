@@ -503,17 +503,18 @@ export default function Orders({ username }) {
   // ---------- Total P&L (includes both active & closed) ----------
   const totalPnl = positions.reduce((sum, o) => {
     const qty = toNum(o.qty) ?? 0;
-    const entry = toNum(o.price) ?? 0;
-    const isBuy = (o.type || o.order_type) === "BUY";
+    const entryPrice = toNum(o.price) ?? 0;
 
+    const side = (o.type || o.order_type || "").toUpperCase();
+    const isBuy = side === "BUY";
+
+    const script = (o.script || o.symbol || "").toUpperCase();
     const livePx =
-      o.inactive && o.exit_price != null
+      (o.inactive && o.exit_price != null)
         ? toNum(o.exit_price)
-        : (toNum(quotes[(o.script || o.symbol || "").toUpperCase()]?.price) ??
-          toNum(o.live_price) ??
-          entry);
+        : (toNum(quotes[script]?.price) ?? toNum(o.live_price) ?? entryPrice);
 
-    const investment = entry * qty;
+    const investment = entryPrice * qty;
 
     const entryAdditionalCost = calcAdditionalCost({
       rates,
@@ -521,25 +522,47 @@ export default function Orders({ username }) {
       investment,
     });
 
-    let netInvestment = isBuy
-      ? (investment + entryAdditionalCost)
-      : (investment - entryAdditionalCost);
-
+    // ✅ CLOSED row (gray) -> use EXIT price and total additional cost
     if (o.inactive && o.exit_price != null) {
+      const exitPrice = toNum(o.exit_price) ?? 0;
+      const exitInvestment = exitPrice * qty;
+
+      const exitAdditionalCost = calcAdditionalCost({
+        rates,
+        segment: o.segment,
+        investment: exitInvestment,
+      });
+
+      // total additional = entry + exit
+      let totalAdditionalCost = entryAdditionalCost + exitAdditionalCost;
+
+      // ✅ if you froze closed values, use frozen additionalCost so totals never change
       const key = closedSnapKey(who, o);
       const frozen = readClosedSnap(key);
-      if (frozen?.netInvestment != null) netInvestment = frozen.netInvestment;
+      if (frozen?.additionalCost != null) totalAdditionalCost = frozen.additionalCost;
+
+      // ✅ your required closed formulas:
+      // BUY  : (exit - entry) - additionalCost
+      // SELL : (entry - exit) - additionalCost
+      const pnl = isBuy
+        ? (exitInvestment - investment - totalAdditionalCost)
+        : (investment - exitInvestment - totalAdditionalCost);
+
+      return sum + (Number.isFinite(pnl) ? pnl : 0);
     }
 
-
+    // ✅ ACTIVE row -> live MTM minus entry additional cost
     const liveValue = (livePx ?? 0) * qty;
 
+    // BUY  : (live - entry) - entryAdditionalCost
+    // SELL : (entry - live) - entryAdditionalCost
     const pnl = isBuy
-      ? (liveValue - netInvestment)
-      : (netInvestment - liveValue);
+      ? (liveValue - investment - entryAdditionalCost)
+      : (investment - liveValue - entryAdditionalCost);
 
     return sum + (Number.isFinite(pnl) ? pnl : 0);
   }, 0);
+
 
 
   // auto-switch to Positions when orders trigger
@@ -952,14 +975,18 @@ export default function Orders({ username }) {
 
               // Active row: P&L = liveValue - netInvestment (BUY)
               // Active row: P&L = netInvestment - liveValue (SELL)
-              const activePnl = liveValue - netInvestment;
+              // ✅ Active row P&L (side-aware)
+              const activePnl = isBuy
+                ? (liveValue - netInvestment)
+                : (netInvestment - liveValue); // ✅ SELL = investment - liveValue - additionalCost
+
 
 
               // Grey/closed row: P&L = exitNetInvestment - netInvestment (BUY)
               // Grey/closed row: P&L = netInvestment - exitNetInvestment (SELL)
               const closedPnl = isBuy
-                ? (displayExitNetInvestment - investment)
-                : (investment - displayExitNetInvestment);
+                ? (displayExitNetInvestment - displayNetInvestment)
+                : (investment - exitInvestment - displayAdditionalCost);
 
 
               // ✅ This is your "script_pnl" now:
