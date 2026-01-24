@@ -394,7 +394,8 @@ const allowedExchange = (s) =>
 
     for (const seed of seeds) {
       try {
-        const res = await fetch(`${API}/search?q=${encodeURIComponent(seed)}`);
+        const res = await fetch(`${API}/search/?q=${encodeURIComponent(seed)}`)
+;
         const data = await res.json().catch(() => []);
         if (Array.isArray(data)) bag = bag.concat(data);
       } catch { }
