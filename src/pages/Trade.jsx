@@ -17,6 +17,7 @@ import {
   Activity,
   LineChart,
   AlertCircle,
+  Plus,
 } from "lucide-react";
 import ScriptDetailsModal from "../components/ScriptDetailsModal";
 import BackButton from "../components/BackButton";
@@ -289,19 +290,19 @@ export default function Trade({ username }) {
     }
 
     // ✅ STRIKE should be digits AFTER month (e.g. NIFTY26JAN23500CE -> 23500)
-// ❌ Do NOT treat "26" (year) as strike in NIFTY26JAN
-let strike = "";
+    // ❌ Do NOT treat "26" (year) as strike in NIFTY26JAN
+    let strike = "";
 
-if (mIdx >= 0 && month) {
-  // digits immediately after month
-  const afterMonth = Q.slice(mIdx + month.length);
-  const mStrike = afterMonth.match(/^(\d+)/);
-  strike = mStrike ? mStrike[1] : "";
-} else {
-  // fallback (no month case)
-  const tailNum = Q.match(/(\d+)(?!.*\d)/);
-  strike = tailNum ? tailNum[1] : "";
-}
+    if (mIdx >= 0 && month) {
+      // digits immediately after month
+      const afterMonth = Q.slice(mIdx + month.length);
+      const mStrike = afterMonth.match(/^(\d+)/);
+      strike = mStrike ? mStrike[1] : "";
+    } else {
+      // fallback (no month case)
+      const tailNum = Q.match(/(\d+)(?!.*\d)/);
+      strike = tailNum ? tailNum[1] : "";
+    }
 
 
     let year2 = "";
@@ -329,51 +330,51 @@ if (mIdx >= 0 && month) {
   }
 
   function buildSeeds({ raw, underlying, year2, month, strike, deriv }) {
-  const seeds = new Set();
-  if (raw) seeds.add(raw); // ✅ always include raw
+    const seeds = new Set();
+    if (raw) seeds.add(raw); // ✅ always include raw
 
-  if (!underlying && !month) return Array.from(seeds);
+    if (!underlying && !month) return Array.from(seeds);
 
-  const yy = year2 || String(new Date().getFullYear()).slice(-2);
+    const yy = year2 || String(new Date().getFullYear()).slice(-2);
 
-  // broad seeds
-  if (underlying && month) {
-    seeds.add(`${underlying}${month}`);
-    seeds.add(`${underlying}${yy}${month}`);
-  } else if (underlying) {
-    seeds.add(underlying);
-  } else if (month) {
-    seeds.add(month);
-    seeds.add(`${yy}${month}`);
-  }
-
-  // ✅ precise seeds (fixes missing strikes/futures due to top-50 cut)
-  if (underlying && month && strike) {
-    seeds.add(`${underlying}${yy}${month}${strike}`);
-    seeds.add(`${underlying}${month}${strike}`);
-    if (deriv) {
-      seeds.add(`${underlying}${yy}${month}${strike}${deriv}`);
-      seeds.add(`${underlying}${month}${strike}${deriv}`);
+    // broad seeds
+    if (underlying && month) {
+      seeds.add(`${underlying}${month}`);
+      seeds.add(`${underlying}${yy}${month}`);
+    } else if (underlying) {
+      seeds.add(underlying);
+    } else if (month) {
+      seeds.add(month);
+      seeds.add(`${yy}${month}`);
     }
+
+    // ✅ precise seeds (fixes missing strikes/futures due to top-50 cut)
+    if (underlying && month && strike) {
+      seeds.add(`${underlying}${yy}${month}${strike}`);
+      seeds.add(`${underlying}${month}${strike}`);
+      if (deriv) {
+        seeds.add(`${underlying}${yy}${month}${strike}${deriv}`);
+        seeds.add(`${underlying}${month}${strike}${deriv}`);
+      }
+    }
+
+    if (underlying && month && deriv && !strike) {
+      // FUT case like BAJAJ-AUTO26JANFUT
+      seeds.add(`${underlying}${yy}${month}${deriv}`);
+      seeds.add(`${underlying}${month}${deriv}`);
+    }
+
+    return Array.from(seeds).filter(Boolean);
   }
 
-  if (underlying && month && deriv && !strike) {
-    // FUT case like BAJAJ-AUTO26JANFUT
-    seeds.add(`${underlying}${yy}${month}${deriv}`);
-    seeds.add(`${underlying}${month}${deriv}`);
-  }
 
-  return Array.from(seeds).filter(Boolean);
-}
+  // ✅ normalize symbols/names so "-" "_" spaces don't break filtering
+  const norm = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const symbolField = (s) => norm(s?.symbol || s?.tradingsymbol || "");
+  const nameField = (s) => norm(s?.name || "");
 
-
-// ✅ normalize symbols/names so "-" "_" spaces don't break filtering
-const norm = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-const symbolField = (s) => norm(s?.symbol || s?.tradingsymbol || "");
-const nameField = (s) => norm(s?.name || "");
-
-const allowedExchange = (s) =>
-  ["NSE", "NFO", "BSE"].includes(String(s?.exchange || "").toUpperCase());
+  const allowedExchange = (s) =>
+    ["NSE", "NFO", "BSE"].includes(String(s?.exchange || "").toUpperCase());
 
 
   function isPlainEquityQuery(q) {
@@ -395,7 +396,7 @@ const allowedExchange = (s) =>
     for (const seed of seeds) {
       try {
         const res = await fetch(`${API}/search/?q=${encodeURIComponent(seed)}`)
-;
+          ;
         const data = await res.json().catch(() => []);
         if (Array.isArray(data)) bag = bag.concat(data);
       } catch { }
@@ -432,8 +433,8 @@ const allowedExchange = (s) =>
 
     if (!month && !strike && underlying && !deriv) {
       filtered = merged.filter(
-  (s) => symbolField(s).includes(underlying) || nameField(s).includes(underlying)
-);
+        (s) => symbolField(s).includes(underlying) || nameField(s).includes(underlying)
+      );
 
     }
 
@@ -449,31 +450,31 @@ const allowedExchange = (s) =>
       return;
     }
 
-   const timer = setTimeout(async () => {
-  try {
-    // ✅ 1) Always try direct backend search with EXACT user input first
-    const directRes = await fetch(
-      `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
-    );
-    const directData = await directRes.json().catch(() => []);
+    const timer = setTimeout(async () => {
+      try {
+        // ✅ 1) Always try direct backend search with EXACT user input first
+        const directRes = await fetch(
+          `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
+        );
+        const directData = await directRes.json().catch(() => []);
 
-    if (Array.isArray(directData) && directData.length > 0) {
-      setSuggestions(directData.slice(0, 50));
-      return;
-    }
+        if (Array.isArray(directData) && directData.length > 0) {
+          setSuggestions(directData.slice(0, 50));
+          return;
+        }
 
-    // ✅ 2) If direct search returns empty, then use your smart parsing logic
-    if (isPlainEquityQuery(debouncedQuery)) {
-      const res = await fetch(
-        `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
-      );
-      const data = await res.json();
-      setSuggestions(Array.isArray(data) ? data.slice(0, 50) : []);
-      return;
-    }
+        // ✅ 2) If direct search returns empty, then use your smart parsing logic
+        if (isPlainEquityQuery(debouncedQuery)) {
+          const res = await fetch(
+            `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
+          );
+          const data = await res.json();
+          setSuggestions(Array.isArray(data) ? data.slice(0, 50) : []);
+          return;
+        }
 
-    const parts = parseOptionish(debouncedQuery);
-    let finalList = await backendSearchSmart(parts);
+        const parts = parseOptionish(debouncedQuery);
+        let finalList = await backendSearchSmart(parts);
 
         if (
           (!finalList || finalList.length === 0) &&
@@ -490,7 +491,7 @@ const allowedExchange = (s) =>
 
               if (deriv && !sym.endsWith(deriv)) return false;
               if (underlying && !(sym.includes(underlying) || nm.includes(underlying)))
-  return false;
+                return false;
               if (month && !sym.includes(month)) return false;
               if (strike) {
                 const m = sym.match(/(\d+)(CE|PE)$/);
@@ -543,6 +544,44 @@ const allowedExchange = (s) =>
     // uses your existing SELL preview + confirmation flow
     previewThenSell(s, 1, "intraday");
   }
+  function addFromSearchToWatchlist(e, sym) {
+    e?.stopPropagation?.();
+    const s = String(sym || "").toUpperCase().trim();
+    if (!s) return;
+
+    // ✅ Must Watch tab → local storage list
+    if (tab === "mustwatch") {
+      addToMustWatch(s);
+      setQuery("");
+      setSuggestions([]);
+      return;
+    }
+
+    // ✅ My List tab → backend watchlist
+    if (!who) return;
+
+    const already =
+      Array.isArray(watchlist) &&
+      watchlist.some((x) => String(x || "").toUpperCase().trim() === s);
+
+    if (already) {
+      setQuery("");
+      setSuggestions([]);
+      return;
+    }
+
+    fetch(`${API}/watchlist/${who}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol: s }),
+    })
+      .then(() => fetchWatchlist())
+      .finally(() => {
+        setQuery("");
+        setSuggestions([]);
+      });
+  }
+
 
   function goDetail(sym) {
     const s = String(sym || "").trim();
@@ -718,10 +757,10 @@ const allowedExchange = (s) =>
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
 
- <AppHeader />
+      <AppHeader />
 
       {/* MAIN CONTENT */}
-    <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
         <div className="space-y-6">
           {/* Tabs + Funds (same line) */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -848,12 +887,24 @@ const allowedExchange = (s) =>
                           {/* Right: Chart icon */}
                           {/* Right: Buy / Sell / Chart */}
                           <div className="shrink-0 self-center flex items-center gap-2">
+                            {/* ✅ (+) Add to watchlist */}
+                            <button
+                              title={tab === "mustwatch" ? "Add to Must Watch" : "Add to Watchlist"}
+                              onClick={(e) => addFromSearchToWatchlist(e, sym)}
+                              className={`p-2 rounded-xl border transition-all ${isDark
+                                  ? "border-white/10 hover:bg-white/10"
+                                  : "border-white/40 hover:bg-white/80"
+                                }`}
+                            >
+                              <Plus className={`w-4 h-4 ${isDark ? "text-cyan-300" : "text-blue-700"}`} />
+                            </button>
+
                             <button
                               title="Buy"
                               onClick={(e) => openBuy(e, sym)}
                               className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold tracking-wide border transition-all ${isDark
-                                ? "bg-emerald-500/15 text-emerald-200 border-emerald-400/25 hover:bg-emerald-500/25"
-                                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                  ? "bg-emerald-500/15 text-emerald-200 border-emerald-400/25 hover:bg-emerald-500/25"
+                                  : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
                                 }`}
                             >
                               BUY
@@ -863,8 +914,8 @@ const allowedExchange = (s) =>
                               title="Sell"
                               onClick={(e) => openSell(e, sym)}
                               className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold tracking-wide border transition-all ${isDark
-                                ? "bg-rose-500/15 text-rose-200 border-rose-400/25 hover:bg-rose-500/25"
-                                : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+                                  ? "bg-rose-500/15 text-rose-200 border-rose-400/25 hover:bg-rose-500/25"
+                                  : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
                                 }`}
                             >
                               SELL
@@ -873,14 +924,13 @@ const allowedExchange = (s) =>
                             <button
                               title="Open chart"
                               onClick={(e) => openChart(e, sym)}
-                              className={`p-2 rounded-xl border transition-all ${isDark
-                                ? "border-white/10 hover:bg-white/10"
-                                : "border-white/40 hover:bg-white/80"
+                              className={`p-2 rounded-xl border transition-all ${isDark ? "border-white/10 hover:bg-white/10" : "border-white/40 hover:bg-white/80"
                                 }`}
                             >
                               <LineChart className={`w-4 h-4 ${isDark ? "text-cyan-300" : "text-blue-700"}`} />
                             </button>
                           </div>
+
 
                         </div>
                       </li>
