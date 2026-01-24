@@ -644,14 +644,7 @@ const verifyForgotOtp = async () => {
                 {isLoading ? "Please wait..." : "Sign In"}
               </button>
 
-              {googleClientId && (
-                <div className="mt-5 flex justify-center">
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => showError("Google login failed")}
-                  />
-                </div>
-              )}
+              
 
               <p className={`mt-6 text-xs text-center ${textSecondaryClass}`}>
                 By continuing, you agree to our Terms of Service and Privacy Policy
