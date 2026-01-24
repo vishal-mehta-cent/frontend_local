@@ -38,7 +38,7 @@ const items = [
   { label: "Event based ALERTS", comingSoon: true, sublabel: "News / Bulk deals etc.", icon: <ClipboardList size={28} />, color: "from-slate-400 to-gray-500" },
 
   // ✅ (Coming soon)
-  { label: "IPO Tracking", comingSoon: true, icon: <Eye size={28} />, color: "from-slate-400 to-gray-500" },
+  { label: "IPO Intelligence", comingSoon: true, icon: <Eye size={28} />, color: "from-slate-400 to-gray-500" },
 
   { label: "Profile", path: "/Profile", icon: <User size={28} />, color: "from-rose-400 to-pink-500" },
   {
