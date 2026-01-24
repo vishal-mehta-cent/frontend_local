@@ -147,12 +147,23 @@ export default function Landing() {
                                 Get Started <ArrowRight className="w-5 h-5" />
                                 </button>
 
-                            <button className="px-8 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full
-                                             font-semibold text-lg hover:bg-white/20 hover:border-cyan-400/40
-                                             transition-all duration-300 hover:scale-105
-                                             hover:shadow-[0_0_30px_rgba(34,211,238,0.3)]">
-                                Watch Demo
-                            </button>
+                            <button
+  type="button"
+  onClick={() =>
+    window.open(
+      "https://www.youtube.com/channel/UC6RbmJPj3SgIjV1mHiAJV5g",
+      "_blank",
+      "noopener,noreferrer"
+    )
+  }
+  className="px-8 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full
+             font-semibold text-lg hover:bg-white/20 hover:border-cyan-400/40
+             transition-all duration-300 hover:scale-105
+             hover:shadow-[0_0_30px_rgba(34,211,238,0.3)]"
+>
+  Watch Demo
+</button>
+
                         </div>
 <div className="mt-16 max-w-5xl mx-auto">
   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
