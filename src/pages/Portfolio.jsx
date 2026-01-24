@@ -526,14 +526,56 @@ export default function Portfolio({ username }) {
   }, [filteredOpen, quotes]);
 
 
-  const totalPnL = useMemo(
-    () => totalCurrentValuation - totalInvested,
-    [totalCurrentValuation, totalInvested]
-  );
-  const totalPnLPct = useMemo(() => {
-    if (!totalInvested) return 0;
-    return (totalPnL / totalInvested) * 100;
-  }, [totalPnL, totalInvested]);
+  const { totalPnL, totalPnLPct } = useMemo(() => {
+    let pnlSum = 0;
+    let pctBaseSum = 0; // like Orders: use netInvestment base
+
+    for (const p of filteredOpen || []) {
+      const symbol = (p.symbol || p.script || "").toUpperCase();
+
+      const qtyRaw = toNum(p.qty) ?? 0;
+      const qtyAbs = Math.abs(qtyRaw);
+
+      const entry = toNum(p.entry_price) ?? toNum(p.avg_price) ?? 0;
+
+      const live =
+        toNum(p.current_price) ??
+        toNum(quotes[symbol]?.price) ??
+        toNum(p.avg_price) ??
+        0;
+
+      // side
+      const sideLabel = String(p.side || (qtyRaw < 0 ? "SELL" : "BUY")).toUpperCase();
+      const isSell = sideLabel.includes("SELL"); // covers SELL FIRST too
+
+      // ✅ Portfolio = DELIVERY
+      const investment = qtyAbs * entry;
+      const liveValue = qtyAbs * live;
+
+      const additionalCost = calcAdditionalCost({
+        rates,
+        segment: "delivery",
+        investment,
+      });
+
+      const netInvestment = isSell
+        ? (investment - additionalCost)
+        : (investment + additionalCost);
+
+      // ✅ Orders active-row P&L formula
+      const pnl = isSell
+        ? (investment - liveValue - additionalCost)
+        : (liveValue - investment - additionalCost);
+
+      pnlSum += Number.isFinite(pnl) ? pnl : 0;
+      pctBaseSum += Math.abs(netInvestment) || 0;
+    }
+
+    const pct = pctBaseSum ? (pnlSum / pctBaseSum) * 100 : 0;
+
+    return { totalPnL: pnlSum, totalPnLPct: pct };
+  }, [filteredOpen, quotes, rates]);
+
 
   const getInitials = (symbol) => {
     const s = (symbol || "").toUpperCase();
@@ -687,28 +729,45 @@ export default function Portfolio({ username }) {
                     toNum(p.avg_price) ??
                     0;
                   // ✅ Per-script totals (calculated in JSX)
-                  const scriptInvested = Math.abs(qty) * (toNum(entry) ?? 0);
-                  const scriptCurrentValuation = Math.abs(qty) * (toNum(live) ?? 0);
+                  const qtyAbs = Math.abs(qty);
 
-                  const segment = String(p.segment || "delivery").toLowerCase();
+                  // ✅ base amounts
+                  const scriptInvested = qtyAbs * (toNum(entry) ?? 0);
+                  const scriptCurrentValuation = qtyAbs * (toNum(live) ?? 0);
 
-                  // ✅ Backend provides these; JSX falls back if missing
-                  const investment = toNum(p.investment) ?? scriptInvested;
-                  const additionalCost =
-                    toNum(p.additional_cost) ??
-                    calcAdditionalCost({ rates, segment, investment: investment ?? 0 });
+                  // ✅ Portfolio holdings should be treated as DELIVERY always
+                  const segment = "delivery";
 
-                  const netInvestment =
-                    toNum(p.net_investment) ??
-                    ((investment ?? 0) + (additionalCost ?? 0));
+                  // ✅ use your computed invested value (don’t trust backend investment if it was intraday-based)
+                  const investment = scriptInvested;
 
-                  // ✅ Use backend-calculated fields (same as your corrected file)
-                  const perShare =
-                    toNum(p.pnl_per_share) ?? (toNum(live) - (entry ?? 0));
-                  const total = toNum(p.pnl_total) ?? perShare * (qty ?? 0);
-                  const absPct =
-                    toNum(p.pct) ??
-                    ((entry ? perShare / entry : 0) * 100);
+                  // ✅ always compute delivery charges from rates
+                  const additionalCost = calcAdditionalCost({
+                    rates,
+                    segment,
+                    investment,
+                  });
+
+                  // ✅ compute netInvestment side-aware (don’t trust backend net_investment)
+                  const netInvestment = isSell
+                    ? (investment - additionalCost)   // SELL / SELL FIRST
+                    : (investment + additionalCost);  // BUY
+
+                  // ✅ P&L (same as Orders active rows)
+                  // BUY  : (liveValue - investment) - additionalCost
+                  // SELL : (investment - liveValue) - additionalCost   ✅ your required formula
+                  const liveValue = scriptCurrentValuation;
+
+                  const total = isSell
+                    ? (investment - liveValue - additionalCost)
+                    : (liveValue - investment - additionalCost);
+
+                  const perShare = qtyAbs ? (total / qtyAbs) : 0;
+
+                  // % on netInvestment base (like Orders)
+                  const pctBase = Math.abs(netInvestment) || 0;
+                  const absPct = pctBase ? (total / pctBase) * 100 : 0;
+
 
                   const pnlColor =
                     total > 0
