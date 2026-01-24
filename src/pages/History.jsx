@@ -546,48 +546,68 @@ export default function History({ username }) {
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
+  // ✅ Orders.jsx-aligned closed-trade calculator for History rows
   const computeHistoryCosts = (t) => {
-    const buyQty = asNum(t.buy_qty) ?? 0;
+    const qty = asNum(t.buy_qty) ?? 0;              // entry qty (positive)
     const segKey = (t.segment || "delivery").toLowerCase();
-    const entryPx = asNum(t.buy_price) ?? 0;
 
+    const entryPrice = asNum(t.buy_price) ?? 0;
     const exitPrice = asNum(t.exit_price) ?? asNum(t.sell_avg_price) ?? 0;
 
+    const investment = entryPrice * qty;           // entryInvestment
+    const exitInvestment = exitPrice * qty;        // exitInvestment
+
+    // entry + exit charges (same calc as Orders.jsx)
+    const entryAdd = calcAdditionalCost({
+      rates,
+      segment: segKey,
+      investment,
+    });
+
+    const exitAdd = calcAdditionalCost({
+      rates,
+      segment: segKey,
+      investment: exitInvestment,
+    });
+
+    // ✅ detect short (SELL_FIRST) entry
+    const entrySide = String(t.entry_side || t.entrySide || "").toUpperCase();
+    const isShort =
+      Boolean(t.short_first) ||
+      entrySide.includes("SELL_FIRST") ||
+      entrySide === "SELL";
+
+    const isBuy = !isShort;
+
+    // ✅ Prefer backend if present, else compute exactly like Orders.jsx
     const backendAddCost = asNum(t.additional_cost);
     const backendNetInv = asNum(t.net_investment);
     const backendExitNetInv = asNum(t.exit_net_investment);
 
-    let addCost = backendAddCost;
-    let netInv = backendNetInv;
-    let exitNetInv = backendExitNetInv;
+    const addCost = backendAddCost ?? (entryAdd + exitAdd);
 
-    if (addCost === null || netInv === null || exitNetInv === null) {
-      const isShort =
-        !!t.short_first || String(t.entry_side || "").toUpperCase() === "SELL_FIRST";
+    // Orders.jsx netInvestment:
+    // BUY  : investment + entryAdd
+    // SELL : investment - entryAdd
+    const netInv =
+      backendNetInv ??
+      (isBuy ? (investment + entryAdd) : (investment - entryAdd));
 
-      const entryInv = entryPx * buyQty;
-      const exitInv = exitPrice * buyQty;
-
-      const entryAdd = calcAdditionalCost({
-        rates,
-        segment: segKey,
-        investment: entryInv,
-      });
-
-      const exitAdd = calcAdditionalCost({
-        rates,
-        segment: segKey,
-        investment: exitInv,
-      });
-
-      addCost = entryAdd + exitAdd;
-
-      netInv = isShort ? entryInv - entryAdd : entryInv + entryAdd;
-      exitNetInv = isShort ? exitInv + exitAdd : exitInv - exitAdd;
-    }
+    // Orders.jsx exitNetInvestment display:
+    // exitInvestment - exitAdd
+    const exitNetInv =
+      backendExitNetInv ??
+      (exitInvestment - exitAdd);
 
     return {
+      isBuy,
+      qty,
+      entryPrice,
       exitPrice,
+      investment,
+      exitInvestment,
+      entryAdd,
+      exitAdd,
       addCost,
       netInv,
       exitNetInv,
@@ -702,17 +722,22 @@ export default function History({ username }) {
     const rows =
       displayHistory && displayHistory.length
         ? displayHistory.map((t) => {
-          const symbolUpper = normSym(t.symbol || "—");
+          const symbolUpper = normSym(t.symbol || t.script || t.tradingsymbol || "—");
           const rowDate = pickRowDate(t) || "";
           const buyQty = asNum(t.buy_qty) ?? "";
           const buyPrice = asNum(t.buy_price);
           const sellQty = asNum(t.sell_qty) ?? "";
-          const invested = asNum(t.invested_value);
+          const c = computeHistoryCosts(t);
+          const invested = c.investment;
 
-          // Prefer net-pnl if backend sends it; fallback to pnl
-          const pnl = asNum(t.net_pnl) ?? asNum(t.pnl);
+          const pnl = c.isBuy
+            ? (c.exitNetInv - c.netInv)
+            : (c.investment - c.exitInvestment - c.addCost);
 
-          const { exitPrice, addCost, netInv, exitNetInv } = computeHistoryCosts(t);
+          const exitPrice = c.exitPrice;
+          const addCost = c.addCost;
+          const netInv = c.netInv;
+          const exitNetInv = c.exitNetInv;
 
           return [
             symbolUpper,
@@ -1025,24 +1050,31 @@ export default function History({ username }) {
 
                 <div className="max-h-[60vh] overflow-y-auto nc-scrollbar nc-scrollbar-overlay pr-0">
                   {displayHistory.map((t, idx) => {
+                    const symbolUpper = normSym(t.symbol || t.script || t.tradingsymbol || "—");
                     const buyQty = asNum(t.buy_qty) ?? 0;
 
                     // ✅ Prefer backend net_pnl if present; else fallback to pnl
                     const sellQty = asNum(t.sell_qty) ?? 0;
                     const sellAvg = asNum(t.sell_avg_price);
-                    const investedValue = asNum(t.invested_value);
-                    const symbolUpper = normSym(t.symbol || "—");
-                    // ✅ Uses backend-first and fallback compute (already in your file)
-                    const { exitPrice, addCost, netInv, exitNetInv } = computeHistoryCosts(t);
+                    const costs = computeHistoryCosts(t);
+                    const exitPrice = costs.exitPrice;
 
-                    // ✅ YOUR RULE: P&L = Exit Net Investment - Invested
-                    const pnlNum =
-                      exitNetInv !== null &&
-                        exitNetInv !== undefined &&
-                        investedValue !== null &&
-                        investedValue !== undefined
-                        ? exitNetInv - investedValue
-                        : (asNum(t.net_pnl) ?? asNum(t.pnl) ?? 0);
+                    const investment = Number.isFinite(costs.investment) ? costs.investment : 0;
+                    const exitInvestment = Number.isFinite(costs.exitInvestment) ? costs.exitInvestment : 0;
+                    const addCost = Number.isFinite(costs.addCost) ? costs.addCost : 0;
+
+                    const netInv = Number.isFinite(costs.netInv) ? costs.netInv : 0;
+                    const exitNetInv = Number.isFinite(costs.exitNetInv) ? costs.exitNetInv : 0;
+
+                    // ✅ Orders.jsx CLOSED formulas:
+                    // BUY  : pnl = exitNetInv - netInv
+                    // SELL : pnl = investment - exitInvestment - addCost   ✅ your required sell formula
+                    const pnlNum = costs.isBuy
+                      ? (exitNetInv - netInv)
+                      : (investment - exitInvestment - addCost);
+
+                    // ✅ Invested column should match Orders "Investment"
+                    const investedValue = investment;
 
                     return (
                       <div
