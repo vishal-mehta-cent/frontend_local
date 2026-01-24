@@ -137,7 +137,7 @@ export default function Landing() {
                                             drop-shadow-[0_0_60px_rgba(34,211,238,0.4)]
                                             animate-[gradient_3s_ease-in-out_infinite]`}
               >
-                Trade smarter.
+                Trade Smarter.
               </span>
             </h1>
 
