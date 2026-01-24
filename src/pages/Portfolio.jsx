@@ -501,15 +501,31 @@ export default function Portfolio({ username }) {
     }
   };
 
-  // Totals
-  const totalInvested = useMemo(
-    () =>
-      filteredOpen.reduce(
-        (s, p) => s + (toNum(p.avg_price) ?? 0) * (toNum(p.qty) ?? 0),
-        0
-      ),
-    [filteredOpen]
-  );
+    // Totals (Total Invested should be SUM of Net Investment)
+  const totalInvested = useMemo(() => {
+    return (filteredOpen || []).reduce((s, p) => {
+      const qtyRaw = toNum(p.qty) ?? 0;
+      const qtyAbs = Math.abs(qtyRaw);
+
+      const entry = toNum(p.entry_price) ?? toNum(p.avg_price) ?? 0;
+      const investment = qtyAbs * entry;
+
+      const sideLabel = String(p.side || (qtyRaw < 0 ? "SELL" : "BUY")).toUpperCase();
+      const isSell = sideLabel.includes("SELL"); // covers "SELL FIRST"
+
+      // Portfolio holdings = DELIVERY (as per your logic)
+      const additionalCost = calcAdditionalCost({
+        rates,
+        segment: "delivery",
+        investment,
+      });
+
+      const netInvestment = isSell ? (investment - additionalCost) : (investment + additionalCost);
+
+      return s + (Number.isFinite(netInvestment) ? netInvestment : 0);
+    }, 0);
+  }, [filteredOpen, rates]);
+
 
   const totalCurrentValuation = useMemo(() => {
     return filteredOpen.reduce((s, p) => {
