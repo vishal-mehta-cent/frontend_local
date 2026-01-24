@@ -83,7 +83,7 @@ const PLANS = [
   {
     id: "annual",
     name: "Annual",
-    price: 1,
+    price: 999,
     strike: 6000,
     desc: "Maximum savings for long-term users",
     period: "Per year",
