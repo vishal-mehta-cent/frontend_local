@@ -29,9 +29,11 @@ import { useTheme } from "../context/ThemeContext";
 import AppHeader from "../components/AppHeader";
 
 
-const API =
-  import.meta.env.VITE_BACKEND_BASE_URL ||
-  "https://paper-trading-backend.onrender.com";
+const API = (import.meta.env.VITE_BACKEND_BASE_URL ||
+  "https://paper-trading-backend.onrender.com")
+  .trim()
+  .replace(/\/+$/, "");
+
 
 export default function Trade({ username }) {
   const { isDark } = useTheme();
@@ -326,26 +328,53 @@ if (mIdx >= 0 && month) {
     return { raw: Qraw, underlying, year2, month, strike, deriv };
   }
 
-  function buildSeeds({ underlying, year2, month }) {
-    const seeds = new Set();
-    if (!underlying && !month) return [];
-    const yy = year2 || String(new Date().getFullYear()).slice(-2);
-    if (underlying && month) {
-      seeds.add(`${underlying}${month}`);
-      seeds.add(`${underlying}${yy}${month}`);
-    } else if (underlying) {
-      seeds.add(underlying);
-    } else if (month) {
-      seeds.add(month);
-      seeds.add(`${yy}${month}`);
-    }
-    return Array.from(seeds);
+  function buildSeeds({ raw, underlying, year2, month, strike, deriv }) {
+  const seeds = new Set();
+  if (raw) seeds.add(raw); // ✅ always include raw
+
+  if (!underlying && !month) return Array.from(seeds);
+
+  const yy = year2 || String(new Date().getFullYear()).slice(-2);
+
+  // broad seeds
+  if (underlying && month) {
+    seeds.add(`${underlying}${month}`);
+    seeds.add(`${underlying}${yy}${month}`);
+  } else if (underlying) {
+    seeds.add(underlying);
+  } else if (month) {
+    seeds.add(month);
+    seeds.add(`${yy}${month}`);
   }
 
-  const symbolField = (s) =>
-    (s?.symbol || s?.tradingsymbol || "").toUpperCase().replace(/\s+/g, "");
-  const allowedExchange = (s) =>
-    ["NSE", "NFO", "BSE"].includes(String(s?.exchange || "").toUpperCase());
+  // ✅ precise seeds (fixes missing strikes/futures due to top-50 cut)
+  if (underlying && month && strike) {
+    seeds.add(`${underlying}${yy}${month}${strike}`);
+    seeds.add(`${underlying}${month}${strike}`);
+    if (deriv) {
+      seeds.add(`${underlying}${yy}${month}${strike}${deriv}`);
+      seeds.add(`${underlying}${month}${strike}${deriv}`);
+    }
+  }
+
+  if (underlying && month && deriv && !strike) {
+    // FUT case like BAJAJ-AUTO26JANFUT
+    seeds.add(`${underlying}${yy}${month}${deriv}`);
+    seeds.add(`${underlying}${month}${deriv}`);
+  }
+
+  return Array.from(seeds).filter(Boolean);
+}
+
+
+// ✅ normalize symbols/names so "-" "_" spaces don't break filtering
+const norm = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const symbolField = (s) => norm(s?.symbol || s?.tradingsymbol || "");
+const nameField = (s) => norm(s?.name || "");
+
+const allowedExchange = (s) =>
+  ["NSE", "NFO", "BSE"].includes(String(s?.exchange || "").toUpperCase());
+
 
   function isPlainEquityQuery(q) {
     const Q = String(q || "").toUpperCase().trim();
@@ -402,10 +431,9 @@ if (mIdx >= 0 && month) {
 
     if (!month && !strike && underlying && !deriv) {
       filtered = merged.filter(
-        (s) =>
-          symbolField(s).includes(underlying) ||
-          String(s.name || "").toUpperCase().includes(underlying)
-      );
+  (s) => symbolField(s).includes(underlying) || nameField(s).includes(underlying)
+);
+
     }
 
     filtered.sort((a, b) => symbolField(a).localeCompare(symbolField(b)));
@@ -420,19 +448,31 @@ if (mIdx >= 0 && month) {
       return;
     }
 
-    const timer = setTimeout(async () => {
-      try {
-        if (isPlainEquityQuery(debouncedQuery)) {
-          const res = await fetch(
-            `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
-          );
-          const data = await res.json();
-          setSuggestions(Array.isArray(data) ? data.slice(0, 50) : []);
-          return;
-        }
+   const timer = setTimeout(async () => {
+  try {
+    // ✅ 1) Always try direct backend search with EXACT user input first
+    const directRes = await fetch(
+      `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
+    );
+    const directData = await directRes.json().catch(() => []);
 
-        const parts = parseOptionish(debouncedQuery);
-        let finalList = await backendSearchSmart(parts);
+    if (Array.isArray(directData) && directData.length > 0) {
+      setSuggestions(directData.slice(0, 50));
+      return;
+    }
+
+    // ✅ 2) If direct search returns empty, then use your smart parsing logic
+    if (isPlainEquityQuery(debouncedQuery)) {
+      const res = await fetch(
+        `${API}/search?q=${encodeURIComponent(debouncedQuery)}`
+      );
+      const data = await res.json();
+      setSuggestions(Array.isArray(data) ? data.slice(0, 50) : []);
+      return;
+    }
+
+    const parts = parseOptionish(debouncedQuery);
+    let finalList = await backendSearchSmart(parts);
 
         if (
           (!finalList || finalList.length === 0) &&
@@ -445,11 +485,11 @@ if (mIdx >= 0 && month) {
             .filter(allowedExchange)
             .filter((s) => {
               const sym = symbolField(s);
-              const nm = String(s.name || "").toUpperCase();
+              const nm = nameField(s);
 
               if (deriv && !sym.endsWith(deriv)) return false;
               if (underlying && !(sym.includes(underlying) || nm.includes(underlying)))
-                return false;
+  return false;
               if (month && !sym.includes(month)) return false;
               if (strike) {
                 const m = sym.match(/(\d+)(CE|PE)$/);
