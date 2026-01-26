@@ -895,7 +895,7 @@ if (res.status === 404) {
             </h3>
 
 
-            {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐ 
+            {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐*/} 
             <div
               style={{
                 display: "flex",
@@ -904,7 +904,7 @@ if (res.status === 404) {
                 margin: "5px 0 5px 0",
                 alignItems: "center",
               }}
-            >*/}
+            >
               {/* BUY Speedometer 
               <div style={{ textAlign: "center" }}>
                 <AccuracyGauge
@@ -919,8 +919,8 @@ if (res.status === 404) {
                   value={sellClosedAccuracy}
                   label={`SELL Signals: ${sellClosedCount}`}
                 />
-              </div>
-            </div>*/}
+              </div>*/}
+            </div>
             {/* CLOSED SIGNALS GRID */}
             <div className="closed-signals-container">
               <div style={{
