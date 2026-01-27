@@ -1090,18 +1090,34 @@ export default function ChartPage() {
       // --------------------------------------------------
       // 4) CONVERT TO MARKERS  ✅ FIX HERE
       // --------------------------------------------------
-      const markers = final.map((sig) => {
-        const tsSec = Math.floor(Number(sig.timestamp) / 1000); // 🔥 FIX
-
-        return {
-  time: tsSec, // ✅ MUST be seconds
-  position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
-  shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
-  color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-  text: `${sig.signal} - ${sig.tf} | ${sig.close_price}`,
+  const toSec = (ts) => {
+  const n = Number(ts);
+  if (!Number.isFinite(n)) return null;
+  // if backend ever sends ms, auto-fix it
+  return n > 1e11 ? Math.floor(n / 1000) : Math.floor(n);
 };
 
-      });
+const markers = final
+  .map((sig) => {
+    const ts = toSec(sig.timestamp);
+    if (!ts) return null;
+
+    // align marker to the currently visible timeframe buckets (2m/15m)
+    const aligned = candleBucket(ts, tf);
+
+    // snap to nearest candle time so markers always render
+    const snapped = findNearestCandleTime(candles, aligned);
+
+    return {
+      time: snapped, // ✅ seconds
+      position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
+      shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
+      color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
+      text: `${sig.signal} - ${sig.tf} | ${sig.close_price ?? ""}`,
+    };
+  })
+  .filter(Boolean);
+
 
       // --------------------------------------------------
       // 5) APPLY ONLY TO 2m & 15m CHARTS
