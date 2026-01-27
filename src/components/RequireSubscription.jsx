@@ -65,7 +65,7 @@ function safeReadCache() {
 function safeWriteCache(obj) {
   try {
     localStorage.setItem(SUB_CACHE_KEY, JSON.stringify(obj));
-  } catch {}
+  } catch { }
 }
 
 function shouldRecheckNow(now = new Date()) {
@@ -120,13 +120,13 @@ export default function RequireSubscription({ children }) {
       try {
         if (isLocked) localStorage.setItem("force_payment", "1");
         else localStorage.removeItem("force_payment");
-      } catch {}
+      } catch { }
     };
 
     const handleRedirects = (isActive, isLocked) => {
       // ✅ Locked => force to /payments from any protected page
       if (isLocked && loc.pathname !== "/payments" && !allowList.has(loc.pathname)) {
-        try { localStorage.setItem("payment_expired_notice", "1"); } catch {}
+        try { localStorage.setItem("payment_expired_notice", "1"); } catch { }
         nav("/payments", { replace: true });
         return true;
       }
@@ -143,7 +143,7 @@ export default function RequireSubscription({ children }) {
     const runDailyCheckIfNeeded = async () => {
       // ✅ If not logged in: send to login for protected pages
       if (!userId) {
-        try { localStorage.removeItem("force_payment"); } catch {}
+        try { localStorage.removeItem("force_payment"); } catch { }
         applyLockState(false);
 
         if (!allowList.has(loc.pathname)) {
@@ -198,7 +198,10 @@ export default function RequireSubscription({ children }) {
 
         // ✅ cache for the rest of the day until next 7 AM IST
         const nowMs = Date.now();
-        const nextCheckAtMs = getNext7amISTEpochMs(new Date(nowMs));
+        const nextCheckAtMs = isLocked
+          ? (nowMs + 60 * 1000) // recheck in 60s if locked
+          : getNext7amISTEpochMs(new Date(nowMs)); // daily if active
+
 
         safeWriteCache({
           userId,
