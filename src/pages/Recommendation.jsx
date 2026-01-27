@@ -12,11 +12,13 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css"; // base
 import "./datepicker-neurocrest.css"; // ✅ same file used in History
 import AppHeader from "../components/AppHeader";
+import { useFeatureAccess } from "../context/FeatureAccessContext";
 
 const AccuracyGauge = ({ value, label }) => {
 
   const v = Math.max(0, Math.min(100, value));
   const angle = 180 - (v / 100) * 180;
+
 
   const needleX = 70 + 45 * Math.cos((Math.PI / 180) * angle);
   const needleY = 80 - 45 * Math.sin((Math.PI / 180) * angle);
@@ -100,11 +102,35 @@ export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const navigate = useNavigate();
-  const [locked, setLocked] = useState(true); // ✅ show locked UI immediately
-  const [accessChecked, setAccessChecked] = useState(false); // ✅ after API replies
-  const hasAccessRef = useRef(false); // ✅ don't flip to locked on transient errors
+  // ✅ hydrate access state from the daily subscription cache written by RequireSubscription.jsx
+  const initialAccess = (() => {
+    const username = (localStorage.getItem("username") || "").trim().toLowerCase();
 
+    try {
+      const raw = localStorage.getItem("nc_sub_cache_v1");
+      const c = raw ? JSON.parse(raw) : null;
 
+      const fresh =
+        c &&
+        (c.userId || "").toLowerCase() === username &&
+        typeof c.nextCheckAtMs === "number" &&
+        Date.now() < c.nextCheckAtMs;
+
+      if (fresh) {
+        return {
+          locked: !!c.isLocked,
+          checked: true,              // ✅ already checked today
+          hasAccess: !c.isLocked,
+        };
+      }
+    } catch { }
+
+    return { locked: true, checked: false, hasAccess: false };
+  })();
+
+  const [locked, setLocked] = useState(() => initialAccess.locked);
+  const [accessChecked, setAccessChecked] = useState(() => initialAccess.checked);
+  const hasAccessRef = useRef(initialAccess.hasAccess);
 
   const [segment, setSegment] = useState("Equity");
   const [selectedScreener, setSelectedScreener] = useState("All");
@@ -392,120 +418,120 @@ export default function Recommendations() {
   // ----------------------------------------------------
   // FETCH CSV DATA EVERY 5 SECONDS
   // ----------------------------------------------------
- useEffect(() => {
-  let alive = true;
+  useEffect(() => {
+    let alive = true;
 
-  const fetchOnce = async () => {
-    try {
-      const username = (localStorage.getItem("username") || "").trim();
+    const fetchOnce = async () => {
+      try {
+        const username = (localStorage.getItem("username") || "").trim();
 
-      // if username missing → lock immediately
-      if (!username) {
+        // if username missing → lock immediately
+        if (!username) {
+          if (!alive) return;
+          setLocked(true);
+          setRows([]);
+          setInitialLoading(false);
+          setAccessChecked(true);
+          return;
+        }
+
+        const res = await fetch(
+          `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
+          { cache: "no-store" }
+        );
+
+        // ✅ access checked (any response means server replied)
         if (!alive) return;
-        setLocked(true);
-        setRows([]);
-        setInitialLoading(false);
         setAccessChecked(true);
-        return;
-      }
 
-      const res = await fetch(
-        `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
-        { cache: "no-store" }
-      );
+        // ✅ if NOT allowed
+        setAccessChecked(true);
 
-      // ✅ access checked (any response means server replied)
-      if (!alive) return;
-      setAccessChecked(true);
+        if (res.status === 403 || res.status === 401) {
+          setLocked(true);
+          setRows([]);
+          setInitialLoading(false);
+          return;
+        }
 
-      // ✅ if NOT allowed
-     setAccessChecked(true);
+        // ✅ add this
+        if (res.status === 404) {
+          setLocked(false);
+          setRows([]);
+          setInitialLoading(false);
+          return;
+        }
 
-if (res.status === 403 || res.status === 401) {
-  setLocked(true);
-  setRows([]);
-  setInitialLoading(false);
-  return;
-}
+        // ✅ if CSV missing or endpoint error etc.
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          console.error("recommendations/data failed:", res.status, errText);
 
-// ✅ add this
-if (res.status === 404) {
-  setLocked(false);
-  setRows([]);
-  setInitialLoading(false);
-  return;
-}
+          // IMPORTANT:
+          // if user was previously allowed, don’t flip UI to locked on transient errors
+          if (!hasAccessRef.current) {
+            setLocked(true);
+            setRows([]);
+          }
+          setInitialLoading(false);
+          return;
+        }
 
-      // ✅ if CSV missing or endpoint error etc.
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        console.error("recommendations/data failed:", res.status, errText);
+        // ✅ allowed + data ok
+        const json = await res.json();
+        hasAccessRef.current = true;
+        setLocked(false);
 
-        // IMPORTANT:
-        // if user was previously allowed, don’t flip UI to locked on transient errors
+        const normalized = (Array.isArray(json) ? json : []).map(normalize);
+
+        const seen = new Set();
+        const ordered = [];
+
+        for (const r of normalized) {
+          if (!r.script || r.script === "N/A") continue;
+          if (seen.has(r.id)) continue;
+          seen.add(r.id);
+          ordered.push(r);
+        }
+
+        const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
+        const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
+        const uniquePriceCloseTo = [
+          "All",
+          ...new Set(ordered.map((r) => r.priceCloseTo).filter(Boolean)),
+        ];
+
+        startTransition(() => {
+          setScreenerList(uniqueScreeners);
+          setAlertTypeList(uniqueAlertTypes);
+          setPriceCloseList(uniquePriceCloseTo);
+          setRows(ordered);
+          setInitialLoading(false);
+        });
+      } catch (e) {
+        console.error("Fetch failed:", e);
+        if (!alive) return;
+
+        // ✅ access checked (fetch finished, but error)
+        setAccessChecked(true);
+
+        // don’t flip to locked if previously allowed
         if (!hasAccessRef.current) {
           setLocked(true);
           setRows([]);
         }
         setInitialLoading(false);
-        return;
       }
+    };
 
-      // ✅ allowed + data ok
-      const json = await res.json();
-      hasAccessRef.current = true;
-      setLocked(false);
+    fetchOnce();
+    const id = setInterval(fetchOnce, 5000);
 
-      const normalized = (Array.isArray(json) ? json : []).map(normalize);
-
-      const seen = new Set();
-      const ordered = [];
-
-      for (const r of normalized) {
-        if (!r.script || r.script === "N/A") continue;
-        if (seen.has(r.id)) continue;
-        seen.add(r.id);
-        ordered.push(r);
-      }
-
-      const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
-      const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
-      const uniquePriceCloseTo = [
-        "All",
-        ...new Set(ordered.map((r) => r.priceCloseTo).filter(Boolean)),
-      ];
-
-      startTransition(() => {
-        setScreenerList(uniqueScreeners);
-        setAlertTypeList(uniqueAlertTypes);
-        setPriceCloseList(uniquePriceCloseTo);
-        setRows(ordered);
-        setInitialLoading(false);
-      });
-    } catch (e) {
-      console.error("Fetch failed:", e);
-      if (!alive) return;
-
-      // ✅ access checked (fetch finished, but error)
-      setAccessChecked(true);
-
-      // don’t flip to locked if previously allowed
-      if (!hasAccessRef.current) {
-        setLocked(true);
-        setRows([]);
-      }
-      setInitialLoading(false);
-    }
-  };
-
-  fetchOnce();
-  const id = setInterval(fetchOnce, 5000);
-
-  return () => {
-    alive = false;
-    clearInterval(id);
-  };
-}, [API]); // ✅ keep dependency stable (don’t use closedPriceMap here)
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [API]); // ✅ keep dependency stable (don’t use closedPriceMap here)
 
 
   // -------------------------------------------------------
@@ -668,17 +694,16 @@ if (res.status === 404) {
   const buyClosedCount = buyClosedSignals.length;
   const sellClosedCount = sellClosedSignals.length;
 
-    // ✅ Show locked screen immediately (even while checking access)
-  if (locked || !accessChecked) {
+  // ✅ Show locked screen immediately (even while checking access)
+  // ✅ Show locked screen ONLY after access is confirmed (prevents popup on every navigation)
+  if (locked && accessChecked) {
     return (
       <div className={`min-h-screen ${bgClass} ${textClass} flex items-center justify-center p-6`}>
         <div className={`${glassClass} rounded-3xl p-8 max-w-md w-full text-center shadow-2xl`}>
           <h2 className="text-2xl font-bold mb-2">Recommendations Locked</h2>
 
           <p className={`${textSecondaryClass} mb-6`}>
-            {accessChecked
-              ? "This feature is enabled only for approved users."
-              : "Checking access…"}
+            This feature is enabled only for approved users.
           </p>
 
           <button
@@ -690,7 +715,8 @@ if (res.status === 404) {
         </div>
       </div>
     );
-  }// -------------------------------------------------------
+  }
+  // -------------------------------------------------------
   // SIGNALS LAYOUT
   // -------------------------------------------------------
   const renderSignalLayout = () => (
@@ -841,7 +867,7 @@ if (res.status === 404) {
                   paddingLeft: "8px",
                   fontSize: "14px",
                   fontWeight: "600",
-                  color: isDark ? "#1d1e1fff" : "#333"
+                  color: isDark ? "rgba(255,255,255,0.85)" : "#333"
 
                 }}>
                   % = Confidence
@@ -895,7 +921,7 @@ if (res.status === 404) {
             </h3>
 
 
-            {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐*/} 
+            {/* ⭐ Updated TWO Speedometers with BUY / SELL counts ⭐*/}
             <div
               style={{
                 display: "flex",
@@ -930,7 +956,7 @@ if (res.status === 404) {
                 paddingLeft: "8px",
                 fontSize: "14px",
                 fontWeight: "600",
-                color: isDark ? "rgba(27, 26, 26, 1)" : "#333"
+                color: isDark ? "rgba(255,255,255,0.85)" : "#333"
 
               }}>
                 % = Gain
