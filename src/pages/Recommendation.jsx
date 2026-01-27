@@ -12,7 +12,6 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css"; // base
 import "./datepicker-neurocrest.css"; // ✅ same file used in History
 import AppHeader from "../components/AppHeader";
-import { useFeatureAccess } from "../context/FeatureAccessContext";
 
 const AccuracyGauge = ({ value, label }) => {
 
