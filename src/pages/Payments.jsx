@@ -378,7 +378,8 @@ export default function Payments({ username }) {
     setUtr("");
     setVerifying(false);
     setPaymentStatus(null);
-    setOpenedUPI(false);
+    setOpenedUPI(true);
+
 
     // ✅ reset help defaults for new payment screen
     setHelpApp("gpay");
@@ -473,7 +474,8 @@ export default function Payments({ username }) {
       setVerifying(false);
       setSuccess(false);
       setPaymentStatus(null);
-      setOpenedUPI(false);
+      setOpenedUPI(true);
+;
 
       // ✅ reset help state too
       setHelpApp("gpay");
@@ -911,26 +913,7 @@ export default function Payments({ username }) {
                       <img src={`data:image/png;base64,${upiQR.qr_b64}`} alt="UPI QR" className="w-64 h-64" />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          if (tr) {
-                            await fetch(`${API}/payments/upi/opened`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ tr }),
-                            });
-                          }
-                        } catch { }
-                        setOpenedUPI(true);
-                        window.location.href = upiQR.upi_uri;
-                      }}
-                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 text-black font-semibold"
-                    >
-                      <Smartphone className="w-4 h-4" />
-                      Click Here and Then Scan QR and fill Transaction ID
-                    </button>
+                    
 
                     <div className="flex items-center gap-2 text-slate-300 text-sm">
                       <Loader className="w-4 h-4 animate-spin" />
@@ -947,19 +930,18 @@ export default function Payments({ username }) {
                         className="w-full px-4 py-3 rounded-xl bg-black/30 border border-white/20 outline-none text-white placeholder:text-white/40"
                       />
 
-                      <button
-                        onClick={verifyWithUTR}
-                        disabled={!openedUPI || verifying || paymentStatus === "submitted" || success}
-                        className={`mt-3 ${(!openedUPI || verifying || paymentStatus === "submitted" || success) ? disabledBtn : primaryBtn}`}
-                      >
-                        {!openedUPI
-                          ? "Open UPI App first"
-                          : verifying
-                            ? "Verifying..."
-                            : paymentStatus === "submitted"
-                              ? "Submitted"
-                              : "Verify Payment"}
-                      </button>
+                          <button
+                            onClick={verifyWithUTR}
+                            disabled={verifying || paymentStatus === "submitted" || success}
+                            className={`mt-3 ${(verifying || paymentStatus === "submitted" || success) ? disabledBtn : primaryBtn}`}
+                          >
+                            {verifying
+                              ? "Verifying..."
+                              : paymentStatus === "submitted"
+                                ? "Submitted"
+                                : "Verify Payment"}
+                          </button>
+
 
                       {paymentStatus === "submitted" && (
                         <div className="text-xs text-amber-200 mt-2">
@@ -1018,27 +1000,7 @@ export default function Payments({ username }) {
                               ))}
                             </ol>
 
-                            <div className="mt-3">
-                              {imgOk[a.id] ? (
-                                <img
-                                  src={a.img}
-                                  alt={`${a.title} Transaction ID guide`}
-                                  className="w-full rounded-xl border border-white/10 bg-white/5"
-                                  onError={() => setImgOk((p) => ({ ...p, [a.id]: false }))}
-                                />
-                              ) : (
-                                <div className="rounded-xl border border-amber-300/20 bg-amber-300/10 p-3">
-                                  <div className="text-xs font-extrabold text-amber-200 mb-1">Image not found</div>
-                                  <div className="text-xs text-slate-200/80 leading-relaxed">
-                                    Please add the image file here:{" "}
-                                    <span className="font-semibold text-cyan-200">{a.img}</span>
-                                    <br />
-                                    Example: create folder <span className="font-semibold">public/utr</span> and put
-                                    <span className="font-semibold"> {a.id}.png</span> inside it (as shown above).
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                          
 
                             <div className="mt-3 text-[11px] text-slate-300">
                               Tip: Sometimes apps label it as <b>UTR</b>, <b>UPI Transaction ID</b>, <b>Reference ID</b>, or <b>RRN</b>.
