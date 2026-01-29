@@ -154,10 +154,13 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.08) !important;
   color: #0f172a !important;
 }
+
 /* ✅ Force scrollbar visible */
 .show-scrollbar {
-  scrollbar-width: auto;     /* Firefox */
-  scrollbar-gutter: stable;  /* keeps space for scrollbar */
+  scrollbar-width: auto;
+  /* Firefox */
+  scrollbar-gutter: stable;
+  /* keeps space for scrollbar */
 }
 
 .show-scrollbar::-webkit-scrollbar {
@@ -171,4 +174,15 @@ body {
 
 .show-scrollbar::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.08);
+}
+
+@layer base {
+  html {
+    font-family: theme('fontFamily.sans');
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
