@@ -1519,3 +1519,70 @@
 .theme-dark .signal-count-item {
   color: #141415 !important;
 }
+
+/* =========================
+   Mobile fixes for Active Signals layout
+   ========================= */
+@media (max-width: 640px) {
+  .signal-count-box {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .signal-count-item {
+    width: 100%;
+    min-width: 0 !important;
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .active-signals-container,
+  .closed-signals-container {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* The "% = Confidence | ▼ = Current Price" line */
+  .active-signals-container>div:first-child,
+  .closed-signals-container>div:first-child {
+    font-size: 12px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    white-space: normal;
+  }
+
+  .signal-grid {
+    width: 100%;
+  }
+
+  /* Mobile tabs styling if you added them */
+  .signals-mobile-tabs {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 14px;
+    margin: 10px 0 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .signals-tab {
+    flex: 1;
+    padding: 12px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .signals-tab.active {
+    background: linear-gradient(90deg, #1ea7ff, #22d3ee);
+    color: #fff;
+  }
+}
