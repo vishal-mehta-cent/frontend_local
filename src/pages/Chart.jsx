@@ -34,10 +34,18 @@ const TF_SECONDS = {
   "1d": 86400,
 };
 
-function candleBucket(ts, tf) {
+function candleBucket(ts, tf, anchorTime) {
   const sec = TF_SECONDS[tf] || 60;
-  return Math.floor(ts / sec) * sec;
+
+  // fallback if no anchor
+  if (!Number.isFinite(anchorTime)) {
+    return Math.floor(ts / sec) * sec;
+  }
+
+  // align buckets to the chart’s candle schedule (anchor-based)
+  return anchorTime + Math.floor((ts - anchorTime) / sec) * sec;
 }
+
 
 
 // Convert CSV date ("2025-11-21 12:29:00+05:30") → UNIX seconds
@@ -1102,11 +1110,11 @@ const markers = final
     const ts = toSec(sig.timestamp);
     if (!ts) return null;
 
-    // align marker to the currently visible timeframe buckets (2m/15m)
-    const aligned = candleBucket(ts, tf);
+const anchor = Array.isArray(candles) && candles.length ? candles[0].time : null;
 
-    // snap to nearest candle time so markers always render
-    const snapped = findNearestCandleTime(candles, aligned);
+const aligned = candleBucket(ts, tf, anchor);
+const snapped = findNearestCandleTime(candles, aligned);
+
 
     return {
       time: snapped, // ✅ seconds
