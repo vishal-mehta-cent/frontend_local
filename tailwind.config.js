@@ -7,11 +7,15 @@ module.exports = {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ["Inter", "system-ui", "sans-serif"],
+            },
             colors: {
-                primary: "#2563eb", // blue-600
-                secondary: "#1e293b", // slate-800
+                primary: "#2563eb",
+                secondary: "#1e293b",
             },
         },
     },
+
     plugins: [],
 };
