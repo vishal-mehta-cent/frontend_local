@@ -501,7 +501,7 @@ export default function Portfolio({ username }) {
     }
   };
 
-    // Totals (Total Invested should be SUM of Net Investment)
+  // Totals (Total Invested should be SUM of Net Investment)
   const totalInvested = useMemo(() => {
     return (filteredOpen || []).reduce((s, p) => {
       const qtyRaw = toNum(p.qty) ?? 0;
@@ -628,7 +628,7 @@ export default function Portfolio({ username }) {
 
 
       {/* Body */}
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 pt-3 sm:pt-[0] pb-24 relative">
         <div className="mb-6">
           <h2 className={`text-4xl font-bold ${textClass} mb-2`}>Portfolio</h2>
           <p className={`${textSecondaryClass}`}>
@@ -860,18 +860,6 @@ export default function Portfolio({ username }) {
                                   {money(entry)}
                                 </span>
                               </span>
-
-                              <span className="mx-1.5">•</span>
-
-                              {isSell ? (
-                                <span className="text-orange-400 font-semibold">
-                                  {p.side || "SELL"}
-                                </span>
-                              ) : (
-                                <span className="font-semibold">
-                                  {p.side || "BUY"}
-                                </span>
-                              )}
 
 
                               <span className="mx-2">•</span>
