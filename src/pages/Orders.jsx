@@ -805,7 +805,7 @@ export default function Orders({ username }) {
 
 
       {/* ✅ Main content */}
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 pt-3 sm:pt-[0] pb-24 relative">
 
 
         {/* Page header + Tabs + Refresh button */}
@@ -830,13 +830,7 @@ export default function Orders({ username }) {
             </div>
           </div>
 
-          <button
-            onClick={loadData}
-            className={`flex items-center space-x-2 px-5 py-3 rounded-xl ${glassClass} ${cardHoverClass} transition-all shadow-lg`}
-          >
-            <RefreshCw size={18} />
-            <span className="font-medium">Refresh</span>
-          </button>
+
         </div>
 
         {/* Total P&L (Positions only) */}
@@ -1035,9 +1029,9 @@ export default function Orders({ username }) {
                   }}
                 >
                   {/* ===== TOP ROW ===== */}
-                  <div className="flex items-start justify-between gap-6">
+                  <div className="flex items-start justify-between gap-4">
                     {/* LEFT: icon + symbol + meta */}
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-4 min-w-0 flex-1">
                       {/* ✅ TC glass + glow block */}
                       <div className="relative">
                         {/* glow behind */}
@@ -1078,27 +1072,34 @@ export default function Orders({ username }) {
                       </div>
 
 
-                      <div>
+                      <div className="min-w-0">
+
                         {/* SYMBOL */}
-                        <div className={`text-2xl font-extrabold ${textClass}`}>{script}</div>
+                        <div className={`text-2xl font-extrabold ${textClass} truncate max-w-[180px] sm:max-w-none`}>
+                          {script}
+                        </div>
+
 
                         {/* Entry / Order Price + Qty */}
-                        <div className={`mt-1 flex flex-wrap items-center gap-3 text-sm ${textSecondaryClass}`}>
-                          <div>
-                            {isOrdersTab ? "Order Price" : "Entry Price"}{" "}
-                            <span className={`${isDark ? "text-cyan-200" : "text-sky-600"} font-bold`}>
-                              {money(entryPrice)}
+                        <div className={`mt-1 text-sm ${textSecondaryClass}`}>
+                          <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                            <div className="whitespace-nowrap">
+                              {isOrdersTab ? "Order Price" : "Entry Price"}{" "}
+                              <span className={`${isDark ? "text-cyan-200" : "text-sky-600"} font-bold`}>
+                                {money(entryPrice)}
+                              </span>
+                            </div>
+
+                            <span className={`hidden sm:inline ${isDark ? "text-white/35" : "text-slate-300"}`}>•</span>
+
+                            <span
+                              className={`${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"} px-3 py-1 rounded-full text-xs font-semibold w-fit`}
+                            >
+                              {intval(o.qty)} Qty
                             </span>
                           </div>
-
-                          <span className={`${isDark ? "text-white/35" : "text-slate-300"}`}>•</span>
-
-                          <span
-                            className={`${isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-700"} px-3 py-1 rounded-full text-xs font-semibold`}
-                          >
-                            {intval(o.qty)} Qty
-                          </span>
                         </div>
+
 
                         {/* ✅ NSE + Segment (3rd line) */}
                         <div className="mt-1 flex items-center gap-2">
@@ -1132,11 +1133,22 @@ export default function Orders({ username }) {
 
                     </div>
                     {isOrdersTab && (
-                      <div className="text-right mt-5">
+                      <div className="text-right flex-shrink-0 mt-1 min-w-[140px]">
+
                         {/* ✅ Buy/Sell Date ABOVE "Yet to trigger" */}
-                        <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
-                          {isBuy ? "Buy Date" : "Sell Date"} • {fmtDate(dt)} {fmtTime(dt)}
+                        <div className="flex flex-col items-end sm:flex-row sm:items-center sm:justify-end sm:gap-1">
+                          <span>{isBuy ? "Buy Date" : "Sell Date"}</span>
+
+                          {/* desktop dot only */}
+                          <span className="hidden sm:inline">•</span>
+
+                          {/* date/time line (mobile = next line) */}
+                          <span className="tabular-nums sm:whitespace-nowrap">
+                            {fmtDate(dt)} {fmtTime(dt)}
+                          </span>
                         </div>
+
+
 
                         {/* Yet to trigger */}
                         {o.status_msg && (
@@ -1169,16 +1181,28 @@ export default function Orders({ username }) {
 
                     {/* ✅ RIGHT: P&L exactly like Image-2 */}
                     {!isOrdersTab && (
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0 mt-1 min-w-[140px]">
+
+
                         {/* ✅ Buy/Sell Date ABOVE P&L */}
                         <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
-                          {isBuy ? "Buy Date" : "Sell Date"} • {fmtDate(dt)} {fmtTime(dt)}
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end sm:gap-1">
+                            <span>{isBuy ? "Buy Date" : "Sell Date"}</span>
+
+                            {/* dot only on desktop */}
+                            <span className="hidden sm:inline">•</span>
+
+                            <span className="tabular-nums">
+                              {fmtDate(dt)} {fmtTime(dt)}
+                            </span>
+                          </div>
                         </div>
 
+
                         {/* P&L */}
-                        <div className={`mt-2 flex items-baseline justify-end gap-2 ${pnlColor}`}>
-                          {pnlUp ? <TrendingUp size={26} /> : <TrendingDown size={26} />}
-                          <div className="text-3xl font-extrabold leading-none">
+                        <div className={`mt-2 flex items-baseline justify-end gap-1 ${pnlColor}`}>
+                          {pnlUp ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                          <div className="text-2xl font-extrabold leading-none">
                             {money(total)}
                           </div>
                         </div>
