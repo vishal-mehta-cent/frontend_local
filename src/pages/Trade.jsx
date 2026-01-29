@@ -760,7 +760,7 @@ export default function Trade({ username }) {
       <AppHeader />
 
       {/* MAIN CONTENT */}
-      <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
+      <div className="w-full px-3 sm:px-4 md:px-6 pt-3 sm:pt-[0] pb-24 relative">
         <div className="space-y-6">
           {/* Tabs + Funds (same line) */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -772,7 +772,7 @@ export default function Trade({ username }) {
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`px-6 py-2.5 rounded-xl font-medium transition-all ${tab === t
+                  className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all  ${tab === t
                     ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                     : textSecondaryClass
                     }`}
@@ -786,10 +786,11 @@ export default function Trade({ username }) {
             <div
               className={[
                 glassClass,
-                "rounded-2xl shadow-lg w-fit sm:ml-auto",
-                "px-4 py-3",
+                "rounded-2xl shadow-lg sm:ml-auto",
+                "px-4 py-3 w-full sm:w-fit",
               ].join(" ")}
             >
+
               <div className="flex items-center justify-between gap-3">
                 {/* Total Funds */}
                 <div>
@@ -798,9 +799,10 @@ export default function Trade({ username }) {
                   >
                     Total Funds
                   </div>
-                  <div className="mt-1 text-base font-extrabold">
+                  <div className="mt-1 text-base font-extrabold tabular-nums truncate max-w-[140px] sm:max-w-none">
                     {moneyINR(totalFunds, { decimals: 0 })}
                   </div>
+
                 </div>
 
                 {/* Divider */}
@@ -816,9 +818,10 @@ export default function Trade({ username }) {
                   >
                     Available
                   </div>
-                  <div className="mt-1 text-base font-extrabold text-cyan-400">
+                  <div className="mt-1 text-base font-extrabold text-cyan-400 tabular-nums truncate max-w-[140px] sm:max-w-none">
                     {moneyINR(availableFunds, { decimals: 0 })}
                   </div>
+
                 </div>
               </div>
             </div>
@@ -852,12 +855,12 @@ export default function Trade({ username }) {
                 value={query}
                 onChange={handleSearch}
                 placeholder="Search & Add"
-                className={`w-full pl-12 pr-4 py-3 rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
+                className={`w-full pl-12 pr-4 py-3.5 text-[15px] rounded-2xl ${glassClass} ${textClass} placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-lg transition-all`}
               />
 
               {suggestions.length > 0 && (
                 <ul
-                  className={`absolute left-0 right-0 ${glassClass} rounded-2xl shadow-2xl mt-3 max-h-80 overflow-auto z-10`}
+                  className={`absolute left-0 right-0 ${glassClass} rounded-2xl shadow-2xl mt-3 max-h-80 overflow-auto overscroll-contain z-10`}
                 >
                   {suggestions.map((s, i) => {
                     const sym = s?.symbol || s?.tradingsymbol || "";
@@ -892,8 +895,8 @@ export default function Trade({ username }) {
                               title={tab === "mustwatch" ? "Add to Must Watch" : "Add to Watchlist"}
                               onClick={(e) => addFromSearchToWatchlist(e, sym)}
                               className={`p-2 rounded-xl border transition-all ${isDark
-                                  ? "border-white/10 hover:bg-white/10"
-                                  : "border-white/40 hover:bg-white/80"
+                                ? "border-white/10 hover:bg-white/10"
+                                : "border-white/40 hover:bg-white/80"
                                 }`}
                             >
                               <Plus className={`w-4 h-4 ${isDark ? "text-cyan-300" : "text-blue-700"}`} />
@@ -903,8 +906,8 @@ export default function Trade({ username }) {
                               title="Buy"
                               onClick={(e) => openBuy(e, sym)}
                               className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold tracking-wide border transition-all ${isDark
-                                  ? "bg-emerald-500/15 text-emerald-200 border-emerald-400/25 hover:bg-emerald-500/25"
-                                  : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                ? "bg-emerald-500/15 text-emerald-200 border-emerald-400/25 hover:bg-emerald-500/25"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
                                 }`}
                             >
                               BUY
@@ -914,8 +917,8 @@ export default function Trade({ username }) {
                               title="Sell"
                               onClick={(e) => openSell(e, sym)}
                               className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold tracking-wide border transition-all ${isDark
-                                  ? "bg-rose-500/15 text-rose-200 border-rose-400/25 hover:bg-rose-500/25"
-                                  : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+                                ? "bg-rose-500/15 text-rose-200 border-rose-400/25 hover:bg-rose-500/25"
+                                : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
                                 }`}
                             >
                               SELL
@@ -983,10 +986,8 @@ export default function Trade({ username }) {
                         <div className="flex items-start justify-end gap-3">
                           <div className="text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <div
-                                className={`text-3xl font-bold ${isPos ? "text-emerald-400" : "text-rose-400"
-                                  }`}
-                              >
+                              <div className={`text-2xl sm:text-3xl font-bold tabular-nums ${isPos ? "text-emerald-400" : "text-rose-400"}`}>
+
                                 {q.price != null
                                   ? Number(q.price).toLocaleString("en-IN", {
                                     minimumFractionDigits: 2,
@@ -1048,19 +1049,20 @@ export default function Trade({ username }) {
                   return (
                     <div
                       key={sym}
-                      className={`${glassClass} p-5 rounded-3xl ${cardHoverClass} cursor-pointer transition-all duration-300 shadow-xl`}
+                      className={`${glassClass} p-2 rounded-xl ${cardHoverClass} cursor-pointer transition-all duration-300 shadow-xl`}
                       onClick={() => goDetail(sym)}
                     >
                       <div className="flex justify-between items-center mb-3">
                         <div>
                           <div className="flex items-end h-full">
                             <div className="flex items-end gap-2">
-                              <div className="text-2xl font-bold leading-none">
+                              <div className="text-[16px] sm:text-[18px] font-semibold tracking-[0.3px] leading-none">
                                 {sym}
                               </div>
 
+
                               <span
-                                className={`px-0.5 py-[0.1px] rounded-md text-[10px] font-normal ${isDark
+                                className={`px-0.5 py-[0.1px] rounded-md text-[7.5px] font-normal ${isDark
                                   ? "bg-blue-500/20 text-blue-300 border border-blue-400/30"
                                   : "bg-blue-100 text-blue-700 border border-blue-200"
                                   }`}
@@ -1076,7 +1078,7 @@ export default function Trade({ username }) {
                             {/* Line 1: Live price + (-) */}
                             <div className="flex items-center justify-end gap-2">
                               <div
-                                className={`text-3xl font-bold ${isPos ? "text-emerald-400" : "text-rose-400"
+                                className={`text-xl font-bold ${isPos ? "text-emerald-400" : "text-rose-400"
                                   }`}
                               >
                                 {q.price != null
