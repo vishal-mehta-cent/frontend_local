@@ -1009,15 +1009,25 @@ export default function Recommendations() {
         </div>
 
         {/* ✅ DESKTOP VIEW: keep your existing 2-column layout */}
+        {/* ✅ DESKTOP VIEW: ORIGINAL 2-COLUMN LAYOUT (DO NOT CHANGE UI) */}
         <div className="hidden md:block">
           <div className="signals-columns">
 
-            {/* 👉 keep your EXACT existing two columns code here:
-          1) Active signals column
-          2) Closed signals column
-      */}
+            {/* ===== ACTIVE SIGNALS COLUMN ===== */}
+            <div className="signals-column">
+              {/* keep your exact Active Signals desktop code here */}
+              {/* includes title, BUY/SELL/Total, % legend, signal-grid mapping */}
+            </div>
+
+            {/* ===== CLOSED SIGNALS COLUMN ===== */}
+            <div className="signals-column">
+              {/* keep your exact Closed Signals desktop code here */}
+              {/* includes title, closed container, % legend, signal-grid mapping */}
+            </div>
+
           </div>
         </div>
+
 
       </div>
 
