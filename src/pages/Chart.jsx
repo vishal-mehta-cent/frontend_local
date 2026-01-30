@@ -34,18 +34,10 @@ const TF_SECONDS = {
   "1d": 86400,
 };
 
-function candleBucket(ts, tf, anchorTime) {
+function candleBucket(ts, tf) {
   const sec = TF_SECONDS[tf] || 60;
-
-  // fallback if no anchor
-  if (!Number.isFinite(anchorTime)) {
-    return Math.floor(ts / sec) * sec;
-  }
-
-  // align buckets to the chart’s candle schedule (anchor-based)
-  return anchorTime + Math.floor((ts - anchorTime) / sec) * sec;
+  return Math.floor(ts / sec) * sec;
 }
-
 
 
 // Convert CSV date ("2025-11-21 12:29:00+05:30") → UNIX seconds
@@ -561,45 +553,49 @@ function pointToSegDist(px, py, x1, y1, x2, y2) {
 
 function startLiveFeed(symbol, onTick) {
   const WS_BASE =
-    import.meta.env.VITE_BACKEND_WS_URL || "wss://backend-app-k52v.onrender.com";
+    import.meta.env.VITE_BACKEND_WS_URL ||
+    "wss://backend-app-k52v.onrender.com";
 
-  let ws = null;
-  let retryTimer = null;
-  let closed = false;
+  let ws;
 
   function connect() {
-    if (closed) return;
-
     ws = new WebSocket(`${WS_BASE}/market/ticks?symbol=${encodeURIComponent(symbol)}`);
 
-    ws.onopen = () => console.log("🟢 WS connected:", symbol);
+    ws.onopen = () => {
+      console.log("🟢 WS connected:", symbol);
+    };
 
     ws.onmessage = (ev) => {
       try {
         const js = JSON.parse(ev.data);
-        if (typeof js.ltp === "number") onTick(js);
+
+        // ✅ FIX: use ltp, not price
+        if (typeof js.ltp === "number") {
+          onTick(js);
+        }
       } catch (e) {
         console.error("WS parse error", e);
       }
     };
 
-    ws.onerror = (e) => console.error("🔴 WS error", e);
+    ws.onerror = (e) => {
+      console.error("🔴 WS error", e);
+    };
 
     ws.onclose = () => {
-      if (closed) return;
-      retryTimer = setTimeout(connect, 2000);
+      console.warn("🟠 WS closed, reconnecting in 2s…");
+      setTimeout(connect, 2000);
     };
   }
 
   connect();
 
+  // ✅ IMPORTANT: return a proper close handle
   return {
     close: () => {
-      closed = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      retryTimer = null;
-      try { ws?.close(); } catch { }
-      ws = null;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     },
   };
 }
@@ -620,18 +616,17 @@ function fmtISTFromUnixSec(sec, withDate = false) {
 }
 
 export default function ChartPage() {
-  const cleanupFns = useRef([]);
-
+  const cleanupFns = useRef([]).current;
   const [desc1, setDesc1] = useState("");
   const [desc2, setDesc2] = useState("");
   const [desc3, setDesc3] = useState("");
   const [desc4, setDesc4] = useState("");
 
   const [features, setFeatures] = useState({
-    allow_generate_signals: false,
-    allow_chart_recommendation: false,
-    allow_recommendation_page: false,
-  });
+  allow_generate_signals: false,
+  allow_chart_recommendation: false,
+  allow_recommendation_page: false,
+});
 
 
   const [latestSignals, setLatestSignals] = useState([]);
@@ -781,35 +776,35 @@ export default function ChartPage() {
   const searchInputRef = useRef(null);
 
   useEffect(() => {
-    let alive = true;
-    const u = localStorage.getItem("username") || "";
-    if (!u) return;
+  let alive = true;
+  const u = localStorage.getItem("username") || "";
+  if (!u) return;
 
-    fetch(`${API}/features/access/${encodeURIComponent(u)}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((j) => {
-        if (!alive) return;
-        setFeatures({
-          allow_generate_signals: !!j.allow_generate_signals,
-          allow_chart_recommendation: !!j.allow_chart_recommendation,
-          allow_recommendation_page: !!j.allow_recommendation_page,
-        });
-        setRecoLocked(!j.allow_recommendation_page);
-
-      })
-      .catch(() => {
-        if (!alive) return;
-        setFeatures({
-          allow_generate_signals: false,
-          allow_chart_recommendation: false,
-          allow_recommendation_page: false,
-        });
+  fetch(`${API}/features/access/${encodeURIComponent(u)}`, { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+    .then((j) => {
+      if (!alive) return;
+      setFeatures({
+        allow_generate_signals: !!j.allow_generate_signals,
+        allow_chart_recommendation: !!j.allow_chart_recommendation,
+        allow_recommendation_page: !!j.allow_recommendation_page,
       });
+      setRecoLocked(!j.allow_recommendation_page);
 
-    return () => {
-      alive = false;
-    };
-  }, []);
+    })
+    .catch(() => {
+      if (!alive) return;
+      setFeatures({
+        allow_generate_signals: false,
+        allow_chart_recommendation: false,
+        allow_recommendation_page: false,
+      });
+    });
+
+  return () => {
+    alive = false;
+  };
+}, []);
 
   // 🔒 Check Recommendations page access (backend returns 403 when locked)
 
@@ -1095,33 +1090,33 @@ export default function ChartPage() {
       // --------------------------------------------------
       // 4) CONVERT TO MARKERS  ✅ FIX HERE
       // --------------------------------------------------
-      const toSec = (ts) => {
-        const n = Number(ts);
-        if (!Number.isFinite(n)) return null;
-        // if backend ever sends ms, auto-fix it
-        return n > 1e11 ? Math.floor(n / 1000) : Math.floor(n);
-      };
+     const toSec = (ts) => {
+  const n = Number(ts);
+  if (!Number.isFinite(n)) return null;
+  // if backend ever sends ms, auto-fix it
+  return n > 1e11 ? Math.floor(n / 1000) : Math.floor(n);
+};
 
-      const markers = final
-        .map((sig) => {
-          const ts = toSec(sig.timestamp);
-          if (!ts) return null;
+const markers = final
+  .map((sig) => {
+    const ts = toSec(sig.timestamp);
+    if (!ts) return null;
 
-          const anchor = Array.isArray(candles) && candles.length ? candles[0].time : null;
+    // align marker to the currently visible timeframe buckets (2m/15m)
+    const aligned = candleBucket(ts, tf);
 
-          const aligned = candleBucket(ts, tf, anchor);
-          const snapped = findNearestCandleTime(candles, aligned);
+    // snap to nearest candle time so markers always render
+    const snapped = findNearestCandleTime(candles, aligned);
 
-
-          return {
-            time: snapped, // ✅ seconds
-            position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
-            shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
-            color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-            text: `${sig.signal} - ${sig.tf} | ${sig.close_price ?? ""}`,
-          };
-        })
-        .filter(Boolean);
+    return {
+      time: snapped, // ✅ seconds
+      position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
+      shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
+      color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
+      text: `${sig.signal} - ${sig.tf} | ${sig.close_price ?? ""}`,
+    };
+  })
+  .filter(Boolean);
 
 
       // --------------------------------------------------
@@ -1196,7 +1191,76 @@ export default function ChartPage() {
   // ------------------------------------------------------
   // AUTO-ACTIVATE RECOMMENDATION WHEN COMING FROM RECO PAGE
   // ------------------------------------------------------
+  useEffect(() => {
+    if (fromReco === true || fromReco === "1") {
+      if (!priceSeries.current) return;   // prevent chart crash
 
+
+      console.log("🔥 Auto Recommendation Mode");
+      recoModeRef.current = true;
+
+      setRecoMode(true);
+      localStorage.setItem("NC_recoMode_" + symbol, "true");
+
+      // highlight button
+      const btn = document.querySelector("#recoBtn");
+      if (btn) {
+        btn.style.background = "#2563eb";
+        btn.style.color = "white";
+        btn.style.borderColor = "#2563eb";
+      }
+
+      // run ASAP
+      setTimeout(() => refreshRecommendations(), 800);
+
+      // start auto loop
+      if (recoRunRef.current) clearInterval(recoRunRef.current);
+      recoRunRef.current = setInterval(refreshRecommendations, 20000);
+    }
+  }, [symbol, tf]);
+
+
+  async function loadRecommendationsDescription(tf) {
+    try {
+
+      let url = "";
+      if (tf === "15m") {
+        url = `${API}/market/reco-load?symbol=ALL&tf=15m`;
+      }
+      else if (tf === "1d") {
+        url = `${API}/market/reco-load?symbol=ALL&tf=1d`;
+      } else {
+        return;
+      }
+
+      const r = await fetch(url);
+      const js = await r.json();
+      if (!js.rows || !Array.isArray(js.rows)) return;
+
+      // Sort by timestamp DESC
+      const sorted = [...js.rows].sort(
+        (a, b) => Number(b.timestamp) - Number(a.timestamp)
+      );
+
+      // Pick latest 4
+      setLatestRecommendations(sorted.slice(0, 4));
+
+    } catch (e) {
+      console.log("Recommendation description load failed:", e);
+    }
+  }
+
+  function zoomIn() {
+    try {
+      const ts = mainChart.current.timeScale();
+      ts.setVisibleLogicalRange({
+        from: ts.getVisibleLogicalRange().from + 5,
+        to: ts.getVisibleLogicalRange().to - 5,
+      });
+    } catch (e) {
+      console.warn("Zoom In error", e);
+    }
+  }
 
   function zoomOut() {
     try {
@@ -1293,15 +1357,15 @@ export default function ChartPage() {
   /* ---------------- Fetch candles ---------------- */
   const [candles, setCandles] = useState([]);
 
-  const prevClose = useMemo(() => {
-    if (!candles || candles.length < 2) return null;
-    return Number(candles[candles.length - 2]?.close ?? null);
-  }, [candles]);
+const prevClose = useMemo(() => {
+  if (!candles || candles.length < 2) return null;
+  return Number(candles[candles.length - 2]?.close ?? null);
+}, [candles]);
 
-  const isUp = useMemo(() => {
-    if (lastPrice == null || prevClose == null) return null;
-    return Number(lastPrice) >= Number(prevClose);
-  }, [lastPrice, prevClose]);
+const isUp = useMemo(() => {
+  if (lastPrice == null || prevClose == null) return null;
+  return Number(lastPrice) >= Number(prevClose);
+}, [lastPrice, prevClose]);
 
 
   const mapDataForType = (t, rows) => {
@@ -1499,11 +1563,11 @@ export default function ChartPage() {
         visible: true,
       },
       handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: false,
-      },
+  mouseWheel: true,
+  pressedMouseMove: true,
+  horzTouchDrag: true,
+  vertTouchDrag: false,
+},
 
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true } },
       localization: {
@@ -1815,13 +1879,11 @@ export default function ChartPage() {
     // Start websocket after initial load
     ws = startLiveFeed(symbol, handleTick);
 
-    cleanupFns.current.push(() => ws?.close());
-
+    cleanupFns.push(() => ws?.close());
 
     return () => {
       cancelled = true;
-      cleanupFns.current.forEach(fn => fn && fn());
-      cleanupFns.current = []; // ✅ reset so it doesn't keep growing
+      cleanupFns.forEach(fn => fn && fn());
     };
   }, [symbol, tf, tfSec, chartType, applySeriesData]);
 
@@ -2774,20 +2836,18 @@ export default function ChartPage() {
   async function generateSignal() {
     console.log("=== GENERATE SIGNAL CLICKED ===");
     if (!features.allow_generate_signals) {
-      showPopup("Locked", "Generate Signals is enabled only for approved users.");
-      return;
-    }
+  showPopup("Locked", "Generate Signals is enabled only for approved users.");
+  return;
+}
 
     // -------------------------------------
     // ⭐ 1. OFF MODE (SECOND CLICK)
     // -------------------------------------
     if (isRunningRef.current) {
       clearInterval(autoRunRef.current);
-      autoRunRef.current = null;
-
       isRunningRef.current = false;
-      setGenerateMode(false);
-      localStorage.setItem("NC_generateMode_" + symbol, "false");
+      setGenerateMode(true);
+      localStorage.setItem("NC_generateMode_" + symbol, "true");
 
       const btn = document.querySelector("#genBtn");
       if (btn) {
@@ -2797,9 +2857,9 @@ export default function ChartPage() {
       }
 
       showPopup("Stopped", "Auto generated signals stopped");
+
       return;
     }
-
 
     // -------------------------------------
     // ⭐ 2. VALIDATE TIMEFRAME
@@ -2910,7 +2970,7 @@ export default function ChartPage() {
   // ======================================================================
   async function openRecommendations() {
     console.log("📌 Recommendation button clicked");
-    if (recoLocked) {
+        if (recoLocked) {
       showPopup("Locked", "Recommendations are available only for approved users.");
       return;
     }
@@ -3034,10 +3094,10 @@ export default function ChartPage() {
 
   /* --------------------------- UI --------------------------- */
   return (
-    <div
-      className={`h-[100dvh] ${bgClass} ${textClass} relative overflow-x-hidden overflow-y-scroll show-scrollbar transition-colors duration-300`}
-      style={{ scrollbarGutter: "stable" }}
-    >
+  <div
+    className={`h-[100dvh] ${bgClass} ${textClass} relative overflow-x-hidden overflow-y-scroll show-scrollbar transition-colors duration-300`}
+    style={{ scrollbarGutter: "stable" }}
+  >
 
 
 
@@ -3499,7 +3559,7 @@ export default function ChartPage() {
 
       {/* Oscillator pane */}
       <div className="mt-2 border-t touch-pan-y">
-        <div ref={oscRef} style={{ width: "100%", touchAction: "pan-y" }} />
+         <div ref={oscRef} style={{ width: "100%", touchAction: "pan-y" }} />
       </div>
 
       {/* status */}
