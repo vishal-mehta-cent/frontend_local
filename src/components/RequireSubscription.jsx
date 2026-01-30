@@ -71,7 +71,13 @@ function safeWriteCache(obj) {
 function shouldRecheckNow(now = new Date()) {
   const c = safeReadCache();
   if (!c || typeof c.nextCheckAtMs !== "number") return true;
-  return now.getTime() >= c.nextCheckAtMs;
+
+  const nowMs = now.getTime();
+
+  // ✅ If subscription expired, force recheck immediately
+  if (typeof c.expiresAtMs === "number" && nowMs >= c.expiresAtMs) return true;
+
+  return nowMs >= c.nextCheckAtMs;
 }
 
 // ---------- network ----------
@@ -198,19 +204,33 @@ export default function RequireSubscription({ children }) {
 
         // ✅ cache for the rest of the day until next 7 AM IST
         const nowMs = Date.now();
-        const nextCheckAtMs = isLocked
-          ? (nowMs + 60 * 1000) // recheck in 60s if locked
-          : getNext7amISTEpochMs(new Date(nowMs)); // daily if active
+        const next7am = getNext7amISTEpochMs(new Date(nowMs));
 
+        // backend gives seconds epoch
+        const expiresAtMs =
+          sub?.expires_at ? Math.floor(Number(sub.expires_at) * 1000) : null;
+
+        // ✅ recheck at the earlier of (expiry) or (next 7 AM)
+        let nextCheckAtMs = next7am;
+        if (expiresAtMs && expiresAtMs > nowMs) {
+          nextCheckAtMs = Math.min(next7am, expiresAtMs + 2000);
+        }
+
+        // ✅ if locked, recheck sooner (optional)
+        if (isLocked) {
+          nextCheckAtMs = Math.min(nextCheckAtMs, nowMs + 60 * 1000);
+        }
 
         safeWriteCache({
           userId,
           checkedAtMs: nowMs,
           nextCheckAtMs,
+          expiresAtMs,
           isActive,
           isLocked,
           freeTrialStatus,
         });
+
 
         applyLockState(isLocked);
         handleRedirects(isActive, isLocked);
