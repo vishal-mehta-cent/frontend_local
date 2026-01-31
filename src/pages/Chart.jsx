@@ -768,6 +768,9 @@ export default function ChartPage() {
     });
   }
 
+  // ✅ Always keep latest tf/symbol/candles (prevents old setInterval closures)
+
+
   // ---------------- SEARCH (instruments.csv via backend /search) ----------------
   const [openSearch, setOpenSearch] = useState(false);
   const [searchQ, setSearchQ] = useState("");
@@ -1025,7 +1028,10 @@ export default function ChartPage() {
   // ---------------------------------------------------------
   // LOAD ALL SIGNALS (FINAL VERSION - FULL FIX)
   // ---------------------------------------------------------
-  async function loadAllSignals(symbol) {
+  async function loadAllSignals(symbolArg, tfArg) {
+  const tfNow = tfArg || tfRef.current;                 // ✅ latest timeframe
+  const candlesNow = candlesRef.current || [];          // ✅ latest candles
+
     try {
       console.log("loadAllSignals called for TF:", tf);
 
@@ -1071,19 +1077,16 @@ export default function ChartPage() {
       // --------------------------------------------------
       // 3) FILTER BASED ON CURRENT TF
       // --------------------------------------------------
-      let final = [];
+  // 3) FILTER BASED ON CURRENT TF
+let final = [];
 
-      if (tf === "2m") {
-        final = js.signals.filter(
-          (s) => s.tf === "2m" || s.tf === "15m"
-        );
-      }
+if (tfNow === "2m") {
+  final = js.signals.filter((s) => s.tf === "2m" || s.tf === "15m");
+} else if (tfNow === "15m") {
+  final = js.signals.filter((s) => s.tf === "15m");
+}
 
-      if (tf === "15m") {
-        final = js.signals.filter(
-          (s) => s.tf === "15m" || s.tf === "2m"
-        );
-      }
+
 
       final.sort((a, b) => a.timestamp - b.timestamp);
 
@@ -1103,10 +1106,9 @@ const markers = final
     if (!ts) return null;
 
     // align marker to the currently visible timeframe buckets (2m/15m)
-    const aligned = candleBucket(ts, tf);
+const aligned = candleBucket(ts, tfNow);
+const snapped = findNearestCandleTime(candlesNow, aligned);
 
-    // snap to nearest candle time so markers always render
-    const snapped = findNearestCandleTime(candles, aligned);
 
     return {
       time: snapped, // ✅ seconds
@@ -1356,6 +1358,15 @@ const markers = final
 
   /* ---------------- Fetch candles ---------------- */
   const [candles, setCandles] = useState([]);
+
+  const tfRef = useRef("1m");
+useEffect(() => { tfRef.current = tf; }, [tf]);
+
+const symbolRef = useRef("");
+useEffect(() => { symbolRef.current = symbol; }, [symbol]);
+
+const candlesRef = useRef([]);
+useEffect(() => { candlesRef.current = candles; }, [candles]);
 
 const prevClose = useMemo(() => {
   if (!candles || candles.length < 2) return null;
@@ -2846,7 +2857,8 @@ const isUp = useMemo(() => {
     if (isRunningRef.current) {
       clearInterval(autoRunRef.current);
       isRunningRef.current = false;
-      setGenerateMode(true);
+      setGenerateMode(false);
+
       localStorage.setItem("NC_generateMode_" + symbol, "true");
 
       const btn = document.querySelector("#genBtn");
@@ -2923,7 +2935,8 @@ const isUp = useMemo(() => {
       });
 
       // load markers after generation
-      await loadAllSignals(symbol);
+      await loadAllSignals(symbolRef.current, tfRef.current);
+
 
       console.log("✔ Updated signals for:", tf);
 
@@ -2932,6 +2945,14 @@ const isUp = useMemo(() => {
     }
   }
 
+useEffect(() => {
+  // ✅ If user already started Generate Mode, switching TF should refresh markers
+  if (!generateMode) return;
+
+  // This will re-fetch + re-filter markers for the new tf
+  loadAllSignals(symbol, tf);
+
+}, [tf, symbol, generateMode]);
 
   // --------------------------------------------------
   // UNIVERSAL MARKER MERGER (STEP-4)
