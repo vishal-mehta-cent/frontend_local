@@ -1,10 +1,10 @@
 // ============================================================
 //                 FINAL UPDATED SIGNALCARD.JSX
-//     (Correct BUY/SELL PNL Logic + Live>Signal Color Rule)
+//   (BUY/SELL/CHART back -> Recommendations with filters)
 // ============================================================
 
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { LineChart } from "lucide-react";
 
 export default function SignalCard({
@@ -27,11 +27,16 @@ export default function SignalCard({
   rawDate,
   rawTime,
   closeTime,   // ⭐ ADD THIS
+  returnTo = null, // ✅ NEW (from Recommendations)
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✅ If returnTo not provided, fallback to current page (rare case)
+  const finalReturnTo = returnTo || `${location.pathname}${location.search || ""}`;
 
   // --------------------------------------------------------
-  // BUY / SELL NAVIGATION
+  // BUY / SELL NAVIGATION (with returnTo)
   // --------------------------------------------------------
   const handleOrderClick = (e) => {
     e.preventDefault();
@@ -41,12 +46,17 @@ export default function SignalCard({
     }
 
     const type = alertType?.toLowerCase();
-    if (type === "buy") navigate(`/buy/${script}`);
-    if (type === "sell") navigate(`/sell/${script}`);
+
+    if (type === "buy") {
+      navigate(`/buy/${script}`, { state: { returnTo: finalReturnTo } });
+    }
+    if (type === "sell") {
+      navigate(`/sell/${script}`, { state: { returnTo: finalReturnTo } });
+    }
   };
 
   // --------------------------------------------------------
-  // OPEN CHART WITH EXACT DATETIME
+  // OPEN CHART WITH EXACT DATETIME (with returnTo)
   // --------------------------------------------------------
   const openChart = (e) => {
     e.preventDefault();
@@ -65,8 +75,12 @@ export default function SignalCard({
     };
 
     const fullDT = `${rawDate} ${convertTo24(rawTime)}`;
+
+    // ✅ keep your existing chart URL params
+    // ✅ add returnTo in navigation state
     navigate(
-      `/chart/${script}?strategy=${strategy}&dt=${encodeURIComponent(fullDT)}&fromReco=1`
+      `/chart/${script}?strategy=${strategy}&dt=${encodeURIComponent(fullDT)}&fromReco=1`,
+      { state: { returnTo: finalReturnTo } }
     );
   };
 
@@ -97,12 +111,10 @@ export default function SignalCard({
     return `${hh.toString().padStart(2, "0")}:${mm} ${ampm}`;
   };
 
-
   const formattedTime =
     timeVal && timeVal !== "--:--"
       ? formatTime(timeVal)
       : extractTimeFromDate(rawDate);
-
 
   // ---------------- CURRENT PRICE ----------------
   const sp = Number(signalPrice);
@@ -113,25 +125,23 @@ export default function SignalCard({
   const formatCloseDateTime = (ct) => {
     if (!ct) return "";
 
-    // Normalize string (replace multiple slashes/spaces)
-    let norm = ct.replace(/-/g, "/").trim();  // allow 12-03-2025 or 12/03/2025
-    norm = norm.replace(/\s+/g, " ");         // collapse multiple spaces
+    let norm = ct.replace(/-/g, "/").trim();
+    norm = norm.replace(/\s+/g, " ");
 
-    // Extract date/time using robust regex:
-    const regex = /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/;
+    const regex =
+      /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/;
     const m = norm.match(regex);
 
-    if (!m) return ct; // fallback
+    if (!m) return ct;
 
     let [_, dd, mm, yyyy, hh, min, sec, ampm] = m;
 
     dd = parseInt(dd);
-    mm = parseInt(mm) - 1;     // Month index
+    mm = parseInt(mm) - 1;
     yyyy = yyyy.length === 2 ? Number("20" + yyyy) : Number(yyyy);
     hh = parseInt(hh);
     min = parseInt(min);
 
-    // Handle AM/PM
     if (ampm) {
       ampm = ampm.toUpperCase();
       if (ampm === "PM" && hh < 12) hh += 12;
@@ -142,7 +152,6 @@ export default function SignalCard({
 
     if (isNaN(d)) return ct;
 
-    // ----- OUTPUT FORMAT -----
     const outDay = d.getDate();
     const outMonth = d.getMonth() + 1;
 
@@ -156,12 +165,7 @@ export default function SignalCard({
     return `${outDay}/${outMonth} | ${outHour}:${outMinutes} ${outAMPM}`;
   };
 
-
-
   const formattedCloseDT = formatCloseDateTime(closeTime);
-
-
-
 
   // ============================================================
   // ⭐ UNIVERSAL CORRECT PNL CALCULATION
@@ -169,8 +173,8 @@ export default function SignalCard({
   const side = alertType?.toLowerCase();
 
   let pnl = 0;
-  if (side === "buy") pnl = ((cp / sp) - 1) * 100;
-  else if (side === "sell") pnl = (1 - (cp / sp)) * 100;
+  if (side === "buy") pnl = (cp / sp - 1) * 100;
+  else if (side === "sell") pnl = (1 - cp / sp) * 100;
 
   const isProfit = pnl > 0;
   const pnlColor = isProfit ? "#00C853" : "#E53935";
@@ -207,7 +211,6 @@ export default function SignalCard({
     }
   });
 
-  // ⭐ For closed signals LIVE = closePrice
   const liveOrClosePos = positions.LIVE;
 
   const fillLeft = Math.min(positions.SIGNAL, liveOrClosePos);
@@ -218,7 +221,6 @@ export default function SignalCard({
   // ============================================================
   // ⭐ LIVE VS SIGNAL COLOR RULE (FINAL)
   // ============================================================
-  /*const lineColor = isClosed ? "#999" : (cp > sp ? "#00C853" : "#E53935");*/
   const lineColor = cp > sp ? "#00C853" : "#E53935";
 
   // ============================================================
@@ -237,7 +239,6 @@ export default function SignalCard({
         filter: isClosed ? "grayscale(0%)" : "none",
       }}
     >
-
       {/* ---------------- HEADER ---------------- */}
       <div
         style={{
@@ -247,20 +248,19 @@ export default function SignalCard({
           gap: "8px",
         }}
       >
-
         <div
           style={{
             display: "flex",
             flexDirection: "column",
             lineHeight: "13px",
-            marginTop: "-10px"   // ⭐ move label upward 1–2 steps
+            marginTop: "-10px",
           }}
         >
           <span
             style={{
               fontSize: "8px",
               color: "#666",
-              marginBottom: "1px",   // ⭐ reduce gap between label & time
+              marginBottom: "1px",
             }}
           >
             Signal Time
@@ -286,9 +286,7 @@ export default function SignalCard({
               })()}
             </span>
           )}
-
         </div>
-
 
         <button
           onClick={handleOrderClick}
@@ -359,22 +357,35 @@ export default function SignalCard({
           fontWeight: "600",
         }}
       >
-
-
         {isValid(res) && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <div style={{ width: 12, height: 12, background: "#ff4800", borderRadius: 3 }} />
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                background: "#ff4800",
+                borderRadius: 3,
+              }}
+            />
             <span>RES: {Number(res).toFixed(2)}</span>
           </div>
         )}
 
         {isValid(sup) && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <div style={{ width: 12, height: 12, background: "#a200ff", borderRadius: 3 }} />
+            <div
+              style={{
+                width: 12,
+                height: 12,
+                background: "#a200ff",
+                borderRadius: 3,
+              }}
+            />
             <span>SUP: {Number(sup).toFixed(2)}</span>
           </div>
         )}
       </div>
+
       {/* ⭐ ONLY SHOW CLOSE DATE/TIME IF CLOSED SIGNAL */}
       {isClosed && formattedCloseDT && (
         <div
@@ -392,10 +403,8 @@ export default function SignalCard({
 
       {/* ---------------- PRICE INDICATOR LINE ---------------- */}
       <div className="indicator-container">
-        {/* Base gray line */}
         <div className="indicator-line" />
 
-        {/* Dynamic fill based ONLY on Live > Signal */}
         <div
           className="indicator-fill"
           style={{
@@ -449,15 +458,16 @@ function Marker({
       className="marker"
       style={{
         left: `${pos}%`,
-        zIndex: triangle || circle ? 10 : 5,   // ⬅ LIVE & SIGNAL come to front
+        zIndex: triangle || circle ? 10 : 5,
         position: "absolute",
       }}
     >
-
       {triangle && <div className="shape triangle"></div>}
       {circle && <div className="shape circle"></div>}
       {line && <div className="shape line"></div>}
-      {squareOnly && <div className="shape square" style={{ backgroundColor: color }}></div>}
+      {squareOnly && (
+        <div className="shape square" style={{ backgroundColor: color }}></div>
+      )}
       {label && <div className="label-top">{label}</div>}
 
       {!squareOnly &&
