@@ -1,16 +1,18 @@
 // src/components/BackButton.jsx
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 export default function BackButton({
   inline = true,
   className = "",
-  to = null,          // ✅ NEW
-  state = undefined,  // ✅ NEW
-  replace = false,    // ✅ optional
+  to = null,          // explicit target (highest priority)
+  state = undefined,  // optional navigation state when using "to"
+  replace = false,    // optional
+  fallback = "/menu", // ✅ NEW: final fallback route
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const base =
     "flex items-center transition text-slate-900 hover:text-slate-900 dark:text-white dark:hover:text-white";
@@ -19,18 +21,28 @@ export default function BackButton({
   const cls = `${base} ${pos} ${className}`.trim();
 
   const handleBack = () => {
-    // ✅ If caller provided explicit target, go there
+    // ✅ 1) If caller provided explicit target, go there
     if (to) {
       navigate(to, { state, replace });
       return;
     }
 
-    // ✅ Otherwise fallback to history
+    // ✅ 2) If current page was opened from Recommendations (or anywhere),
+    // and returnTo was passed via navigation state, go back there.
+    const returnTo = location.state?.returnTo;
+    if (returnTo) {
+      navigate(returnTo, { replace: false });
+      return;
+    }
+
+    // ✅ 3) Otherwise fallback to history
     if (window.history.length > 1) {
       navigate(-1);
-    } else {
-      navigate("/menu");
+      return;
     }
+
+    // ✅ 4) Final fallback
+    navigate(fallback);
   };
 
   return (
