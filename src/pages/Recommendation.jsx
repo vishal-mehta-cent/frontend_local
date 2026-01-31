@@ -5,7 +5,7 @@ import BackButton from "../components/BackButton";
 import SwipeNav from "../components/SwipeNav";
 import { Moon, Sun, Sparkles, User } from "lucide-react";
 import CustomDropdown from "../components/CustomDropdown";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import HeaderActions from "../components/HeaderActions";
 import DatePicker from "react-datepicker";
@@ -101,6 +101,9 @@ export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
   const navigate = useNavigate();
+    const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // ✅ hydrate access state from the daily subscription cache written by RequireSubscription.jsx
   const initialAccess = (() => {
     const username = (localStorage.getItem("username") || "").trim().toLowerCase();
@@ -534,6 +537,56 @@ export default function Recommendations() {
     };
   }, [API]); // ✅ keep dependency stable (don’t use closedPriceMap here)
 
+  useEffect(() => {
+    // Hydrate filters from URL only on first mount
+    const qpSegment = searchParams.get("segment");
+    const qpScreener = searchParams.get("screener");
+    const qpAlertType = searchParams.get("alertType");
+    const qpDate = searchParams.get("date");
+    const qpActiveType = searchParams.get("type"); // Intraday/BTST/Short-term
+    const qpSubIntraday = searchParams.get("subIntraday");
+    const qpPriceClose = searchParams.get("priceClose");
+    const qpTab = searchParams.get("tab"); // active/closed
+
+    if (qpSegment) setSegment(qpSegment);
+    if (qpScreener) setSelectedScreener(qpScreener);
+    if (qpAlertType) setSelectedAlertType(qpAlertType);
+    if (qpDate) setSelectedDate(qpDate);
+    if (qpActiveType) setActiveType(qpActiveType);
+    if (qpSubIntraday) setSubIntraday(qpSubIntraday);
+    if (qpPriceClose) setPriceCloseFilter(qpPriceClose);
+    if (qpTab) setSignalTab(qpTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+    useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+
+    next.set("segment", segment || "Equity");
+    next.set("screener", selectedScreener || "All");
+    next.set("alertType", selectedAlertType || "All");
+    next.set("date", selectedDate || "");
+    next.set("type", activeType || "Intraday");
+    next.set("subIntraday", subIntraday || "All");
+    next.set("priceClose", priceCloseFilter || "All");
+    next.set("tab", signalTab || "active");
+
+    // remove empty date to keep URL clean
+    if (!selectedDate) next.delete("date");
+
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    segment,
+    selectedScreener,
+    selectedAlertType,
+    selectedDate,
+    activeType,
+    subIntraday,
+    priceCloseFilter,
+    signalTab,
+  ]);
+
 
   // -------------------------------------------------------
   // FILTERING
@@ -922,6 +975,8 @@ export default function Recommendations() {
                           rawDate={sig.dateVal}
                           rawTime={sig.timeVal}
                           fromReco={true}
+                          returnTo={`${location.pathname}?${searchParams.toString()}`}
+
                           closeTime={sig.closeTime}
                         />
                       ))
