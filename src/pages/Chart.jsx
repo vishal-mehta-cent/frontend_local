@@ -65,6 +65,34 @@ function findNearestCandleTime(candles, targetTime) {
   return nearest;
 }
 
+function snapToCandleStart(candles, ts, tf) {
+  const tfSec = TF_SECONDS[tf] || 60;
+  if (!Array.isArray(candles) || candles.length === 0) return ts;
+
+  // candles are sorted by time
+  // We want the candle where: candle.time < = ts <= candle.time + tfSec
+  // (handles "close time" timestamps like 14:11 which belong to candle starting 14:09)
+  let lo = 0, hi = candles.length - 1;
+  let ans = candles[0].time;
+
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const t = candles[mid].time;
+
+    if (t <= ts) {
+      ans = t;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  // If ts is inside [ans, ans + tfSec] snap to ans
+  if (ts >= ans && ts <= ans + tfSec) return ans;
+
+  // fallback: nearest (rare)
+  return findNearestCandleTime(candles, ts);
+}
 
 
 
@@ -1105,13 +1133,10 @@ const markers = final
     const ts = toSec(sig.timestamp);
     if (!ts) return null;
 
-    // align marker to the currently visible timeframe buckets (2m/15m)
-const aligned = candleBucket(ts, tfNow);
-const snapped = findNearestCandleTime(candlesNow, aligned);
-
+    const snapped = snapToCandleStart(candlesNow, ts, tfNow);
 
     return {
-      time: snapped, // ✅ seconds
+      time: snapped,
       position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
       shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
       color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
@@ -1119,6 +1144,7 @@ const snapped = findNearestCandleTime(candlesNow, aligned);
     };
   })
   .filter(Boolean);
+
 
 
       // --------------------------------------------------
@@ -1920,8 +1946,22 @@ const isUp = useMemo(() => {
         livePriceLine.current?.applyOptions({ price: live.close });
 
         // update ONLY last candle without re-render
-        priceSeries.current.update(live);
-        applyUnifiedMarkers();
+  if (Array.isArray(js.markers)) {
+  const fixedReco = js.markers
+    .map((m) => {
+      const ts = Number(m.time);
+      if (!Number.isFinite(ts)) return null;
+
+      const snapped = snapToCandleStart(candlesRef.current || [], ts, tfRef.current);
+
+      return { ...m, time: snapped };
+    })
+    .filter(Boolean);
+
+  priceSeries.current._recoMarkers = fixedReco;
+  applyUnifiedMarkers();
+}
+
 
 
         // update volume also without re-render
