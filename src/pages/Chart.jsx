@@ -952,6 +952,7 @@ export default function ChartPage() {
   const oscChart = useRef(null);
   const priceSeries = useRef(null);
   const liveCandleRef = useRef(null);
+  const lastTickAtRef = useRef(0); // ms (for fallback polling)
 
   const livePriceLine = useRef(null);
   const volSeries = useRef(null);
@@ -1875,45 +1876,66 @@ const isUp = useMemo(() => {
     let ws = null;
 
     function handleTick(tick) {
-      if (!priceSeries.current) return;
+  if (!priceSeries.current) return;
 
-      const price = tick.ltp;
-      const ts = Math.floor(tick.timestamp / tfSec) * tfSec;
+  const price = tick?.ltp;
+  if (typeof price !== "number" || !isFinite(price)) return;
 
-      let c = liveCandleRef.current;
+  // backend sends UNIX seconds
+  const rawTs =
+    typeof tick?.timestamp === "number" && isFinite(tick.timestamp)
+      ? tick.timestamp
+      : Math.floor(Date.now() / 1000);
 
-      // New candle
-      if (!c || c.time !== ts) {
-        c = {
-          time: ts,
-          open: price,
-          high: price,
-          low: price,
-          close: price,
-        };
-      } else {
-        c.high = Math.max(c.high, price);
-        c.low = Math.min(c.low, price);
-        c.close = price;
-      }
+  const ts = Math.floor(rawTs / tfSec) * tfSec;
 
-      liveCandleRef.current = c;
+  let c = liveCandleRef.current;
 
-      // 🔥 ONLY this update
-      priceSeries.current.update(c);
+  // New candle
+  if (!c || c.time !== ts) {
+    c = {
+      time: ts,
+      open: price,
+      high: price,
+      low: price,
+      close: price,
+    };
+  } else {
+    c.high = Math.max(c.high, price);
+    c.low = Math.min(c.low, price);
+    c.close = price;
+  }
 
-      setLastPrice(price);
+  liveCandleRef.current = c;
+  lastTickAtRef.current = Date.now();
 
-      priceSeries.current.applyOptions({
-        priceLineVisible: true,
-        lastValueVisible: true,
-        priceLineColor: price >= c.open ? "#16a34a" : "#dc2626",
-      });
-    }
+  // ✅ Update last candle (this also moves series last-value line)
+  priceSeries.current.update(c);
 
+  // ✅ Header LTP
+  setLastPrice(price);
 
+  // ✅ Candle-color style for LTP line (same logic as candle color)
+  const up = price >= c.open;
+  const lineColor = up ? "#16a34a" : "#dc2626";
 
-    // Start websocket after initial load
+  // 1) built-in series last-value line color
+  priceSeries.current.applyOptions({
+    priceLineVisible: true,
+    lastValueVisible: true,
+    priceLineColor: lineColor,
+  });
+
+  // 2) custom "LTP" dotted price line
+  livePriceLine.current?.applyOptions({
+    price,
+    color: lineColor,
+    axisLabelColor: lineColor,
+    axisLabelTextColor: "#ffffff",
+  });
+}
+
+// Start websocket after initial load
     ws = startLiveFeed(symbol, handleTick);
 
     cleanupFns.push(() => ws?.close());
@@ -1924,80 +1946,89 @@ const isUp = useMemo(() => {
     };
   }, [symbol, tf, tfSec, chartType, applySeriesData]);
 
-  // LIVE PRICE UPDATER (updates every second)
-  // LIVE PRICE UPDATER — NO BLINK
-  useEffect(() => {
-    if (!priceSeries.current) return;
+  // LIVE PRICE UPDATER (fallback ONLY)
+// ✅ IMPORTANT: don't fight the WebSocket.
+// We poll /ohlc only if WS hasn't delivered a tick recently.
+useEffect(() => {
+  if (!priceSeries.current) return;
 
-    const timer = setInterval(async () => {
-      try {
-        const res = await fetch(
-          `${API}/market/ohlc?symbol=${symbol}&interval=${tf}&limit=1`
-        );
-        const js = await res.json();
-        if (!Array.isArray(js) || js.length === 0) return;
+  const timer = setInterval(async () => {
+    // If WS is healthy, do nothing (prevents candle/LTP mismatch)
+    if (Date.now() - (lastTickAtRef.current || 0) < 2500) return;
 
-        const live = js[js.length - 1];
+    try {
+      const res = await fetch(
+        `${API}/market/ohlc?symbol=${encodeURIComponent(symbol)}&interval=${tf}&limit=2`
+      );
+      const js = await res.json();
+      if (!Array.isArray(js) || js.length === 0) return;
 
-        // update last price in header
-        setLastPrice(live.close);
+      const live = js[js.length - 1];
+      if (!live || typeof live.close !== "number") return;
 
-        // move horizontal price line
-        livePriceLine.current?.applyOptions({ price: live.close });
+      const price = live.close;
+      const candleTime =
+        typeof live.time === "number" && isFinite(live.time)
+          ? live.time
+          : Math.floor(Math.floor(Date.now() / 1000) / tfSec) * tfSec;
 
-        // update ONLY last candle without re-render
-  if (Array.isArray(js.markers)) {
-  const fixedReco = js.markers
-    .map((m) => {
-      const ts = Number(m.time);
-      if (!Number.isFinite(ts)) return null;
+      let c = liveCandleRef.current;
 
-      const snapped = snapToCandleStart(candlesRef.current || [], ts, tfRef.current);
-
-      return { ...m, time: snapped };
-    })
-    .filter(Boolean);
-
-  priceSeries.current._recoMarkers = fixedReco;
-  applyUnifiedMarkers();
-}
-
-
-
-        // update volume also without re-render
-        volSeries.current?.update({
-          time: live.time,
-          value: live.volume,
-          color:
-            live.close >= live.open
-              ? "rgba(16,185,129,0.7)"
-              : "rgba(239,68,68,0.7)"
-        });
-
-        try {
-          const ts = mainChart.current?.timeScale();
-          if (!ts) return;
-
-          // Only force scroll when auto-follow is ON
-          if (autoFollowRef.current) {
-            ts.scrollToRealTime();
-          }
-        } catch (e) {
-          console.warn("scrollToRealTime failed", e);
-        }
-
-
-
-      } catch (e) {
-        console.error("Live price error:", e);
+      if (!c || c.time !== candleTime) {
+        c = {
+          time: candleTime,
+          open: typeof live.open === "number" ? live.open : price,
+          high: typeof live.high === "number" ? live.high : price,
+          low: typeof live.low === "number" ? live.low : price,
+          close: price,
+        };
+      } else {
+        c.high = Math.max(c.high, price);
+        c.low = Math.min(c.low, price);
+        c.close = price;
       }
-    }, 1000);
 
-    return () => clearInterval(timer);
-  }, [symbol, tf]);
+      liveCandleRef.current = c;
+
+      priceSeries.current.update(c);
+      setLastPrice(price);
+
+      const up = price >= c.open;
+      const lineColor = up ? "#16a34a" : "#dc2626";
+
+      priceSeries.current.applyOptions({
+        priceLineVisible: true,
+        lastValueVisible: true,
+        priceLineColor: lineColor,
+      });
+
+      livePriceLine.current?.applyOptions({
+        price,
+        color: lineColor,
+        axisLabelColor: lineColor,
+        axisLabelTextColor: "#ffffff",
+      });
+
+      volSeries.current?.update({
+        time: c.time,
+        value: typeof live.volume === "number" ? live.volume : 0,
+        color: up ? "rgba(16,185,129,0.7)" : "rgba(239,68,68,0.7)",
+      });
+
+      try {
+        const tsScale = mainChart.current?.timeScale();
+        if (tsScale && autoFollowRef.current) tsScale.scrollToRealTime();
+      } catch {}
+    } catch (e) {
+      console.error("Live price fallback error:", e);
+    }
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, [symbol, tf, tfSec]);
 
 
-  /* ---------------- Overlay drawing helpers ---------------- */
+/* ---------------- Overlay drawing helpers ---------------- */
   const pickTool = (key) => {
     setActiveTool(key);
     setDrawerOpen(false);
