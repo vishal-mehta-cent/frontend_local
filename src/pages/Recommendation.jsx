@@ -3,7 +3,8 @@ import "./Recommendations.css";
 import SignalCard from "../components/SignalCard";
 import BackButton from "../components/BackButton";
 import SwipeNav from "../components/SwipeNav";
-import { Moon, Sun, Sparkles, User } from "lucide-react";
+import { Moon, Sun, Sparkles, User, RefreshCw } from "lucide-react";
+
 import CustomDropdown from "../components/CustomDropdown";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
@@ -100,8 +101,11 @@ const AccuracyGauge = ({ value, label }) => {
 export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [priceRefreshing, setPriceRefreshing] = useState(false);
+  const [lastPriceUpdatedAt, setLastPriceUpdatedAt] = useState(null);
+
   const navigate = useNavigate();
-    const location = useLocation();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // ✅ hydrate access state from the daily subscription cache written by RequireSubscription.jsx
@@ -420,122 +424,121 @@ export default function Recommendations() {
   };
 
   // ----------------------------------------------------
-  // FETCH CSV DATA EVERY 5 SECONDS
+  // FETCH RECOMMENDATION DATA ONCE (NO AUTO-POLLING)
   // ----------------------------------------------------
-  useEffect(() => {
-    let alive = true;
+  const fetchRecommendationsOnce = async ({ mergeOnlyPrices = false } = {}) => {
+    const username = (localStorage.getItem("username") || "").trim();
 
-    const fetchOnce = async () => {
-      try {
-        const username = (localStorage.getItem("username") || "").trim();
+    if (!username) {
+      setLocked(true);
+      if (!mergeOnlyPrices) setRows([]);
+      setInitialLoading(false);
+      setAccessChecked(true);
+      return;
+    }
 
-        // if username missing → lock immediately
-        if (!username) {
-          if (!alive) return;
-          setLocked(true);
-          setRows([]);
-          setInitialLoading(false);
-          setAccessChecked(true);
-          return;
-        }
+    const res = await fetch(
+      `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
+      { cache: "no-store" }
+    );
 
-        const res = await fetch(
-          `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
-          { cache: "no-store" }
-        );
+    setAccessChecked(true);
 
-        // ✅ access checked (any response means server replied)
-        if (!alive) return;
-        setAccessChecked(true);
+    if (res.status === 403 || res.status === 401) {
+      setLocked(true);
+      if (!mergeOnlyPrices) setRows([]);
+      setInitialLoading(false);
+      return;
+    }
 
-        // ✅ if NOT allowed
-        setAccessChecked(true);
+    if (res.status === 404) {
+      setLocked(false);
+      if (!mergeOnlyPrices) setRows([]);
+      setInitialLoading(false);
+      return;
+    }
 
-        if (res.status === 403 || res.status === 401) {
-          setLocked(true);
-          setRows([]);
-          setInitialLoading(false);
-          return;
-        }
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("recommendations/data failed:", res.status, errText);
 
-        // ✅ add this
-        if (res.status === 404) {
-          setLocked(false);
-          setRows([]);
-          setInitialLoading(false);
-          return;
-        }
-
-        // ✅ if CSV missing or endpoint error etc.
-        if (!res.ok) {
-          const errText = await res.text().catch(() => "");
-          console.error("recommendations/data failed:", res.status, errText);
-
-          // IMPORTANT:
-          // if user was previously allowed, don’t flip UI to locked on transient errors
-          if (!hasAccessRef.current) {
-            setLocked(true);
-            setRows([]);
-          }
-          setInitialLoading(false);
-          return;
-        }
-
-        // ✅ allowed + data ok
-        const json = await res.json();
-        hasAccessRef.current = true;
-        setLocked(false);
-
-        const normalized = (Array.isArray(json) ? json : []).map(normalize);
-
-        const seen = new Set();
-        const ordered = [];
-
-        for (const r of normalized) {
-          if (!r.script || r.script === "N/A") continue;
-          if (seen.has(r.id)) continue;
-          seen.add(r.id);
-          ordered.push(r);
-        }
-
-        const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
-        const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
-        const uniquePriceCloseTo = [
-          "All",
-          ...new Set(ordered.map((r) => r.priceCloseTo).filter(Boolean)),
-        ];
-
-        startTransition(() => {
-          setScreenerList(uniqueScreeners);
-          setAlertTypeList(uniqueAlertTypes);
-          setPriceCloseList(uniquePriceCloseTo);
-          setRows(ordered);
-          setInitialLoading(false);
-        });
-      } catch (e) {
-        console.error("Fetch failed:", e);
-        if (!alive) return;
-
-        // ✅ access checked (fetch finished, but error)
-        setAccessChecked(true);
-
-        // don’t flip to locked if previously allowed
-        if (!hasAccessRef.current) {
-          setLocked(true);
-          setRows([]);
-        }
-        setInitialLoading(false);
+      if (!hasAccessRef.current) {
+        setLocked(true);
+        if (!mergeOnlyPrices) setRows([]);
       }
-    };
+      setInitialLoading(false);
+      return;
+    }
 
-    fetchOnce();
-    const id = setInterval(fetchOnce, 5000);
+    const json = await res.json();
+    hasAccessRef.current = true;
+    setLocked(false);
 
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, [API]); // ✅ keep dependency stable (don’t use closedPriceMap here)
+    const normalized = (Array.isArray(json) ? json : []).map(normalize);
+
+    // ✅ Only refresh LIVE PRICES, keep signals stable
+    if (mergeOnlyPrices) {
+      const priceById = new Map();
+      const priceByScript = new Map();
+
+      for (const r of normalized) {
+        if (r?.id) priceById.set(r.id, r.currentPrice);
+        if (r?.script) priceByScript.set(r.script, r.currentPrice);
+      }
+
+      setRows((prev) =>
+        (prev || []).map((r) => {
+          if (!r || r.isClosed) return r; // ✅ refresh only ACTIVE cards
+          const nextPrice = priceById.get(r.id) ?? priceByScript.get(r.script);
+          return nextPrice === undefined ? r : { ...r, currentPrice: nextPrice };
+        })
+      );
+
+      setLastPriceUpdatedAt(Date.now());
+      return;
+    }
+
+    // ✅ Full load only on page open
+    const seen = new Set();
+    const ordered = [];
+
+    for (const r of normalized) {
+      if (!r.script || r.script === "N/A") continue;
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      ordered.push(r);
+    }
+
+    const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
+    const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
+    const uniquePriceCloseTo = [
+      "All",
+      ...new Set(ordered.map((r) => r.priceCloseTo).filter(Boolean)),
+    ];
+
+    startTransition(() => {
+      setScreenerList(uniqueScreeners);
+      setAlertTypeList(uniqueAlertTypes);
+      setPriceCloseList(uniquePriceCloseTo);
+      setRows(ordered);
+      setInitialLoading(false);
+    });
+
+    setLastPriceUpdatedAt(Date.now());
+  };
+  // ✅ manual refresh button: fetch ONLY prices once
+  const onRefreshPrices = async () => {
+    if (priceRefreshing) return;
+``
+    try {
+      setPriceRefreshing(true);
+      await fetchRecommendationsOnce({ mergeOnlyPrices: true }); // ✅ price only
+    } catch (e) {
+      console.error("Price refresh failed:", e);
+    } finally {
+      setPriceRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     // Hydrate filters from URL only on first mount
@@ -559,7 +562,7 @@ export default function Recommendations() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     const next = new URLSearchParams(searchParams);
 
     next.set("segment", segment || "Equity");
@@ -587,6 +590,30 @@ export default function Recommendations() {
     signalTab,
   ]);
 
+  // ✅ fetch once when page opens (NO polling)
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      try {
+        await fetchRecommendationsOnce({ mergeOnlyPrices: false }); // ✅ full load once
+      } catch (e) {
+        console.error("Fetch failed:", e);
+        if (!alive) return;
+        setAccessChecked(true);
+        if (!hasAccessRef.current) {
+          setLocked(true);
+          setRows([]);
+        }
+        setInitialLoading(false);
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API]);
 
   // -------------------------------------------------------
   // FILTERING
@@ -1250,14 +1277,47 @@ export default function Recommendations() {
       {/* ===== MAIN CONTENT (STEP 5) ===== */}
       <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
 
-        <div className="mb-6">
-          <h2 className={`text-4xl font-bold ${textClass} mb-2`}>
-            Recommendations
-          </h2>
-          <p className={textSecondaryClass}>
-            Trading signals & analytics
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h2 className={`text-4xl font-bold ${textClass} mb-2`}>
+              Recommendations
+            </h2>
+            <p className={textSecondaryClass}>
+              Trading signals & analytics
+            </p>
+
+            {lastPriceUpdatedAt ? (
+              <p className={`mt-1 text-xs ${textSecondaryClass}`}>
+                Price updated:{" "}
+                {new Date(lastPriceUpdatedAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </p>
+            ) : null}
+          </div>
+
+          {/* ✅ Refresh button */}
+          <button
+            onClick={onRefreshPrices}
+            disabled={priceRefreshing || locked || initialLoading}
+            className={[
+              "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold",
+              "transition-all duration-200 border shadow-sm",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60",
+              priceRefreshing ? "opacity-70 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]",
+              isDark
+                ? "bg-white/10 border-white/10 text-white hover:bg-white/15"
+                : "bg-white/80 border-slate-200/60 text-slate-900 hover:bg-white",
+            ].join(" ")}
+            title="Refresh live price"
+          >
+            <RefreshCw className={`w-4 h-4 ${priceRefreshing ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
         </div>
+
 
         {/* MAIN CATEGORY BUTTONS (UNCHANGED LOGIC) */}
         {/* MAIN CATEGORY BUTTONS (UI updated like header row) */}
@@ -1292,9 +1352,6 @@ export default function Recommendations() {
             })}
           </div>
         </div>
-
-
-
         {/* SIGNALS LAYOUT (UNCHANGED) */}
         <div className="recommendation-content">
           {renderSignalLayout()}
