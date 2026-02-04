@@ -21,6 +21,7 @@ import { User } from "lucide-react";
 import HeaderActions from "../components/HeaderActions";
 import { formatToIST } from "../utils/time";
 import AppHeader from "../components/AppHeader";
+import { BarChart2 } from "lucide-react";
 
 
 // ---------- API base (prod-safe) ----------
@@ -864,9 +865,27 @@ export default function Portfolio({ username }) {
 
                               <span className="mx-2">•</span>
 
-                              <span className="font-semibold">
+                              <span className="inline-flex items-center gap-2 font-semibold">
                                 {Math.abs(qty)} Qty
+
+                                {/* 📊 Chart button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // 🚫 don't open modal
+                                    navigate(`/chart/${symbol}`);
+                                  }}
+                                  title="View Chart"
+                                  className={`p-1 rounded-full transition
+      hover:scale-105 active:scale-95
+      ${isDark
+                                      ? "bg-white/10 hover:bg-white/20 text-white"
+                                      : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                                    }`}
+                                >
+                                  <BarChart2 size={14} />
+                                </button>
                               </span>
+
                             </div>
 
 
