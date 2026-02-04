@@ -15,10 +15,8 @@ import "./datepicker-neurocrest.css"; // ✅ same file used in History
 import AppHeader from "../components/AppHeader";
 
 const AccuracyGauge = ({ value, label }) => {
-
   const v = Math.max(0, Math.min(100, value));
   const angle = 180 - (v / 100) * 180;
-
 
   const needleX = 70 + 45 * Math.cos((Math.PI / 180) * angle);
   const needleY = 80 - 45 * Math.sin((Math.PI / 180) * angle);
@@ -30,8 +28,6 @@ const AccuracyGauge = ({ value, label }) => {
       viewBox="0 0 140 120"
       className="accuracy-gauge"
     >
-
-
       {/* RED zone */}
       <path
         d="M10 80 A60 60 0 0 1 50 20"
@@ -96,8 +92,6 @@ const AccuracyGauge = ({ value, label }) => {
   );
 };
 
-
-
 export default function Recommendations() {
   const [rows, setRows] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -110,7 +104,9 @@ export default function Recommendations() {
 
   // ✅ hydrate access state from the daily subscription cache written by RequireSubscription.jsx
   const initialAccess = (() => {
-    const username = (localStorage.getItem("username") || "").trim().toLowerCase();
+    const username = (localStorage.getItem("username") || "")
+      .trim()
+      .toLowerCase();
 
     try {
       const raw = localStorage.getItem("nc_sub_cache_v1");
@@ -125,11 +121,11 @@ export default function Recommendations() {
       if (fresh) {
         return {
           locked: !!c.isLocked,
-          checked: true,              // ✅ already checked today
+          checked: true, // ✅ already checked today
           hasAccess: !c.isLocked,
         };
       }
-    } catch { }
+    } catch {}
 
     return { locked: true, checked: false, hasAccess: false };
   })();
@@ -153,34 +149,37 @@ export default function Recommendations() {
   const [priceCloseFilter, setPriceCloseFilter] = useState("All");
   const [priceCloseList, setPriceCloseList] = useState(["All"]);
 
+  // ✅ NEW: Date sort order (DESC = newest first, ASC = oldest first)
+  const [dateSortOrder, setDateSortOrder] = useState("desc"); // "asc" | "desc"
+
   const { isDark, toggle } = useTheme();
 
-
   const bgClass = isDark
-    ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
-    : 'bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100';
+    ? "bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"
+    : "bg-gradient-to-br from-blue-50 via-cyan-50 to-blue-100";
 
   const glassClass = isDark
-    ? 'bg-white/5 backdrop-blur-xl border border-white/10'
-    : 'bg-white/60 backdrop-blur-xl border border-white/40';
+    ? "bg-white/5 backdrop-blur-xl border border-white/10"
+    : "bg-white/60 backdrop-blur-xl border border-white/40";
 
-  const textClass = isDark ? 'text-white' : 'text-slate-900';
-  const textSecondaryClass = isDark ? 'text-slate-300' : 'text-slate-600';
-  const cardHoverClass = isDark ? 'hover:bg-white/10' : 'hover:bg-white/80';
+  const textClass = isDark ? "text-white" : "text-slate-900";
+  const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
+  const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
 
-  const brandGradient = "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
-
+  const brandGradient =
+    "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
 
   const [closedPriceMap, setClosedPriceMap] = useState({});
 
-  const API =
-    (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
-      .toString()
-      .replace(/\/+$/, "");
+  const API = (import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000")
+    .toString()
+    .replace(/\/+$/, "");
 
   const toNum = (v) => {
     if (v === null || v === undefined) return undefined;
-    const n = Number.parseFloat(typeof v === "string" ? v.replace(/[, ]/g, "") : v);
+    const n = Number.parseFloat(
+      typeof v === "string" ? v.replace(/[, ]/g, "") : v
+    );
     return Number.isFinite(n) ? n : undefined;
   };
 
@@ -205,8 +204,6 @@ export default function Recommendations() {
 
     return "";
   };
-
-
 
   const getField = (row, candidates) => {
     if (!row) return undefined;
@@ -238,7 +235,9 @@ export default function Recommendations() {
   };
 
   const pickSignalPrice = (r) =>
-    toNum(getField(r, ["signal_price", "close_price", "Signal_price", "Signal Price"]));
+    toNum(
+      getField(r, ["signal_price", "close_price", "Signal_price", "Signal Price"])
+    );
 
   const pickCurrentPrice = (r) => toNum(r.currentPrice);
 
@@ -253,8 +252,7 @@ export default function Recommendations() {
   const pickResistance = (r) =>
     toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
 
-  const pickAlertType = (r) =>
-    getField(r, ["signal_type", "Signal_type"]) || "N/A";
+  const pickAlertType = (r) => getField(r, ["signal_type", "Signal_type"]) || "N/A";
 
   const pickDescription = (r) =>
     getField(r, ["Alert_description", "description", "Description"]) || "";
@@ -266,8 +264,7 @@ export default function Recommendations() {
 
   const pickScreener = (r) => getField(r, ["screener", "Screener"]) || "Unknown";
 
-  const pickRawDate = (r) =>
-    getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
+  const pickRawDate = (r) => getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
 
   const pickTime = (row) => {
     const raw = getField(row, ["raw_datetime", "Date", "date", "signal_date"]);
@@ -293,7 +290,6 @@ export default function Recommendations() {
     return `${hour.toString().padStart(2, "0")}:${minute} ${ampm}`;
   };
 
-
   const pickStrategy = (r) => {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
     raw = String(raw).trim().toLowerCase();
@@ -308,7 +304,6 @@ export default function Recommendations() {
     return raw;
   };
 
-
   const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
 
   const pickUserActions = (r) => getField(r, ["user_actions"]) || "";
@@ -316,25 +311,18 @@ export default function Recommendations() {
   const pickPriceCloseTo = (r) =>
     (getField(r, ["price_closeto", "price_close_to"]) || "").toString().trim();
 
-
   async function fetchLivePrice(script) {
     try {
-      const res = await fetch(
-        `${API}/quotes/price?symbol=${encodeURIComponent(script)}`
-      );
+      const res = await fetch(`${API}/quotes/price?symbol=${encodeURIComponent(script)}`);
       const json = await res.json();
 
-      return Number(
-        json?.price || json?.ltp || json?.last_price || json?.currentPrice
-      );
+      return Number(json?.price || json?.ltp || json?.last_price || json?.currentPrice);
     } catch (e) {
       console.error("Live price error for:", script, e);
       return null;
     }
   }
-  // ----------------------------------------------------
-  // NORMALIZE FUNCTION (FINAL — ONLY CSV decides open/closed)
-  // ----------------------------------------------------
+
   // ----------------------------------------------------
   // NORMALIZE FUNCTION (FINAL — ONLY CSV decides open/closed)
   // ----------------------------------------------------
@@ -351,16 +339,11 @@ export default function Recommendations() {
     // ---- CSV close time ----
     const csvCloseTime = getField(row, ["close_time"]) || "";
 
-
-    // ---- UI Classification ----
     // -------------------------------
     // FINAL ACTIVE / CLOSED LOGIC
     // -------------------------------
     const isClosed = csvClose !== null && csvClose > 0;
     const isActive = !isClosed;
-
-
-
 
     // Freeze price for CLOSED, Live price for ACTIVE
     let live = pickCurrentPrice(row);
@@ -373,21 +356,16 @@ export default function Recommendations() {
 
     const strategy = pickStrategy(row);
 
-    // ✅ FULL datetime from backend (date + time)
     // ✅ FULL datetime (date + time) — DO NOT MODIFY
-    const rawDateTime =
-      getField(row, ["raw_datetime", "signal_date", "Date", "date"]);
+    const rawDateTime = getField(row, ["raw_datetime", "signal_date", "Date", "date"]);
 
     // ✅ Date only (used for date filter dropdown)
     const dateVal = normalizeToISODate(rawDateTime);
-
-
 
     const timeVal = pickTime(row);
     const alertText = pickAlertText(row);
     const userActions = pickUserActions(row);
     const priceCloseTo = pickPriceCloseTo(row);
-
 
     // outcome only needed to visually color closed blocks
     const outcome = isClosed ? "CLOSED" : null;
@@ -410,8 +388,8 @@ export default function Recommendations() {
       isClosed,
 
       // 🔥 CRITICAL FIELDS
-      dateVal,        // YYYY-MM-DD → for filtering
-      rawDateTime,    // YYYY-MM-DD HH:MM:SS → for sorting
+      dateVal, // YYYY-MM-DD → for filtering
+      rawDateTime, // YYYY-MM-DD HH:MM:SS → for sorting
 
       timeVal,
       alertText,
@@ -419,8 +397,6 @@ export default function Recommendations() {
       priceCloseTo,
       closeTime: csvCloseTime,
     };
-
-
   };
 
   // ----------------------------------------------------
@@ -526,10 +502,11 @@ export default function Recommendations() {
 
     setLastPriceUpdatedAt(Date.now());
   };
+
   // ✅ manual refresh button: fetch ONLY prices once
   const onRefreshPrices = async () => {
     if (priceRefreshing) return;
-``
+
     try {
       setPriceRefreshing(true);
       await fetchRecommendationsOnce({ mergeOnlyPrices: true }); // ✅ price only
@@ -550,6 +527,7 @@ export default function Recommendations() {
     const qpSubIntraday = searchParams.get("subIntraday");
     const qpPriceClose = searchParams.get("priceClose");
     const qpTab = searchParams.get("tab"); // active/closed
+    const qpSort = searchParams.get("sort"); // ✅ asc/desc
 
     if (qpSegment) setSegment(qpSegment);
     if (qpScreener) setSelectedScreener(qpScreener);
@@ -559,6 +537,8 @@ export default function Recommendations() {
     if (qpSubIntraday) setSubIntraday(qpSubIntraday);
     if (qpPriceClose) setPriceCloseFilter(qpPriceClose);
     if (qpTab) setSignalTab(qpTab);
+    if (qpSort === "asc" || qpSort === "desc") setDateSortOrder(qpSort);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -573,6 +553,7 @@ export default function Recommendations() {
     next.set("subIntraday", subIntraday || "All");
     next.set("priceClose", priceCloseFilter || "All");
     next.set("tab", signalTab || "active");
+    next.set("sort", dateSortOrder || "desc"); // ✅ keep sort in URL
 
     // remove empty date to keep URL clean
     if (!selectedDate) next.delete("date");
@@ -588,6 +569,7 @@ export default function Recommendations() {
     subIntraday,
     priceCloseFilter,
     signalTab,
+    dateSortOrder,
   ]);
 
   // ✅ fetch once when page opens (NO polling)
@@ -620,15 +602,16 @@ export default function Recommendations() {
   // -------------------------------------------------------
   const filteredRows = useMemo(() => {
     return rows.filter((r) => {
-      // ✅ DATE FILTER (FINAL & CORRECT)
       // ✅ DATE FILTER (FINAL FIX)
       let matchDate = true;
 
       if (selectedDate) {
         console.log(
           "📅 DATE FILTER →",
-          "selectedDate (ISO):", selectedDate,
-          "| row.dateVal:", r.dateVal
+          "selectedDate (ISO):",
+          selectedDate,
+          "| row.dateVal:",
+          r.dateVal
         );
         matchDate = r.dateVal === selectedDate;
       }
@@ -644,7 +627,6 @@ export default function Recommendations() {
         "| match:",
         matchDate
       );
-
 
       // ✅ SCREENER
       const matchScreener =
@@ -700,34 +682,45 @@ export default function Recommendations() {
     priceCloseFilter,
   ]);
 
-  // 🔹 Date dropdown options based on CSV + selected strategy
   // -------------------------------------------------------
   // ACTIVE & CLOSED SIGNALS
   // -------------------------------------------------------
-  const activeSignals = useMemo(() => {
-    return filteredRows
-      .filter((r) => !r.outcome)
-      .sort(
-        (a, b) =>
-          new Date(b.rawDateTime).getTime() -
-          new Date(a.rawDateTime).getTime()
-      )
-      .slice(0, 30);
-  }, [filteredRows]);
+ const activeSignals = useMemo(() => {
+  const dir = dateSortOrder === "asc" ? 1 : -1;
+
+  return filteredRows
+    .filter((r) => !r.outcome)
+    .sort((a, b) => {
+      // Sort ONLY by date (YYYY-MM-DD)
+      const d = String(a.dateVal || "").localeCompare(String(b.dateVal || ""));
+      if (d !== 0) return d * dir;
+
+      // optional tie-breaker (keeps same-day order stable without Date parsing)
+      return String(a.rawDateTime || "").localeCompare(String(b.rawDateTime || "")) * dir;
+    })
+    .slice(0, 30);
+}, [filteredRows, dateSortOrder]);
+
 
   console.table(
-    activeSignals.map(s => ({
+    activeSignals.map((s) => ({
       script: s.script,
       rawDateTime: s.rawDateTime,
-      time: s.timeVal
+      time: s.timeVal,
     }))
   );
 
+  const closedSignals = useMemo(() => {
+    const dir = dateSortOrder === "asc" ? 1 : -1;
 
-  const closedSignals = useMemo(
-    () => filteredRows.filter((r) => r.outcome),
-    [filteredRows]
-  );
+    return filteredRows
+      .filter((r) => r.outcome)
+      .sort((a, b) => {
+        const ta = new Date(a.rawDateTime).getTime();
+        const tb = new Date(b.rawDateTime).getTime();
+        return (ta - tb) * dir;
+      });
+  }, [filteredRows, dateSortOrder]);
 
   // -------------------------------------------------------
   // BUY/SELL COUNTS
@@ -775,12 +768,15 @@ export default function Recommendations() {
   const buyClosedCount = buyClosedSignals.length;
   const sellClosedCount = sellClosedSignals.length;
 
-  // ✅ Show locked screen immediately (even while checking access)
-  // ✅ Show locked screen ONLY after access is confirmed (prevents popup on every navigation)
+  // ✅ Show locked screen ONLY after access is confirmed
   if (locked && accessChecked) {
     return (
-      <div className={`min-h-screen ${bgClass} ${textClass} flex items-center justify-center p-6`}>
-        <div className={`${glassClass} rounded-3xl p-8 max-w-md w-full text-center shadow-2xl`}>
+      <div
+        className={`min-h-screen ${bgClass} ${textClass} flex items-center justify-center p-6`}
+      >
+        <div
+          className={`${glassClass} rounded-3xl p-8 max-w-md w-full text-center shadow-2xl`}
+        >
           <h2 className="text-2xl font-bold mb-2">Recommendations Locked</h2>
 
           <p className={`${textSecondaryClass} mb-6`}>
@@ -797,16 +793,14 @@ export default function Recommendations() {
       </div>
     );
   }
+
   // -------------------------------------------------------
   // SIGNALS LAYOUT
   // -------------------------------------------------------
   const renderSignalLayout = () => (
     <div className="intraday-section">
-
-      {/* ---------------- DATE ROW ---------------- */}
       {/* ================= ADVANCED FILTER CONTAINER ================= */}
       <div className="advanced-filter-wrapper">
-
         {/* ---------------- DATE ROW ---------------- */}
         <div className="filters-row date-row-centered">
           <div className="filter-item">
@@ -822,10 +816,13 @@ export default function Recommendations() {
               placeholderText="mm/dd/yyyy"
               className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
               calendarClassName="nc-date-calendar"
-              popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
-              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              popperClassName={`nc-date-popper ${
+                isDark ? "nc-date-dark" : "nc-date-light"
+              }`}
+              wrapperClassName={`nc-date-wrapper ${
+                isDark ? "nc-date-dark" : "nc-date-light"
+              }`}
             />
-
           </div>
 
           {activeType === "Intraday" && (
@@ -834,14 +831,9 @@ export default function Recommendations() {
               <CustomDropdown
                 label=""
                 value={subIntraday}
-                options={[
-                  "All",
-                  "Intraday",
-                  "Intraday - Fast Alerts"
-                ]}
+                options={["All", "Intraday", "Intraday - Fast Alerts"]}
                 onChange={setSubIntraday}
               />
-
             </div>
           )}
 
@@ -853,7 +845,6 @@ export default function Recommendations() {
               options={["Equity", "F&O"]}
               onChange={setSegment}
             />
-
           </div>
         </div>
 
@@ -867,7 +858,6 @@ export default function Recommendations() {
               options={alertTypeList}
               onChange={setSelectedAlertType}
             />
-
           </div>
 
           <div className="filter-item">
@@ -878,7 +868,6 @@ export default function Recommendations() {
               options={screenerList}
               onChange={setSelectedScreener}
             />
-
           </div>
 
           <div className="filter-item">
@@ -889,7 +878,6 @@ export default function Recommendations() {
               options={priceCloseList}
               onChange={setPriceCloseFilter}
             />
-
           </div>
         </div>
 
@@ -897,19 +885,20 @@ export default function Recommendations() {
         <div className="legend-row">
           <div className="legend-box">
             <h4>Acronyms</h4>
-            <p><strong>RES</strong> = Resistance | <strong>SUP</strong> = Support</p>
-            <p><strong>T</strong> = Target | <strong>ST</strong> = Stoploss</p>
+            <p>
+              <strong>RES</strong> = Resistance | <strong>SUP</strong> = Support
+            </p>
+            <p>
+              <strong>T</strong> = Target | <strong>ST</strong> = Stoploss
+            </p>
             <p>● = Signal Price</p>
           </div>
         </div>
-
       </div>
       {/* ================= END ADVANCED FILTER CONTAINER ================= */}
 
-
       {/* ---------------- SIGNALS SECTION ---------------- */}
       <div className="signals-section">
-
         {/* ✅ MOBILE TABS (like Orders tabs) */}
         <div className="md:hidden w-full flex justify-center mb-4">
           <div className="flex w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-1 backdrop-blur-xl">
@@ -919,7 +908,7 @@ export default function Recommendations() {
                 "flex-1 py-3 rounded-xl text-sm font-semibold transition-all",
                 signalTab === "active"
                   ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-lg"
-                  : "text-white/80"
+                  : "text-white/80",
               ].join(" ")}
             >
               Active Signals
@@ -931,7 +920,7 @@ export default function Recommendations() {
                 "flex-1 py-3 rounded-xl text-sm font-semibold transition-all",
                 signalTab === "closed"
                   ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-lg"
-                  : "text-white/80"
+                  : "text-white/80",
               ].join(" ")}
             >
               Closed Signals
@@ -943,11 +932,43 @@ export default function Recommendations() {
         <div className="md:hidden">
           {signalTab === "active" ? (
             <div className="signals-column">
-              {/* ===== ACTIVE SIGNALS (same code you already have) ===== */}
-              <h3 className="section-title active-title">
+              {/* ===== ACTIVE SIGNALS ===== */}
+              <h3
+                className="section-title active-title"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                }}
+              >
                 <span className="signal-title-wrap">
                   <span className="signal-dot signal-dot-active"></span>
                   Active Signals
+                </span>
+
+                {/* ✅ NEW: Date sort (right side of title) */}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      opacity: isDark ? 0.85 : 0.8,
+                    }}
+                  >
+                    Date:
+                  </span>
+                  <select
+                    value={dateSortOrder}
+                    onChange={(e) => setDateSortOrder(e.target.value)}
+                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
+                    style={{ border: "none", outline: "none" }}
+                    title="Sort by date"
+                  >
+                    <option value="desc">Descending</option>
+<option value="asc">Ascending</option>
+
+                  </select>
                 </span>
               </h3>
 
@@ -967,15 +988,17 @@ export default function Recommendations() {
                 <p>Loading data...</p>
               ) : (
                 <div className="active-signals-container">
-                  <div style={{
-                    width: "100%",
-                    textAlign: "left",
-                    marginBottom: "4px",
-                    paddingLeft: "8px",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: isDark ? "rgba(255,255,255,0.85)" : "#333"
-                  }}>
+                  <div
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      marginBottom: "4px",
+                      paddingLeft: "8px",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: isDark ? "rgba(255,255,255,0.85)" : "#333",
+                    }}
+                  >
                     % = Confidence | ▼ = Current Price
                   </div>
 
@@ -1003,7 +1026,6 @@ export default function Recommendations() {
                           rawTime={sig.timeVal}
                           fromReco={true}
                           returnTo={`${location.pathname}?${searchParams.toString()}`}
-
                           closeTime={sig.closeTime}
                         />
                       ))
@@ -1016,24 +1038,58 @@ export default function Recommendations() {
             </div>
           ) : (
             <div className="signals-column">
-              {/* ===== CLOSED SIGNALS (same code you already have) ===== */}
-              <h3 className="section-title closed-title">
+              {/* ===== CLOSED SIGNALS ===== */}
+              <h3
+                className="section-title closed-title"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                }}
+              >
                 <span className="signal-title-wrap">
                   <span className="signal-dot signal-dot-closed"></span>
                   Closed Signals
                 </span>
+
+                {/* ✅ NEW: Date sort (right side of title) */}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      opacity: isDark ? 0.85 : 0.8,
+                    }}
+                  >
+                    Date:
+                  </span>
+                  <select
+                    value={dateSortOrder}
+                    onChange={(e) => setDateSortOrder(e.target.value)}
+                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
+                    style={{ border: "none", outline: "none" }}
+                    title="Sort by date"
+                  >
+                    <option value="desc">Descending</option>
+<option value="asc">Ascending</option>
+
+                  </select>
+                </span>
               </h3>
 
               <div className="closed-signals-container">
-                <div style={{
-                  width: "100%",
-                  textAlign: "left",
-                  marginBottom: "4px",
-                  paddingLeft: "8px",
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: isDark ? "rgba(255,255,255,0.85)" : "#333"
-                }}>
+                <div
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    marginBottom: "4px",
+                    paddingLeft: "8px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    color: isDark ? "rgba(255,255,255,0.85)" : "#333",
+                  }}
+                >
                   % = Gain | ▼ = Close Price
                 </div>
 
@@ -1090,18 +1146,47 @@ export default function Recommendations() {
           )}
         </div>
 
-        {/* ✅ DESKTOP VIEW: keep your existing 2-column layout */}
         {/* ✅ DESKTOP VIEW: ORIGINAL 2-COLUMN LAYOUT (DO NOT CHANGE UI) */}
-        {/* ✅ DESKTOP VIEW: 2-COLUMN LAYOUT (WORKING) */}
         <div className="hidden md:block w-full">
           <div className="signals-columns">
-
             {/* ================= ACTIVE COLUMN ================= */}
             <div className="signals-column">
-              <h3 className="section-title active-title">
+              <h3
+                className="section-title active-title"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                }}
+              >
                 <span className="signal-title-wrap">
                   <span className="signal-dot signal-dot-active"></span>
                   Active Signals
+                </span>
+
+                {/* ✅ NEW: Date sort (right side of title) */}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      opacity: isDark ? 0.85 : 0.8,
+                    }}
+                  >
+                    Date:
+                  </span>
+                  <select
+                    value={dateSortOrder}
+                    onChange={(e) => setDateSortOrder(e.target.value)}
+                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
+                    style={{ border: "none", outline: "none" }}
+                    title="Sort by date"
+                  >
+                    <option value="desc">Descending</option>
+<option value="asc">Ascending</option>
+
+                  </select>
                 </span>
               </h3>
 
@@ -1171,10 +1256,42 @@ export default function Recommendations() {
 
             {/* ================= CLOSED COLUMN ================= */}
             <div className="signals-column">
-              <h3 className="section-title closed-title">
+              <h3
+                className="section-title closed-title"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                }}
+              >
                 <span className="signal-title-wrap">
                   <span className="signal-dot signal-dot-closed"></span>
                   Closed Signals
+                </span>
+
+                {/* ✅ NEW: Date sort (right side of title) */}
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      opacity: isDark ? 0.85 : 0.8,
+                    }}
+                  >
+                    Date:
+                  </span>
+                  <select
+                    value={dateSortOrder}
+                    onChange={(e) => setDateSortOrder(e.target.value)}
+                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
+                    style={{ border: "none", outline: "none" }}
+                    title="Sort by date"
+                  >
+                    <option value="desc">Descending</option>
+<option value="asc">Ascending</option>
+
+                  </select>
                 </span>
               </h3>
 
@@ -1243,12 +1360,8 @@ export default function Recommendations() {
                 </div>
               </div>
             </div>
-
           </div>
         </div>
-
-
-
       </div>
 
       {/* end signals-section */}
@@ -1263,7 +1376,6 @@ export default function Recommendations() {
     <div
       className={`min-h-screen ${isDark ? "theme-dark" : "theme-light"} ${bgClass} ${textClass} relative transition-colors duration-300`}
     >
-
       {/* ===== BACKGROUND BLOBS (same as History) ===== */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
@@ -1273,18 +1385,14 @@ export default function Recommendations() {
 
       <AppHeader />
 
-
       {/* ===== MAIN CONTENT (STEP 5) ===== */}
       <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
-
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
             <h2 className={`text-4xl font-bold ${textClass} mb-2`}>
               Recommendations
             </h2>
-            <p className={textSecondaryClass}>
-              Trading signals & analytics
-            </p>
+            <p className={textSecondaryClass}>Trading signals & analytics</p>
 
             {lastPriceUpdatedAt ? (
               <p className={`mt-1 text-xs ${textSecondaryClass}`}>
@@ -1306,22 +1414,23 @@ export default function Recommendations() {
               "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold",
               "transition-all duration-200 border shadow-sm",
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60",
-              priceRefreshing ? "opacity-70 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]",
+              priceRefreshing
+                ? "opacity-70 cursor-not-allowed"
+                : "hover:scale-[1.02] active:scale-[0.98]",
               isDark
                 ? "bg-white/10 border-white/10 text-white hover:bg-white/15"
                 : "bg-white/80 border-slate-200/60 text-slate-900 hover:bg-white",
             ].join(" ")}
             title="Refresh live price"
           >
-            <RefreshCw className={`w-4 h-4 ${priceRefreshing ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`w-4 h-4 ${priceRefreshing ? "animate-spin" : ""}`}
+            />
             Refresh
           </button>
         </div>
 
-
         {/* MAIN CATEGORY BUTTONS (UNCHANGED LOGIC) */}
-        {/* MAIN CATEGORY BUTTONS (UI updated like header row) */}
-        {/* MAIN CATEGORY BUTTONS (match header row pill UI) */}
         <div className="w-full flex justify-center mb-6">
           <div className="flex items-center gap-3">
             {["Intraday", "BTST", "Short-term"].map((type) => {
@@ -1343,7 +1452,9 @@ export default function Recommendations() {
                     "shadow-sm",
                     isActiveTab
                       ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white border-white/10 shadow-xl"
-                      : `${glassClass} ${textClass} ${cardHoverClass} ${isDark ? "border-white/10" : "border-slate-200/60"}`,
+                      : `${glassClass} ${textClass} ${cardHoverClass} ${
+                          isDark ? "border-white/10" : "border-slate-200/60"
+                        }`,
                   ].join(" ")}
                 >
                   {type}
@@ -1352,12 +1463,10 @@ export default function Recommendations() {
             })}
           </div>
         </div>
+
         {/* SIGNALS LAYOUT (UNCHANGED) */}
-        <div className="recommendation-content">
-          {renderSignalLayout()}
-        </div>
+        <div className="recommendation-content">{renderSignalLayout()}</div>
       </div>
     </div>
   );
-
 }
