@@ -11,6 +11,8 @@ import { useTheme } from "../context/ThemeContext";
 import { ArrowLeft, Sun, Moon } from "lucide-react";
 import HeaderActions from "../components/HeaderActions";
 import AppHeader from "../components/AppHeader";
+import { BarChart2 } from "lucide-react";
+
 
 const API = (import.meta.env.VITE_BACKEND_BASE_URL || "https://paper-trading-backend.onrender.com")
   .trim()
@@ -1101,8 +1103,9 @@ export default function Orders({ username }) {
                         </div>
 
 
-                        {/* ✅ NSE + Segment (3rd line) */}
+                        {/* ✅ NSE + Segment + Chart */}
                         <div className="mt-1 flex items-center gap-2">
+
                           {/* NSE */}
                           <span
                             className={`inline-block px-3 py-[2px] rounded-full text-[11px] font-semibold ${isDark
@@ -1115,7 +1118,7 @@ export default function Orders({ username }) {
 
                           {/* INTRADAY / DELIVERY */}
                           <span
-                            className={`inline-block px-3 py-[2px] rounded-full text-[11px] font-semibold tracking-wide ${(o.segment || "").toLowerCase() === "intraday"
+                            className={`inline-flex items-center gap-1 px-3 py-[2px] rounded-full text-[11px] font-semibold tracking-wide ${(o.segment || "").toLowerCase() === "intraday"
                               ? isDark
                                 ? "bg-indigo-500/20 text-indigo-200 border border-indigo-400/20"
                                 : "bg-indigo-50 text-indigo-700 border border-indigo-200"
@@ -1126,6 +1129,23 @@ export default function Orders({ username }) {
                           >
                             {(o.segment || "delivery").toUpperCase()}
                           </span>
+
+                          {/* 📊 CHART BUTTON */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();       // prevent opening modal
+                              navigate(`/chart/${script}`);
+                            }}
+                            title="View Chart"
+                            className={`p-1.5 rounded-full transition
+  hover:scale-105 active:scale-95
+  ${isDark
+                                ? "bg-white/10 hover:bg-white/20 text-white"
+                                : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                              }`}
+                          >
+                            <BarChart2 size={14} />
+                          </button>
 
                         </div>
 
