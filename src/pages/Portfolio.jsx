@@ -868,22 +868,6 @@ export default function Portfolio({ username }) {
                               <span className="inline-flex items-center gap-2 font-semibold">
                                 {Math.abs(qty)} Qty
 
-                                {/* 📊 Chart button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // 🚫 don't open modal
-                                    navigate(`/chart/${symbol}`);
-                                  }}
-                                  title="View Chart"
-                                  className={`p-1 rounded-full transition
-      hover:scale-105 active:scale-95
-      ${isDark
-                                      ? "bg-white/10 hover:bg-white/20 text-white"
-                                      : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                                    }`}
-                                >
-                                  <BarChart2 size={14} />
-                                </button>
                               </span>
 
                             </div>
@@ -1022,11 +1006,33 @@ export default function Portfolio({ username }) {
                   </button>
                 </div>
 
-                <div className="mt-3 text-center">
+                <div className="mt-3 flex items-center justify-center gap-2">
                   <div className={`text-3xl font-extrabold ${textClass}`}>
                     {money(selected.live)}
                   </div>
+
+                  {/* 📊 Chart icon beside Live */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const sym = (selected.symbol || "").toUpperCase();
+                      if (!sym) return;
+                      navigate(`/chart/${sym}`);
+                      handleCloseModal(); // optional: close modal after navigating
+                    }}
+                    title="View Chart"
+                    aria-label="View Chart"
+                    className={`p-2 rounded-full transition
+      hover:scale-105 active:scale-95
+      ${isDark
+                        ? "bg-white/10 hover:bg-white/20 text-white"
+                        : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                      }`}
+                  >
+                    <BarChart2 size={18} />
+                  </button>
                 </div>
+
               </div>
 
               {/* Info Card (inner glass) */}
