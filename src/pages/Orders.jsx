@@ -813,8 +813,8 @@ export default function Orders({ username }) {
         {/* Page header + Tabs + Refresh button */}
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h2 className={`text-4xl font-bold ${textClass} mb-1`}>Orders</h2>
-            <p className={textSecondaryClass}>Your active trades and positions</p>
+            {/*<h2 className={`text-4xl font-bold ${textClass} mb-1`}>Orders</h2>
+            <p className={textSecondaryClass}>Your active trades and positions</p>*/}
 
             <div className={`flex p-1.5 rounded-2xl ${glassClass} w-fit mt-4 shadow-lg`}>
               {["open", "positions"].map((t) => (
@@ -1130,30 +1130,15 @@ export default function Orders({ username }) {
                             {(o.segment || "delivery").toUpperCase()}
                           </span>
 
-                          {/* 📊 CHART BUTTON */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();       // prevent opening modal
-                              navigate(`/chart/${script}`);
-                            }}
-                            title="View Chart"
-                            className={`p-1.5 rounded-full transition
-  hover:scale-105 active:scale-95
-  ${isDark
-                                ? "bg-white/10 hover:bg-white/20 text-white"
-                                : "bg-slate-200 hover:bg-slate-300 text-slate-700"
-                              }`}
-                          >
-                            <BarChart2 size={14} />
-                          </button>
-
                         </div>
+
 
                       </div>
 
                     </div>
                     {isOrdersTab && (
                       <div className="text-right flex-shrink-0 mt-1 min-w-[140px]">
+
 
                         {/* ✅ Buy/Sell Date ABOVE "Yet to trigger" */}
                         <div className="flex flex-col items-end sm:flex-row sm:items-center sm:justify-end sm:gap-1">
@@ -1202,7 +1187,6 @@ export default function Orders({ username }) {
                     {/* ✅ RIGHT: P&L exactly like Image-2 */}
                     {!isOrdersTab && (
                       <div className="text-right flex-shrink-0 mt-1 min-w-[140px]">
-
 
                         {/* ✅ Buy/Sell Date ABOVE P&L */}
                         <div className={`text-xs font-semibold ${isDark ? "text-slate-200/80" : "text-slate-500"}`}>
@@ -1420,11 +1404,33 @@ export default function Orders({ username }) {
                         </button>
                       </div>
 
-                      <div className="mt-3 text-center">
+                      <div className="mt-3 flex items-center justify-center gap-2">
                         <div className={`text-3xl font-extrabold ${textClass}`}>
                           {money(live)}
                         </div>
+
+                        {/* 📊 Chart icon beside Live */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const sym = getSymbol(selectedOrder);
+                            if (!sym) return;
+                            navigate(`/chart/${sym}`);
+                            setShowActions(false); // optional: close modal after navigating
+                          }}
+                          title="View Chart"
+                          aria-label="View Chart"
+                          className={`p-2 rounded-full transition
+      hover:scale-105 active:scale-95
+      ${isDark
+                              ? "bg-white/10 hover:bg-white/20 text-white"
+                              : "bg-slate-200 hover:bg-slate-300 text-slate-700"
+                            }`}
+                        >
+                          <BarChart2 size={18} />
+                        </button>
                       </div>
+
                     </div>
 
                     {/* Info Card (inner glass) */}
