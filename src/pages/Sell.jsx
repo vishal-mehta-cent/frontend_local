@@ -141,6 +141,7 @@ export default function Sell() {
     localStorage.getItem("username") || localStorage.getItem("user_id");
 
   const userEditedPrice = useRef(false);
+  const didInitFnoQty = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
 
   const { isDark } = useTheme();
@@ -186,6 +187,27 @@ export default function Sell() {
         setLotSize(1);
       });
   }, [symbol]);
+
+  // ✅ F&O: backend stores quantity, UI input expects lots
+  // If prefill.qty looks like an actual quantity (multiple of lotSize), convert to lots once.
+  useEffect(() => {
+    if (!isFNO) return;
+    if (didInitFnoQty.current) return;
+    if (!lotSize || lotSize <= 1) return;
+
+    const q = Number(prefill?.qty);
+    if (!Number.isFinite(q) || q <= 0) {
+      didInitFnoQty.current = true;
+      return;
+    }
+
+    // Treat as quantity only when it is a clean multiple of lot size
+    if (q >= lotSize && q % lotSize === 0) {
+      setQty(String(q / lotSize));
+    }
+
+    didInitFnoQty.current = true;
+  }, [isFNO, lotSize]);
 
   useEffect(() => {
     if (!isFNO || !livePrice || !lotSize) return;
@@ -311,6 +333,8 @@ export default function Sell() {
       if (!marketOpen && orderMode === "LIMIT") {
         throw new Error("❌ Limit orders are not allowed after market close.");
       }
+
+      const qtyNum = isFNO ? Number(lotQty) : Number(qty);
       // ✅ MOST IMPORTANT: EXIT must use backend exit endpoint
       if (isExit) {
         if (!username) {
@@ -374,7 +398,7 @@ export default function Sell() {
           username,
           script: symbol,
           order_type: "SELL", // ✅ FIX (was BUY)
-          qty: Number(qty),
+          qty: qtyNum,
 
           // keep existing limit trigger if present (don’t overwrite with blank)
           price: Number(prefill.price || prefill.trigger_price || price || 0),
@@ -446,8 +470,6 @@ export default function Sell() {
       }
 
       if (!symbol) throw new Error("❌ Invalid symbol.");
-
-      const qtyNum = isFNO ? Number(lotQty) : Number(qty);
       if (!Number.isFinite(qtyNum) || qtyNum <= 0) {
         throw new Error("❌ Please enter a valid quantity (> 0).");
       }
