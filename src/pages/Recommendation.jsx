@@ -881,12 +881,18 @@ export default function Recommendations() {
           <div className="filter-item">
             <label>Date:</label>
             <DatePicker
-              selected={selectedDate ? new Date(selectedDate) : null}
+              selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : null}
+
               onChange={(d) => {
-                if (!d) return setSelectedDate("");
-                const ymd = d.toISOString().slice(0, 10); // YYYY-MM-DD
-                setSelectedDate(ymd);
-              }}
+  if (!d) return setSelectedDate("");
+
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  setSelectedDate(`${y}-${m}-${day}`); // ✅ local YYYY-MM-DD (no UTC shift)
+}}
+
               dateFormat="MM/dd/yyyy"
               placeholderText="mm/dd/yyyy"
               className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
