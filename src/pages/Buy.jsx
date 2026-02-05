@@ -132,6 +132,7 @@ export default function Buy() {
   const username = localStorage.getItem("username");
 
   const userEditedPrice = useRef(false);
+  const didInitFnoQty = useRef(false);
   const [marketOpen, setMarketOpen] = useState(true);
   const displaySymbol = (symbol || "").replace(/-/g, "-"); // non-breaking hyphen
 
@@ -166,6 +167,27 @@ export default function Buy() {
         setLotSize(1);
       });
   }, [symbol]);
+
+  // ✅ F&O: backend stores quantity, UI input expects lots
+  // If prefill.qty looks like an actual quantity (multiple of lotSize), convert to lots once.
+  useEffect(() => {
+    if (!isFNO) return;
+    if (didInitFnoQty.current) return;
+    if (!lotSize || lotSize <= 1) return;
+
+    const q = Number(prefill?.qty);
+    if (!Number.isFinite(q) || q <= 0) {
+      didInitFnoQty.current = true;
+      return;
+    }
+
+    // Treat as quantity only when it is a clean multiple of lot size
+    if (q >= lotSize && q % lotSize === 0) {
+      setQty(String(q / lotSize));
+    }
+
+    didInitFnoQty.current = true;
+  }, [isFNO, lotSize]);
 
   useEffect(() => {
     if (!isFNO || !livePrice || !lotSize) return;
@@ -264,13 +286,15 @@ export default function Buy() {
         throw new Error("❌ Limit orders are not allowed after market close.");
       }
 
+      const qtyNum = isFNO ? Number(lotQty) : Number(qty);
+
       if (isModify && prefill.modifyId && orderMode === "MARKET") {
         // 1) First update the OPEN order row with the new segment (and other fields)
         const updatePayload = {
           username,
           script: symbol,
           order_type: "BUY",
-          qty: Number(qty),
+          qty: qtyNum,
           // keep existing limit price as stored trigger (important) – don't overwrite it with blank
           price: Number(prefill.price || prefill.trigger_price || price || 0),
           exchange,
@@ -331,8 +355,6 @@ export default function Buy() {
 
 
       if (!symbol) throw new Error("❌ Invalid symbol.");
-
-      const qtyNum = isFNO ? Number(lotQty) : Number(qty);
       // ✅ EXIT (Buy-to-cover for SHORT positions)
       if (isExit) {
         const exitPayload = {
