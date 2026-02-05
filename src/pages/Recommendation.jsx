@@ -134,7 +134,6 @@ export default function Recommendations() {
   const [accessChecked, setAccessChecked] = useState(() => initialAccess.checked);
   const hasAccessRef = useRef(initialAccess.hasAccess);
 
-
   // ✅ used for live price polling on active signals
   const activeSymbolsRef = useRef([]);
 
@@ -689,21 +688,23 @@ export default function Recommendations() {
   // -------------------------------------------------------
   // ACTIVE & CLOSED SIGNALS
   // -------------------------------------------------------
- const activeSignals = useMemo(() => {
-  const dir = dateSortOrder === "asc" ? 1 : -1;
+  const activeSignals = useMemo(() => {
+    const dir = dateSortOrder === "asc" ? 1 : -1;
 
-  return filteredRows
-    .filter((r) => !r.outcome)
-    .sort((a, b) => {
-      // Sort ONLY by date (YYYY-MM-DD)
-      const d = String(a.dateVal || "").localeCompare(String(b.dateVal || ""));
-      if (d !== 0) return d * dir;
+    return filteredRows
+      .filter((r) => !r.outcome)
+      .sort((a, b) => {
+        // Sort ONLY by date (YYYY-MM-DD)
+        const d = String(a.dateVal || "").localeCompare(String(b.dateVal || ""));
+        if (d !== 0) return d * dir;
 
-      // optional tie-breaker (keeps same-day order stable without Date parsing)
-      return String(a.rawDateTime || "").localeCompare(String(b.rawDateTime || "")) * dir;
-    })
-    .slice(0, 30);
-}, [filteredRows, dateSortOrder]);
+        // optional tie-breaker (keeps same-day order stable without Date parsing)
+        return (
+          String(a.rawDateTime || "").localeCompare(String(b.rawDateTime || "")) * dir
+        );
+      })
+      .slice(0, 30);
+  }, [filteredRows, dateSortOrder]);
 
   // ✅ keep a stable list of active symbols for polling
   useEffect(() => {
@@ -775,7 +776,6 @@ export default function Recommendations() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API, locked]);
-
 
   console.table(
     activeSignals.map((s) => ({
@@ -869,6 +869,75 @@ export default function Recommendations() {
     );
   }
 
+  // ✅ STICKY refresh button component (used under Active Signals title)
+  const StickyRefreshBar = () => (
+    <div
+      style={{
+        position: "sticky",
+        top: "86px", // ✅ adjust if your AppHeader height is different
+        zIndex: 50,
+        paddingTop: "8px",
+        paddingBottom: "8px",
+        marginBottom: "8px",
+        background: isDark ? "rgba(2,6,23,0.35)" : "rgba(255,255,255,0.35)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        borderRadius: "14px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          gap: "10px",
+          padding: "6px 8px",
+        }}
+      >
+        {lastPriceUpdatedAt ? (
+          <span
+            style={{
+              fontSize: "12px",
+              fontWeight: 600,
+              opacity: isDark ? 0.85 : 0.8,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Updated:{" "}
+            {new Date(lastPriceUpdatedAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+          </span>
+        ) : null}
+
+        <button
+          onClick={onRefreshPrices}
+          disabled={priceRefreshing || locked || initialLoading}
+          className={[
+            "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold",
+            "transition-all duration-200 border shadow-sm",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60",
+            priceRefreshing
+              ? "opacity-70 cursor-not-allowed"
+              : "hover:scale-[1.02] active:scale-[0.98]",
+            isDark
+              ? "bg-white/10 border-white/10 text-white hover:bg-white/15"
+              : "bg-white/80 border-slate-200/60 text-slate-900 hover:bg-white",
+          ].join(" ")}
+          title="Refresh live price"
+          type="button"
+        >
+          <RefreshCw
+            className={`w-4 h-4 ${priceRefreshing ? "animate-spin" : ""}`}
+          />
+          Refresh
+        </button>
+      </div>
+    </div>
+  );
+
   // -------------------------------------------------------
   // SIGNALS LAYOUT
   // -------------------------------------------------------
@@ -882,17 +951,15 @@ export default function Recommendations() {
             <label>Date:</label>
             <DatePicker
               selected={selectedDate ? new Date(`${selectedDate}T00:00:00`) : null}
-
               onChange={(d) => {
-  if (!d) return setSelectedDate("");
+                if (!d) return setSelectedDate("");
 
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, "0");
+                const day = String(d.getDate()).padStart(2, "0");
 
-  setSelectedDate(`${y}-${m}-${day}`); // ✅ local YYYY-MM-DD (no UTC shift)
-}}
-
+                setSelectedDate(`${y}-${m}-${day}`); // ✅ local YYYY-MM-DD (no UTC shift)
+              }}
               dateFormat="MM/dd/yyyy"
               placeholderText="mm/dd/yyyy"
               className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
@@ -980,28 +1047,44 @@ export default function Recommendations() {
 
       {/* ---------------- SIGNALS SECTION ---------------- */}
       <div className="signals-section">
-        {/* ✅ MOBILE TABS (like Orders tabs) */}
+        {/* ✅ MOBILE TABS (pill style like Open Trades / Positions) */}
         <div className="md:hidden w-full flex justify-center mb-4">
-          <div className="flex w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-1 backdrop-blur-xl">
+          <div
+            className={[
+              "flex w-full max-w-md rounded-2xl p-1 shadow-lg",
+              "backdrop-blur-xl border",
+              isDark
+                ? "bg-white/10 border-white/15"
+                : "bg-white/70 border-slate-200/70",
+            ].join(" ")}
+          >
             <button
+              type="button"
               onClick={() => setSignalTab("active")}
               className={[
                 "flex-1 py-3 rounded-xl text-sm font-semibold transition-all",
+                "text-center",
                 signalTab === "active"
-                  ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-lg"
-                  : "text-white/80",
+                  ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-md"
+                  : isDark
+                  ? "text-white/85 hover:bg-white/10"
+                  : "text-slate-700 hover:bg-white/70",
               ].join(" ")}
             >
               Active Signals
             </button>
 
             <button
+              type="button"
               onClick={() => setSignalTab("closed")}
               className={[
                 "flex-1 py-3 rounded-xl text-sm font-semibold transition-all",
+                "text-center",
                 signalTab === "closed"
-                  ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-lg"
-                  : "text-white/80",
+                  ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-md"
+                  : isDark
+                  ? "text-white/85 hover:bg-white/10"
+                  : "text-slate-700 hover:bg-white/70",
               ].join(" ")}
             >
               Closed Signals
@@ -1036,23 +1119,23 @@ export default function Recommendations() {
                       fontWeight: 600,
                       opacity: isDark ? 0.85 : 0.8,
                     }}
+                  ></span>
+                  <button
+                    type="button"
+                    onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+                    className="nc-sort-btn"
+                    title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
                   >
-                    
-                  </span>
-                <button
-  type="button"
-  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
-  className="nc-sort-btn"
-  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
->
-  <span className="nc-sort-label">Date:</span>
-  <span className="nc-sort-icon">
-    {dateSortOrder === "asc" ? "↑" : "↓"}
-  </span>
-</button>
-
+                    <span className="nc-sort-label">Date:</span>
+                    <span className="nc-sort-icon">
+                      {dateSortOrder === "asc" ? "↑" : "↓"}
+                    </span>
+                  </button>
                 </span>
               </h3>
+
+              {/* ✅ MOVED HERE: Refresh button (sticky, never disappears) */}
+              <StickyRefreshBar />
 
               <div className="signal-count-box">
                 <div className="signal-count-item buy">
@@ -1143,21 +1226,18 @@ export default function Recommendations() {
                       fontWeight: 600,
                       opacity: isDark ? 0.85 : 0.8,
                     }}
+                  ></span>
+                  <button
+                    type="button"
+                    onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+                    className="nc-sort-btn"
+                    title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
                   >
-                    
-                  </span>
-               <button
-  type="button"
-  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
-  className="nc-sort-btn"
-  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
->
-  <span className="nc-sort-label">Date:</span>
-  <span className="nc-sort-icon">
-    {dateSortOrder === "asc" ? "↑" : "↓"}
-  </span>
-</button>
-
+                    <span className="nc-sort-label">Date:</span>
+                    <span className="nc-sort-icon">
+                      {dateSortOrder === "asc" ? "↑" : "↓"}
+                    </span>
+                  </button>
                 </span>
               </h3>
 
@@ -1256,23 +1336,23 @@ export default function Recommendations() {
                       fontWeight: 600,
                       opacity: isDark ? 0.85 : 0.8,
                     }}
+                  ></span>
+                  <button
+                    type="button"
+                    onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+                    className="nc-sort-btn"
+                    title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
                   >
-                    
-                  </span>
-                 <button
-  type="button"
-  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
-  className="nc-sort-btn"
-  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
->
-  <span className="nc-sort-label">Date:</span>
-  <span className="nc-sort-icon">
-    {dateSortOrder === "asc" ? "↑" : "↓"}
-  </span>
-</button>
-
+                    <span className="nc-sort-label">Date:</span>
+                    <span className="nc-sort-icon">
+                      {dateSortOrder === "asc" ? "↑" : "↓"}
+                    </span>
+                  </button>
                 </span>
               </h3>
+
+              {/* ✅ MOVED HERE: Refresh button (sticky, never disappears) */}
+              <StickyRefreshBar />
 
               <div className="signal-count-box">
                 <div className="signal-count-item buy">
@@ -1362,21 +1442,18 @@ export default function Recommendations() {
                       fontWeight: 600,
                       opacity: isDark ? 0.85 : 0.8,
                     }}
+                  ></span>
+                  <button
+                    type="button"
+                    onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+                    className="nc-sort-btn"
+                    title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
                   >
-                    
-                  </span>
-                 <button
-  type="button"
-  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
-  className="nc-sort-btn"
-  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
->
-  <span className="nc-sort-label">Date:</span>
-  <span className="nc-sort-icon">
-    {dateSortOrder === "asc" ? "↑" : "↓"}
-  </span>
-</button>
-
+                    <span className="nc-sort-label">Date:</span>
+                    <span className="nc-sort-icon">
+                      {dateSortOrder === "asc" ? "↑" : "↓"}
+                    </span>
+                  </button>
                 </span>
               </h3>
 
@@ -1459,7 +1536,9 @@ export default function Recommendations() {
   // -------------------------------------------------------
   return (
     <div
-      className={`min-h-screen ${isDark ? "theme-dark" : "theme-light"} ${bgClass} ${textClass} relative transition-colors duration-300`}
+      className={`min-h-screen ${
+        isDark ? "theme-dark" : "theme-light"
+      } ${bgClass} ${textClass} relative transition-colors duration-300`}
     >
       {/* ===== BACKGROUND BLOBS (same as History) ===== */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1491,28 +1570,7 @@ export default function Recommendations() {
             ) : null}
           </div>
 
-          {/* ✅ Refresh button */}
-          <button
-            onClick={onRefreshPrices}
-            disabled={priceRefreshing || locked || initialLoading}
-            className={[
-              "inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold",
-              "transition-all duration-200 border shadow-sm",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60",
-              priceRefreshing
-                ? "opacity-70 cursor-not-allowed"
-                : "hover:scale-[1.02] active:scale-[0.98]",
-              isDark
-                ? "bg-white/10 border-white/10 text-white hover:bg-white/15"
-                : "bg-white/80 border-slate-200/60 text-slate-900 hover:bg-white",
-            ].join(" ")}
-            title="Refresh live price"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${priceRefreshing ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </button>
+          {/* ✅ Refresh button removed from here (moved below Active Signals) */}
         </div>
 
         {/* MAIN CATEGORY BUTTONS (UNCHANGED LOGIC) */}
