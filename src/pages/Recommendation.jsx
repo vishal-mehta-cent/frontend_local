@@ -1031,19 +1031,20 @@ export default function Recommendations() {
                       opacity: isDark ? 0.85 : 0.8,
                     }}
                   >
-                    Date:
+                    
                   </span>
-                  <select
-                    value={dateSortOrder}
-                    onChange={(e) => setDateSortOrder(e.target.value)}
-                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
-                    style={{ border: "none", outline: "none" }}
-                    title="Sort by date"
-                  >
-                    <option value="desc">Descending</option>
-<option value="asc">Ascending</option>
+                <button
+  type="button"
+  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+  className="nc-sort-btn"
+  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
+>
+  <span className="nc-sort-label">Date:</span>
+  <span className="nc-sort-icon">
+    {dateSortOrder === "asc" ? "↑" : "↓"}
+  </span>
+</button>
 
-                  </select>
                 </span>
               </h3>
 
@@ -1137,19 +1138,20 @@ export default function Recommendations() {
                       opacity: isDark ? 0.85 : 0.8,
                     }}
                   >
-                    Date:
+                    
                   </span>
-                  <select
-                    value={dateSortOrder}
-                    onChange={(e) => setDateSortOrder(e.target.value)}
-                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
-                    style={{ border: "none", outline: "none" }}
-                    title="Sort by date"
-                  >
-                    <option value="desc">Descending</option>
-<option value="asc">Ascending</option>
+               <button
+  type="button"
+  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+  className="nc-sort-btn"
+  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
+>
+  <span className="nc-sort-label">Date:</span>
+  <span className="nc-sort-icon">
+    {dateSortOrder === "asc" ? "↑" : "↓"}
+  </span>
+</button>
 
-                  </select>
                 </span>
               </h3>
 
@@ -1249,19 +1251,20 @@ export default function Recommendations() {
                       opacity: isDark ? 0.85 : 0.8,
                     }}
                   >
-                    Date:
+                    
                   </span>
-                  <select
-                    value={dateSortOrder}
-                    onChange={(e) => setDateSortOrder(e.target.value)}
-                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
-                    style={{ border: "none", outline: "none" }}
-                    title="Sort by date"
-                  >
-                    <option value="desc">Descending</option>
-<option value="asc">Ascending</option>
+                 <button
+  type="button"
+  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+  className="nc-sort-btn"
+  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
+>
+  <span className="nc-sort-label">Date:</span>
+  <span className="nc-sort-icon">
+    {dateSortOrder === "asc" ? "↑" : "↓"}
+  </span>
+</button>
 
-                  </select>
                 </span>
               </h3>
 
@@ -1354,19 +1357,20 @@ export default function Recommendations() {
                       opacity: isDark ? 0.85 : 0.8,
                     }}
                   >
-                    Date:
+                    
                   </span>
-                  <select
-                    value={dateSortOrder}
-                    onChange={(e) => setDateSortOrder(e.target.value)}
-                    className={`px-2 py-1 rounded-lg ${glassClass} ${textClass} text-xs shadow-sm`}
-                    style={{ border: "none", outline: "none" }}
-                    title="Sort by date"
-                  >
-                    <option value="desc">Descending</option>
-<option value="asc">Ascending</option>
+                 <button
+  type="button"
+  onClick={() => setDateSortOrder((p) => (p === "asc" ? "desc" : "asc"))}
+  className="nc-sort-btn"
+  title={dateSortOrder === "asc" ? "Oldest first" : "Newest first"}
+>
+  <span className="nc-sort-label">Date:</span>
+  <span className="nc-sort-icon">
+    {dateSortOrder === "asc" ? "↑" : "↓"}
+  </span>
+</button>
 
-                  </select>
                 </span>
               </h3>
 
