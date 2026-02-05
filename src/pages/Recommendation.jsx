@@ -134,6 +134,10 @@ export default function Recommendations() {
   const [accessChecked, setAccessChecked] = useState(() => initialAccess.checked);
   const hasAccessRef = useRef(initialAccess.hasAccess);
 
+
+  // ✅ used for live price polling on active signals
+  const activeSymbolsRef = useRef([]);
+
   const [segment, setSegment] = useState("Equity");
   const [selectedScreener, setSelectedScreener] = useState("All");
   const [screenerList, setScreenerList] = useState([]);
@@ -700,6 +704,77 @@ export default function Recommendations() {
     })
     .slice(0, 30);
 }, [filteredRows, dateSortOrder]);
+
+  // ✅ keep a stable list of active symbols for polling
+  useEffect(() => {
+    activeSymbolsRef.current = Array.from(
+      new Set(
+        (activeSignals || [])
+          .map((s) => (s?.script || "").toUpperCase())
+          .filter(Boolean)
+      )
+    );
+  }, [activeSignals]);
+
+  // ✅ Live price polling (same behaviour as Watchlist)
+  // Updates ONLY ACTIVE cards; closed cards stay frozen at close price
+  useEffect(() => {
+    if (locked) return;
+
+    let mounted = true;
+
+    async function pollOnce() {
+      const syms = activeSymbolsRef.current || [];
+      if (!syms.length) return;
+
+      try {
+        const res = await fetch(
+          `${API}/quotes?symbols=${encodeURIComponent(syms.join(","))}&ts=${Date.now()}`,
+          { cache: "no-store" }
+        );
+
+        if (!res.ok) return;
+        const json = await res.json();
+
+        const priceMap = new Map();
+        if (Array.isArray(json)) {
+          for (const q of json) {
+            const s = (q?.symbol || "").toUpperCase();
+            const p = toNum(q?.price);
+            if (s && p !== undefined) priceMap.set(s, p);
+          }
+        }
+
+        if (!mounted) return;
+
+        setRows((prev) =>
+          (prev || []).map((r) => {
+            if (!r || r.isClosed) return r;
+            const s = (r.script || "").toUpperCase();
+            const p = priceMap.get(s);
+            if (p === undefined) return r;
+            if (r.currentPrice === p) return r;
+            return { ...r, currentPrice: p };
+          })
+        );
+
+        setLastPriceUpdatedAt(Date.now());
+      } catch (e) {
+        // keep silent — UI should not flicker
+        // console.error("Recommendations live price poll error:", e);
+      }
+    }
+
+    // run immediately + then every 3s
+    pollOnce();
+    const id = setInterval(pollOnce, 3000);
+
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [API, locked]);
 
 
   console.table(
