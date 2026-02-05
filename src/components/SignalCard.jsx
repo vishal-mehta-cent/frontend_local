@@ -1,481 +1,1633 @@
-// ============================================================
-//                 FINAL UPDATED SIGNALCARD.JSX
-//   (BUY/SELL/CHART back -> Recommendations with filters)
-// ============================================================
-
-import React from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { LineChart } from "lucide-react";
-
-export default function SignalCard({
-  script,
-  confidence,
-  alertType,
-  alertText,
-  description,
-  sup,
-  st,
-  t,
-  res,
-  signalPrice,
-  currentPrice,
-  timeVal,
-  dateVal,
-  userActions,
-  isClosed = false,
-  strategy,
-  rawDate,
-  rawTime,
-  closeTime,   // ⭐ ADD THIS
-  returnTo = null, // ✅ NEW (from Recommendations)
-}) {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // ✅ If returnTo not provided, fallback to current page (rare case)
-  const finalReturnTo = returnTo || `${location.pathname}${location.search || ""}`;
-
-  // --------------------------------------------------------
-  // BUY / SELL NAVIGATION (with returnTo)
-  // --------------------------------------------------------
-  const handleOrderClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.nativeEvent?.stopImmediatePropagation) {
-      e.nativeEvent.stopImmediatePropagation();
-    }
-
-    const type = alertType?.toLowerCase();
-
-    if (type === "buy") {
-      navigate(`/buy/${script}`, { state: { returnTo: finalReturnTo } });
-    }
-    if (type === "sell") {
-      navigate(`/sell/${script}`, { state: { returnTo: finalReturnTo } });
-    }
-  };
-
-  // --------------------------------------------------------
-  // OPEN CHART WITH EXACT DATETIME (with returnTo)
-  // --------------------------------------------------------
-  const openChart = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const convertTo24 = (t) => {
-      if (!t) return "00:00";
-      let [time, modifier] = t.split(" ");
-      let [hours, minutes] = time.split(":");
-      hours = parseInt(hours, 10);
-
-      if (modifier?.toLowerCase() === "pm" && hours < 12) hours += 12;
-      if (modifier?.toLowerCase() === "am" && hours === 12) hours = 0;
-
-      return `${hours.toString().padStart(2, "0")}:${minutes}`;
-    };
-
-    const fullDT = `${rawDate} ${convertTo24(rawTime)}`;
-
-    // ✅ keep your existing chart URL params
-    // ✅ add returnTo in navigation state
-    navigate(
-      `/chart/${script}?strategy=${strategy}&dt=${encodeURIComponent(fullDT)}&fromReco=1`,
-      { state: { returnTo: finalReturnTo } }
-    );
-  };
-
-  // --------------------------------------------------------
-  // FORMAT TIME
-  // --------------------------------------------------------
-  const formatTime = (t) => {
-    if (!t) return "--:--";
-    const match = t.match(/(\d{1,2}):(\d{2})/);
-    if (!match) return "--:--";
-    return `${match[1].padStart(2, "0")}:${match[2]}`;
-  };
-
-  const extractTimeFromDate = (d) => {
-    if (!d) return "--:--";
-
-    // Matches: 12/08/2025 09:15 OR 2025-12-08 09:15
-    const m = String(d).match(/(\d{1,2}):(\d{2})/);
-    if (!m) return "--:--";
-
-    let hh = parseInt(m[1], 10);
-    const mm = m[2];
-
-    let ampm = hh >= 12 ? "PM" : "AM";
-    if (hh > 12) hh -= 12;
-    if (hh === 0) hh = 12;
-
-    return `${hh.toString().padStart(2, "0")}:${mm} ${ampm}`;
-  };
-
-  const formattedTime =
-    timeVal && timeVal !== "--:--"
-      ? formatTime(timeVal)
-      : extractTimeFromDate(rawDate);
-
-  // ---------------- CURRENT PRICE ----------------
-  const sp = Number(signalPrice);
-  // Closed cards receive frozen price from backend
-  const cp = Number(currentPrice);
-
-  // Format close_time from CSV (contains both date + time)
-  const formatCloseDateTime = (ct) => {
-    if (!ct) return "";
-
-    let norm = ct.replace(/-/g, "/").trim();
-    norm = norm.replace(/\s+/g, " ");
-
-    const regex =
-      /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/;
-    const m = norm.match(regex);
-
-    if (!m) return ct;
-
-    let [_, dd, mm, yyyy, hh, min, sec, ampm] = m;
-
-    dd = parseInt(dd);
-    mm = parseInt(mm) - 1;
-    yyyy = yyyy.length === 2 ? Number("20" + yyyy) : Number(yyyy);
-    hh = parseInt(hh);
-    min = parseInt(min);
-
-    if (ampm) {
-      ampm = ampm.toUpperCase();
-      if (ampm === "PM" && hh < 12) hh += 12;
-      if (ampm === "AM" && hh === 12) hh = 0;
-    }
-
-    const d = new Date(yyyy, mm, dd, hh, min);
-
-    if (isNaN(d)) return ct;
-
-    const outDay = d.getDate();
-    const outMonth = d.getMonth() + 1;
-
-    let outHour = d.getHours();
-    let outMinutes = String(d.getMinutes()).padStart(2, "0");
-
-    let outAMPM = outHour >= 12 ? "PM" : "AM";
-    if (outHour > 12) outHour -= 12;
-    if (outHour === 0) outHour = 12;
-
-    return `${outDay}/${outMonth} | ${outHour}:${outMinutes} ${outAMPM}`;
-  };
-
-  const formattedCloseDT = formatCloseDateTime(closeTime);
-
-  // ============================================================
-  // ⭐ UNIVERSAL CORRECT PNL CALCULATION
-  // ============================================================
-  const side = alertType?.toLowerCase();
-
-  let pnl = 0;
-  if (side === "buy") pnl = (cp / sp - 1) * 100;
-  else if (side === "sell") pnl = (1 - cp / sp) * 100;
-
-  const isProfit = pnl > 0;
-  const pnlColor = isProfit ? "#00C853" : "#E53935";
-
-  // ============================================================
-  // PRICE RANGE FOR MARKERS
-  // ============================================================
-  const rawVals = [sup, st, sp, t, res, cp]
-    .map(Number)
-    .filter((v) => !isNaN(v));
-
-  const minRaw = Math.min(...rawVals);
-  const maxRaw = Math.max(...rawVals);
-  const diff = maxRaw - minRaw;
-  const pad = diff < 15 ? 7.5 : diff * 0.15;
-
-  const scaleMin = minRaw - pad;
-  const scaleMax = maxRaw + pad;
-
-  const getPos = (v) => ((v - scaleMin) / (scaleMax - scaleMin)) * 100;
-
-  const positions = {
-    SUP: sup ? getPos(Number(sup)) : null,
-    ST: st ? getPos(Number(st)) : null,
-    SIGNAL: getPos(sp),
-    LIVE: getPos(cp),
-    T: t ? getPos(Number(t)) : null,
-    RES: res ? getPos(Number(res)) : null,
-  };
-
-  Object.keys(positions).forEach((k) => {
-    if (positions[k] != null) {
-      positions[k] = Math.max(0, Math.min(100, positions[k]));
-    }
-  });
-
-  const liveOrClosePos = positions.LIVE;
-
-  const fillLeft = Math.min(positions.SIGNAL, liveOrClosePos);
-  const fillWidth = Math.abs(positions.SIGNAL - liveOrClosePos);
-
-  const isValid = (v) => v !== null && !isNaN(Number(v));
-
-  // ============================================================
-  // ⭐ LIVE VS SIGNAL COLOR RULE (FINAL)
-  // ============================================================
-  const lineColor = cp > sp ? "#00C853" : "#E53935";
-
-  // ============================================================
-  //                     RENDER COMPONENT
-  // ============================================================
-  return (
-    <div
-      className={[
-        "signal-card-advanced",
-        "clean-line-layout",
-        !isClosed && side === "buy" ? "signal-glow-buy" : "",
-        !isClosed && side === "sell" ? "signal-glow-sell" : "",
-      ].join(" ")}
-      style={{
-        opacity: isClosed ? 0.7 : 1,
-        filter: isClosed ? "grayscale(0%)" : "none",
-      }}
-    >
-      {/* ---------------- HEADER ---------------- */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "auto auto auto auto",
-          alignItems: "center",
-          gap: "8px",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            lineHeight: "13px",
-            marginTop: "-10px",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "8px",
-              color: "#666",
-              marginBottom: "1px",
-            }}
-          >
-            Signal Time
-          </span>
-
-          <span style={{ fontWeight: "600", fontSize: "13px" }}>
-            {formattedTime}
-          </span>
-
-          {/* DATE (FROM CSV) */}
-          {rawDate && (
-            <span
-              style={{
-                fontSize: "10px",
-                color: "#444",
-                marginTop: "2px",
-              }}
-            >
-              <strong>Signal Date:-</strong>{" "}
-              {(() => {
-                const [, m, d] = rawDate.split("-");
-                return `${m}/${d}`;
-              })()}
-            </span>
-          )}
-        </div>
-
-        <button
-          onClick={handleOrderClick}
-          style={{
-            background: side === "buy" ? "#00C853" : "#E53935",
-            color: "white",
-            padding: "2px 6px",
-            borderRadius: "4px",
-            border: "none",
-            fontSize: "11px",
-            fontWeight: "600",
-          }}
-        >
-          {alertType?.toUpperCase()}
-        </button>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            fontWeight: "700",
-            color: "#2962ff",
-            cursor: "pointer",
-          }}
-        >
-          {script}
-          <span onClick={openChart}>
-            <LineChart size={17} color="#2962ff" />
-          </span>
-        </div>
-
-        {isClosed ? (
-          <span style={{ fontWeight: 700, color: pnlColor }}>
-            {isProfit ? "PROFIT" : "LOSS"}
-          </span>
-        ) : (
-          !isNaN(confidence) && (
-            <span style={{ fontWeight: "700" }}>
-              {(Number(confidence) * 100).toFixed(2)}%
-            </span>
-          )
-        )}
-      </div>
-
-      {/* ---------------- PNL % ---------------- */}
-      {isClosed && (
-        <div
-          style={{
-            textAlign: "right",
-            paddingRight: "8px",
-            fontSize: "11px",
-            fontWeight: "600",
-            color: pnlColor,
-          }}
-        >
-          ({pnl.toFixed(2)}%)
-        </div>
-      )}
-
-      {/* ---------------- SUP / RES TOP ---------------- */}
-      <div
-        style={{
-          display: "flex",
-          gap: "18px",
-          padding: "6px 5px",
-          fontSize: "12px",
-          fontWeight: "600",
-        }}
-      >
-        {isValid(res) && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                background: "#ff4800",
-                borderRadius: 3,
-              }}
-            />
-            <span>RES: {Number(res).toFixed(2)}</span>
-          </div>
-        )}
-
-        {isValid(sup) && (
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                background: "#a200ff",
-                borderRadius: 3,
-              }}
-            />
-            <span>SUP: {Number(sup).toFixed(2)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* ⭐ ONLY SHOW CLOSE DATE/TIME IF CLOSED SIGNAL */}
-      {isClosed && formattedCloseDT && (
-        <div
-          style={{
-            marginTop: "-4px",
-            marginLeft: "5px",
-            fontSize: "11px",
-            color: "#444",
-            fontWeight: "600",
-          }}
-        >
-          Close Time: {formattedCloseDT}
-        </div>
-      )}
-
-      {/* ---------------- PRICE INDICATOR LINE ---------------- */}
-      <div className="indicator-container">
-        <div className="indicator-line" />
-
-        <div
-          className="indicator-fill"
-          style={{
-            left: `${fillLeft}%`,
-            width: `${fillWidth}%`,
-            backgroundColor: lineColor,
-          }}
-        ></div>
-
-        {isValid(sup) && <Marker type="SUP" pos={positions.SUP} squareOnly />}
-        {isValid(st) && <Marker pos={positions.ST} label="ST" value={Number(st)} line />}
-        <Marker pos={positions.SIGNAL} circle value={sp} bubble />
-        <Marker pos={positions.LIVE} triangle value={cp} bubble />
-        {isValid(t) && <Marker pos={positions.T} label="T" value={Number(t)} line />}
-        {isValid(res) && <Marker type="RES" pos={positions.RES} squareOnly />}
-      </div>
-
-      {/* ---------------- ALERT + DESCRIPTION ---------------- */}
-      <div className="alert-description-box">
-        <div>
-          <strong>Alert:</strong> {alertText || "--"}
-        </div>
-        <div>
-          <strong>Description:</strong> {userActions || "--"}
-        </div>
-      </div>
-    </div>
-  );
+.recommendations-container {
+  text-align: center;
+  padding: 20px;
 }
 
-// ============================================================
-//                     MARKER COMPONENT
-// ============================================================
-function Marker({
-  type,
-  pos,
-  label,
-  value,
-  triangle,
-  circle,
-  line,
-  bubble,
-  squareOnly,
-}) {
-  let color = "#444";
-  if (type === "SUP") color = "#a200ff";
-  if (type === "RES") color = "#ff4800";
+.recommendation-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
 
-  return (
-    <div
-      className="marker"
-      style={{
-        left: `${pos}%`,
-        zIndex: triangle || circle ? 10 : 5,
-        position: "absolute",
-      }}
-    >
-      {triangle && <div className="shape triangle"></div>}
-      {circle && <div className="shape circle"></div>}
-      {line && <div className="shape line"></div>}
-      {squareOnly && (
-        <div className="shape square" style={{ backgroundColor: color }}></div>
-      )}
-      {label && <div className="label-top">{label}</div>}
+.rec-btn {
+  padding: 10px 25px;
+  border: 1.5px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
-      {!squareOnly &&
-        (bubble ? (
-          <div className="price-bubble">{value?.toFixed(2) || "--"}</div>
-        ) : (
-          <div className="label-bottom">{value?.toFixed(2) || "--"}</div>
-        ))}
-    </div>
-  );
+.rec-btn.active {
+  background-color: #2962ff;
+  color: white;
+  border-color: #2962ff;
+}
+
+.filters-row {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.filter-item {
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.filter-item label {
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: inherit;
+  /* ✅ let theme decide */
+}
+
+
+.filter-item input,
+.filter-item select {
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+/* -------- Signal Section Layout -------- */
+.signals-section {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.left-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.signals-column {
+  flex: 0 0 320px;
+  text-align: center;
+}
+
+.subtext {
+  font-size: 12px;
+  color: #666;
+}
+
+.signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  justify-items: center;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* ---------------- Signal Card ---------------- */
+.signal-card-advanced {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+
+  border-radius: 12px;
+  width: 260px;
+  height: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  min-height: 230px;
+}
+
+.signal-card-advanced:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* ===== Glow border for ACTIVE cards ===== */
+.signal-glow-buy {
+  border: 2.5px solid rgb(0, 255, 106) !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 200, 83, 0.20),
+    0 0 18px rgba(0, 200, 83, 0.35),
+    0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+.signal-glow-sell {
+  border: 2.5px solid rgba(229, 57, 53, 0.65) !important;
+  box-shadow:
+    0 0 0 1px rgba(229, 57, 53, 0.20),
+    0 0 18px rgba(229, 57, 53, 0.35),
+    0 10px 26px rgba(0, 0, 0, 0.08);
+}
+
+/* Optional: slightly stronger glow on hover */
+.signal-glow-buy:hover {
+  box-shadow:
+    0 0 0 1px rgba(0, 200, 83, 0.25),
+    0 0 26px rgba(0, 200, 83, 0.45),
+    0 14px 34px rgba(0, 0, 0, 0.10);
+}
+
+.signal-glow-sell:hover {
+  box-shadow:
+    0 0 0 1px rgba(229, 57, 53, 0.25),
+    0 0 26px rgba(229, 57, 53, 0.45),
+    0 14px 34px rgba(0, 0, 0, 0.10);
+}
+
+
+/* ---------- Header ---------- */
+/* ---------- Header (Make Script Centered) ---------- */
+.signal-header {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  width: 100%;
+  font-weight: 600;
+  font-size: 13px;
+  color: #222;
+}
+
+/* Left side (time) */
+.signal-time {
+  font-size: 12px;
+  text-align: left;
+  font-size: 12px;
+  color: #444;
+}
+
+/* BUY/SELL badge */
+.alert-badge {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Center (script name) */
+.signal-script {
+  text-align: center;
+  color: #2962ff;
+  font-size: 14px;
+  font-weight: 700;
+  display: block;
+  width: 100%;
+}
+
+/* Right side (confidence) */
+.signal-confidence {
+  text-align: right;
+  color: #00c853;
+  font-size: 13px;
+}
+
+
+/* ---------- Footer ---------- */
+.signal-footer {
+  font-size: 12px;
+  color: #111;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.signal-footer strong {
+  color: #000;
+}
+
+.alert-description-box {
+  background: #fff8c4;
+  border-top: 1px solid #e0c75a;
+  border-bottom: 1px solid #e0c75a;
+
+  width: 100%;
+  padding: 12px 14px;
+
+  border-radius: 0;
+  margin: 0;
+  margin-top: auto;
+
+  height: 68px;
+  max-height: 68px;
+
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  word-wrap: break-word;
+    text-align: left;           /* ✅ left align */
+  justify-content: flex-start;/* ✅ top align */
+  align-items: flex-start;    /* ✅ top-left alignment */
+  font-size: 11px;            /* ✅ smaller text */
+  line-height: 1.2;           /* ✅ tighter lines */
+
+}
+
+
+/* Scrollbar style */
+.alert-description-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.alert-description-box::-webkit-scrollbar-thumb {
+  background: #c8b04a;
+  border-radius: 10px;
+}
+
+/* ---------- Legend Box ---------- */
+/* ---------- Legend Box ---------- */
+.legend-box {
+  background-color: #f8faff;
+  border: 1.5px solid #e0e6f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  width: 260px;
+  max-width: 90%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend-box h4 {
+  margin: 0 0 8px;
+  color: #2962ff;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* -----------------------------
+   EXTRA FIX FOR SMALL SCREENS
+------------------------------ */
+@media (max-width: 1024px) {
+  .legend-row {
+    justify-content: center !important;
+    margin-top: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+
+.legend-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #222;
+  font-weight: 500;
+}
+
+.legend-line strong {
+  color: #000;
+}
+
+.legend-extra {
+  margin-top: 4px;
+  font-size: 13px;
+  text-align: left;
+  font-weight: 500;
+  color: #111;
+}
+
+/* =========================================================
+   ✅ Clean Line Layout (Only Live Prices Below)
+   ========================================================= */
+/* ======= HORIZONTAL PRICE DIAGRAM STYLING ======= */
+
+/* Clean diagram container */
+.clean-line-layout {
+  background-color: #f5f9ff;
+  border-radius: 12px;
+  width: 340px;
+  height: 200px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+/* Header remains same */
+.clean-line-layout .signal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+}
+
+.signal-script {
+  text-align: center !important;
+  font-size: 15px;
+  font-weight: 700;
+  color: #2962ff;
+}
+
+.signal-confidence {
+  text-align: right !important;
+}
+
+/* ======== Indicator Layout ======== */
+.indicator-container {
+  position: relative;
+  width: 100%;
+  margin: 15px 0;
+  height: 90px;
+}
+
+/* Gray horizontal line */
+.indicator-line {
+  position: absolute;
+  top: 57%;
+  left: 5%;
+  width: 93%;
+  height: 3px;
+  background-color: #bdbdbd;
+  border-radius: 3px;
+  z-index: 1;
+}
+
+/* Dynamic fill (green/red segment) */
+.indicator-fill {
+  position: absolute;
+  top: 57%;
+  height: 5px;
+  /* slightly thicker for visibility */
+  border-radius: 3px;
+  transform: translateY(-50%);
+  z-index: 5;
+  /* ensure it's above gray line */
+  transition: all 0.4s ease;
+  /* smooth animation */
+}
+
+.marker {
+  position: absolute;
+  top: 45%;
+  /* moves shapes slightly UP */
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 1;
+}
+
+
+/* === LABELS ABOVE THE LINE (SUP, ST, T, RES) === */
+.label-top {
+  position: absolute;
+  top: -22px;
+  /* ABOVE the line */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #000;
+
+}
+
+/* === LIVE PRICES BELOW THE LINE === */
+.label-bottom {
+  position: absolute;
+  top: 22px;
+  /* BELOW the line */
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: #000;
+  white-space: nowrap;
+  background: transparent;
+}
+
+/* === SHAPES (ALL BLACK) === */
+.shape.square {
+  width: 14px;
+  height: 14px;
+  top: 1px;
+  background-color: #000;
+  border-radius: 2px;
+}
+
+.shape.line {
+  width: 2px;
+  height: 22px;
+  background-color: #000;
+}
+
+/* Circle = Signal Price */
+.shape.circle {
+  width: 10px;
+  height: 10px;
+  background-color: #000;
+  border-radius: 50%;
+}
+
+/* === Current price triangle (always black) === */
+.shape.triangle {
+  width: 0;
+  height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 12px solid #000;
+  /* Always black */
+  transition: left 0.4s ease;
+  z-index: 6;
+}
+
+/* ==========================================================
+   LAYER CONTROL — FIX OVERLAPPING OF MARKERS
+========================================================== */
+
+/* Default markers (SUP / RES / ST / T) stay at the back */
+.marker .shape {
+  position: relative;
+  z-index: 1;
+  /* BACK LAYER */
+}
+
+/* SIGNAL marker bubble & shape always in front */
+.marker.signal-marker .shape {
+  z-index: 20 !important;
+  /* FRONT */
+}
+
+/* LIVE marker should be above SIGNAL */
+.marker.live-marker .shape {
+  z-index: 25 !important;
+  /* TOP-MOST */
+}
+
+/* Price bubbles must always stay above shapes */
+.price-bubble {
+  position: relative;
+  z-index: 30 !important;
+}
+
+
+/* Price label */
+.label-bottom {
+  margin-top: 5px;
+  font-size: 11px;
+  color: #000;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+
+/* === Hover effect (optional) === */
+.clean-line-layout:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+/* FINAL: centered small legend */
+.legend-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  /* default center */
+  align-items: center;
+  margin: 15px 0 25px;
+  padding: 0;
+}
+
+
+/* Desktop: keep legend on right but IN FLOW */
+@media (min-width: 1200px) {
+  .legend-row {
+    justify-content: flex-end;
+    padding-right: 40px;
+    /* small, safe spacing */
+  }
+}
+
+/* small fixed size legend card */
+@media (max-width: 768px) {
+  .legend-row {
+    justify-content: center !important;
+    margin: 20px 0 !important;
+    padding: 0 !important;
+  }
+
+  .legend-box {
+    width: 100% !important;
+    max-width: 360px !important;
+  }
+}
+
+
+/* ---------------------------
+   DESKTOP ONLY (≥ 1024px)
+   Move legend RIGHT and UP
+---------------------------- */
+
+
+.signals-columns {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 40px;
+  width: 100%;
+}
+
+/* =========================================================
+   PRICE BUBBLES (Signal Price & Live Price)
+   ========================================================= */
+/* -------- SMALL TRADINGVIEW STYLE BUBBLES -------- */
+.price-bubble {
+  position: absolute;
+  top: 10px;
+  /* PERFECT distance above marker */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10 !important;
+
+  padding: 1px 1px;
+  /* small bubble */
+  background: #ffffff;
+  border-radius: 3px;
+  border: 1px solid #cfcfcf;
+
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.0;
+  white-space: nowrap;
+
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  z-index: 20;
+}
+
+.price-bubble-live {
+  background: #f6fbff;
+  border-color: #9bbfff;
+}
+
+/* SIGNAL marker stays above all */
+.marker.signal-marker {
+  z-index: 5;
+}
+
+/* LIVE marker stays above SIGNAL */
+.marker.live-marker {
+  z-index: 6;
+}
+
+/* =========================================================
+   FINAL MOBILE FIX — FORCE EVERYTHING INTO ONE COLUMN
+   ========================================================= */
+@media (max-width: 768px) {
+
+  /* Force Active + Closed Signals to stack vertically */
+  .signals-columns {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 25px !important;
+    align-items: center !important;
+  }
+
+  /* Inside each section, signals should be 1 column */
+  .signal-grid {
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    justify-items: center !important;
+  }
+
+  .signals-column {
+    width: 100% !important;
+    max-width: 430px !important;
+    /* Card fits perfectly */
+    margin: 0 auto !important;
+  }
+
+  /* Adjust signal card size for mobile */
+  .clean-line-layout {
+    width: 92% !important;
+    max-width: 370px !important;
+    height: 155px !important;
+  }
+}
+
+/* Closed Signals Wrapper */
+/* Closed signal card — dynamic bg, no border */
+.closed-card-wrapper {
+  border: none !important;
+  border-radius: 14px;
+  padding: 10px;
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto 15px auto;
+  position: relative;
+  box-sizing: border-box;
+  transition: background-color 0.25s ease;
+}
+
+/* REMOVE inner gray background for CLOSED cards */
+.closed-card-wrapper .signal-card-advanced {
+  box-shadow: none !important;
+  border: none !important;
+}
+
+
+/* Closed card badge (PROFIT / LOSS) */
+.closed-badge {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  z-index: 100;
+}
+
+/* MOBILE FIXES for closed cards */
+@media (max-width: 768px) {
+  .closed-card-wrapper {
+    max-width: 92% !important;
+    padding: 5px !important;
+  }
+
+  .closed-badge {
+    font-size: 10px !important;
+    top: 4px !important;
+    right: 8px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .closed-card-wrapper {
+    max-width: 92% !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+  }
+
+  .closed-badge {
+    font-size: 9px !important;
+    top: 3px !important;
+    right: 6px !important;
+  }
+}
+
+.signal-header-time {
+  font-size: 12px;
+  color: #777;
+  margin-bottom: 3px;
+  text-align: right;
+}
+
+/* Legend inside filters row (aligned to right) */
+.filters-row-legend {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 25px;
+  width: 100%;
+  position: relative;
+  margin-top: 10px;
+  margin-bottom: 20px;
+}
+
+
+
+/* Center the alert-type row */
+.alert-row-centered {
+  justify-content: center !important;
+  gap: 40px;
+  /* spacing between dropdowns */
+  width: 100%;
+}
+
+/* Force Alert row to be centered */
+.alert-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  gap: 40px;
+  /* Adjust spacing */
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+/* Move legend slightly right and shift up */
+
+
+.date-row-centered {
+  display: flex;
+  justify-content: center !important;
+  gap: 25px;
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* Full container that highlights closed signals */
+.closed-signals-container {
+
+  /* soft light red */
+  border: 2px solid #777777;
+  /* stronger red border */
+  border-radius: 12px;
+  padding: 20px 25px;
+  margin-top: 65px;
+  box-shadow: 0 2px 6px rgba(255, 0, 0, 0.1);
+}
+
+.active-signals-container {
+
+  border: 2px solid #2962ff;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-top: 12px;
+  box-shadow: 0 2px 6px rgba(41, 98, 255, 0.15);
+}
+
+
+.section-title {
+  display: inline-block;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* Active */
+.active-title {
+
+  color: #0d47a1;
+
+}
+
+.no-signals-text {
+  white-space: nowrap;
+}
+
+/* Closed */
+.closed-title {
+
+  color: #0d47a1;
+
+}
+
+/* ============================================================
+   NEW — 3-SECTION SIGNAL CARD LAYOUT (HEADER / CHART / FOOTER)
+   ============================================================ */
+
+.signal-card {
+  width: 280px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- SECTION 1 (Header) ---------- */
+.signal-card-header {
+  padding: 10px 14px;
+  background: #f4f8ff;
+  border-bottom: 1px solid #e3e7f1;
+
+  display: grid;
+  grid-template-columns: 45px auto 45px;
+  align-items: center;
+  text-align: center;
+}
+
+.header-time {
+  font-size: 12px;
+  color: #555;
+  font-weight: 600;
+}
+
+.header-center {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header-script {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2962ff;
+}
+
+.header-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.header-confidence {
+  font-size: 12px;
+  font-weight: 700;
+  color: #00c853;
+}
+
+/* ---------- SECTION 2 (Chart / Indicators) ---------- */
+.signal-card-chart {
+  padding: 15px 10px;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+}
+
+/* ---------- SECTION 3 (Alert box) ---------- */
+.signal-card-footer {
+  background: #fffbe8;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.35;
+  min-height: 60px;
+  border-top: 1px solid #e6d98a;
+}
+
+.signal-card-footer strong {
+  color: #000;
+}
+
+.section-divider {
+  width: 100%;
+  height: 2px;
+  background: black;
+  margin: 4px 0;
+}
+
+.signal-count-box {
+  display: flex;
+  flex-direction: row;
+  /* ← MAKE THEM HORIZONTAL */
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  /* spacing between boxes */
+  margin-bottom: 5px;
+  margin-top: 5px;
+  width: 100%;
+}
+
+
+.signal-count-item {
+  padding: 14px 20px;
+  /* Increase height */
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  border: 1px solid #ddd;
+  background: #f8f9fc;
+
+  min-height: 45px;
+  /* Taller box */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 150px;
+  /* 👈 Decrease width here */
+  margin: 0 auto;
+  /* Center the small box inside column */
+}
+
+
+.signal-count-item.buy {
+  border-color: #22c55e;
+  color: #16a34a;
+}
+
+.signal-count-item.sell {
+  border-color: #ef4444;
+  color: #dc2626;
+}
+
+.signal-count-item.total {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.active-title+p {
+  margin-top: -20px !important;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+
+.closed-title+p {
+  margin-top: -20px !important;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.chart-icon {
+  cursor: pointer;
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  transition: transform 0.2s ease;
+}
+
+.chart-icon:hover {
+  transform: scale(1.22);
+}
+
+
+
+/* ===============================
+   DESKTOP — Legend floats right
+   =============================== */
+/* ===============================
+   CLOSED SIGNAL SPEEDOMETER ROW
+   =============================== */
+
+.closed-speedometer-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 60px;
+  /* spacing between BUY & SELL gauges */
+  margin: 20px 0 25px;
+}
+
+@media (max-width: 768px) {
+  .closed-speedometer-row {
+    flex-direction: column;
+    gap: 40px;
+  }
+}
+
+/* ============================================================
+   FIX FOR 1030px → 1650px SCREENS (prevent overlapping)
+   Legend stays centered below filters
+   ============================================================ */
+/* ===============================
+   LEGEND ROW (NO OVERLAP)
+   =============================== */
+.legend-row {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 15px 0 25px;
+  padding: 0;
+}
+
+
+/* ============================================
+   MOBILE FIX — Force each filter into its own row
+   (< 768px)
+   ============================================ */
+@media (max-width: 768px) {
+
+  /* Make filter rows vertical */
+  .filters-row,
+  .filters-row-legend,
+  .alert-row,
+  .date-row-centered {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  /* Ensure each filter takes full width */
+  .filter-item {
+    width: 90% !important;
+  }
+
+  .filter-item select,
+  .filter-item input {
+    width: 100% !important;
+  }
+
+  /* Fix legend on mobile – centered */
+  /* ===============================
+   LEGEND ROW (NO OVERLAP)
+   =============================== */
+  .legend-row {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 0 25px;
+    padding: 0;
+  }
+
+}
+
+/* =====================================================
+   FINAL THEME CONTROL — ONLY SOURCE OF TRUTH
+   ===================================================== */
+
+/* ---------- LIGHT THEME ---------- */
+.theme-light .filter-item label {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+
+.theme-light .filter-item input,
+.theme-light .filter-item select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.theme-light .filter-item input::placeholder {
+  color: #6b7280 !important;
+}
+
+.theme-light .filter-item select option {
+  color: #0f172a !important;
+}
+
+/* ---------- DARK THEME ---------- */
+/* ---------- DARK THEME INPUT FIX ---------- */
+.theme-dark .filter-item input,
+.theme-dark .filter-item select {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.theme-dark .filter-item input::placeholder {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Dropdown options stay readable */
+.theme-dark .filter-item select option {
+  color: #000 !important;
+}
+
+/* ---------- ACRONYMS BOX ---------- */
+.legend-box {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+.legend-box h4 {
+  color: #2563eb !important;
+}
+
+.legend-box p,
+.legend-box strong {
+  color: inherit !important;
+}
+
+.theme-light label {
+  color: #0f172a !important;
+  font-weight: 600;
+}
+
+/* =====================================================
+   FIX: Alert Description Text Not Visible (Dark Theme)
+   ===================================================== */
+
+/* =====================================================
+   🔥 FINAL HARD OVERRIDE — ALERT TEXT VISIBILITY
+   ===================================================== */
+
+/* Force color on the box */
+.theme-dark .alert-description-box {
+  background: rgba(253, 230, 138, 0.18) !important;
+  color: #ffffff !important;
+}
+
+/* Force color on ALL children */
+.theme-dark .alert-description-box *,
+.theme-dark .alert-description-box p,
+.theme-dark .alert-description-box span,
+.theme-dark .alert-description-box div {
+  color: #18181a !important;
+  opacity: 1 !important;
+}
+
+/* Highlight word "Alert" */
+.theme-dark .alert-description-box strong {
+  color: #0e0d0d !important;
+}
+
+/* =====================================================
+   ADVANCED FILTER CONTAINER (TOP SECTION ONLY)
+   ===================================================== */
+
+/* =====================================================
+   ADVANCED FILTER CONTAINER — PREMIUM (Landing style)
+   ===================================================== */
+
+.advanced-filter-wrapper {
+  margin: 20px auto 30px;
+  padding: 24px 28px;
+  border-radius: 20px;
+  max-width: 1100px;
+  width: 100%;
+
+  backdrop-filter: blur(22px);
+  transition: all 0.35s ease;
+  position: relative;
+}
+
+
+/* ---------------- LIGHT THEME ---------------- */
+.theme-light .advanced-filter-wrapper {
+  background: rgba(255, 255, 255, 0.75);
+  border: 1.5px solid rgba(59, 130, 246, 0.25);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+}
+
+/* Hover (light) */
+.theme-light .advanced-filter-wrapper:hover {
+  border-color: #3b82f6;
+  box-shadow:
+    0 14px 40px rgba(59, 130, 246, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+/* ---------------- DARK THEME ---------------- */
+.theme-dark .advanced-filter-wrapper {
+  background: linear-gradient(145deg,
+      rgba(2, 6, 23, 0.75),
+      rgba(15, 23, 42, 0.75));
+  border: 1.5px solid rgba(34, 211, 238, 0.35);
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Hover (dark) */
+.theme-dark .advanced-filter-wrapper:hover {
+  border-color: #22d3ee;
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.35),
+    0 0 35px rgba(34, 211, 238, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+/* Mobile safety */
+@media (max-width: 768px) {
+  .advanced-filter-wrapper {
+    padding: 18px 14px;
+    border-radius: 16px;
+  }
+}
+
+
+/* =====================================================
+   FIX: Active/Closed title not visible in DARK theme
+   + Add animated grow-shrink dots
+   ===================================================== */
+
+/* Make heading text visible in dark theme */
+.theme-dark .active-title,
+.theme-dark .closed-title {
+  color: #eaf2ff !important;
+  /* bright readable */
+}
+
+/* Title row with dot + text */
+.signal-title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Base dot */
+.signal-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+
+  /* grow-shrink animation */
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+/* Active = green */
+.signal-dot-active {
+  background: #22c55e;
+  box-shadow: 0 0 0 rgba(34, 197, 94, 0.65);
+}
+
+/* Closed = gray */
+.signal-dot-closed {
+  background: #9ca3af;
+  box-shadow: 0 0 0 rgba(156, 163, 175, 0.55);
+}
+
+/* Grow-shrink */
+@keyframes dotPulse {
+  0% {
+    transform: scale(0.85);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    opacity: 0.75;
+  }
+
+  50% {
+    transform: scale(1.35);
+    box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.08);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.85);
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    opacity: 0.75;
+  }
+}
+
+/* =====================================================
+   FIX: Accuracy Gauge text not visible in DARK theme
+   ===================================================== */
+
+/* Percentage value inside gauge */
+.theme-dark svg text {
+  fill: #e5e7eb !important;
+  /* light gray / white */
+}
+
+/* BUY / SELL label text under gauge */
+.theme-dark svg text:last-of-type {
+  fill: #93c5fd !important;
+  /* soft blue */
+}
+
+/* =====================================================
+   PREMIUM DROPDOWN STYLE
+   Inspired by Landing.jsx cards
+   ===================================================== */
+
+.filter-item select,
+.filter-item input {
+  border-radius: 10px !important;
+  padding: 8px 12px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  outline: none;
+}
+
+/* ---------------- LIGHT THEME ---------------- */
+.theme-light .filter-item select,
+.theme-light .filter-item input {
+  background: rgba(255, 255, 255, 0.85) !important;
+  border: 1.5px solid rgba(59, 130, 246, 0.25) !important;
+  color: #0f172a !important;
+}
+
+/* Hover (light) */
+.theme-light .filter-item select:hover,
+.theme-light .filter-item input:hover {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+/* Focus (light) */
+.theme-light .filter-item select:focus,
+.theme-light .filter-item input:focus {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.25);
+}
+
+/* ---------------- DARK THEME ---------------- */
+.theme-dark .filter-item select,
+.theme-dark .filter-item input {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border: 1.5px solid rgba(34, 211, 238, 0.35) !important;
+  color: #e5e7eb !important;
+}
+
+/* Hover (dark) */
+.theme-dark .filter-item select:hover,
+.theme-dark .filter-item input:hover {
+  border-color: #22d3ee !important;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25);
+}
+
+/* Focus (dark) */
+.theme-dark .filter-item select:focus,
+.theme-dark .filter-item input:focus {
+  border-color: #67e8f9 !important;
+  box-shadow: 0 0 0 4px rgba(103, 232, 249, 0.35);
+}
+
+/* Dropdown arrow color fix (dark) */
+.theme-dark select {
+  color-scheme: dark;
+}
+
+/* =====================================================
+   CUSTOM DROPDOWN (Trade.jsx quality)
+   ===================================================== */
+
+.custom-dd-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.custom-dd-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Trigger */
+.custom-dd-trigger {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: transparent;
+}
+
+/* LIGHT THEME */
+.theme-light .custom-dd-trigger {
+  background: #ffffff;
+  border: 1.5px solid #93c5fd;
+  color: #0f172a;
+}
+
+/* DARK THEME */
+.theme-dark .custom-dd-trigger {
+  background: rgba(2, 6, 23, 0.9);
+  border: 1.5px solid rgba(34, 211, 238, 0.5);
+  color: #e5e7eb;
+}
+
+/* Hover */
+.custom-dd-trigger:hover {
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.25);
+}
+
+/* Dropdown menu */
+.custom-dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  max-height: 260px;
+  overflow-y: auto;
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+}
+
+/* LIGHT */
+.theme-light .custom-dd-menu {
+  background: #ffffff;
+  border: 1px solid #93c5fd;
+}
+
+/* DARK */
+.theme-dark .custom-dd-menu {
+  background: linear-gradient(180deg, #020617, #0f172a);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+}
+
+/* Option */
+.custom-dd-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s ease;
+}
+
+/* DARK text */
+.theme-dark .custom-dd-option {
+  color: #e5e7eb;
+}
+
+/* LIGHT text */
+.theme-light .custom-dd-option {
+  color: #0f172a;
+}
+
+/* Hover */
+.custom-dd-option:hover {
+  background: rgba(96, 165, 250, 0.35);
+}
+
+/* Selected */
+.custom-dd-option.selected {
+  background: #60a5fa;
+  color: #020617;
+  font-weight: 600;
+}
+
+/* =====================================================
+   FINAL FIX — Date picker icon visibility (Dark theme)
+   ===================================================== */
+
+/* Base date input */
+/* =====================================================
+   FINAL POLISH — Date input icon (Dark theme)
+   ===================================================== */
+
+.filter-item input[type="date"] {
+  position: relative;
+  padding-right: 42px;
+  /* space for icon */
+}
+
+
+/* DARK THEME: make calendar icon visible */
+.theme-dark .filter-item input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+
+  opacity: 0.9;
+  cursor: pointer;
+
+  filter: invert(1) brightness(1.3);
+}
+
+
+/* LIGHT THEME: keep default */
+.theme-light .filter-item input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+.theme-dark .filter-item input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* =====================================================
+   DARK THEME — TEXT VISIBILITY ONLY (NO BACKGROUND)
+   ===================================================== */
+
+/* -------- Signal cards text -------- */
+.theme-dark .signal-card-advanced,
+.theme-dark .signal-card,
+.theme-dark .clean-line-layout {
+  color: #0e0e0f !important;
+}
+
+/* Header text */
+.theme-dark .signal-header,
+.theme-dark .signal-header *,
+.theme-dark .signal-script,
+.theme-dark .signal-time,
+.theme-dark .signal-confidence {
+  color: #080808 !important;
+}
+
+/* Footer text */
+.theme-dark .signal-footer,
+.theme-dark .signal-footer *,
+.theme-dark .signal-card-footer,
+.theme-dark .signal-card-footer * {
+  color: #0d0d0e !important;
+}
+
+/* Strong labels */
+.theme-dark strong {
+  color: #93c5fd !important;
+}
+
+/* -------- Indicator labels (SUP / RES / ST / T / prices) -------- */
+.theme-dark .label-top,
+.theme-dark .label-bottom,
+.theme-dark .price-bubble {
+  color: #121313 !important;
+}
+
+/* -------- BUY / SELL / TOTAL counters -------- */
+.theme-dark .signal-count-item {
+  color: #141415 !important;
+}
+
+/* =========================
+   Mobile fixes for Active Signals layout
+   ========================= */
+@media (max-width: 640px) {
+  .signal-count-box {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+
+  .signal-count-item {
+    width: 100%;
+    min-width: 0 !important;
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .active-signals-container,
+  .closed-signals-container {
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* The "% = Confidence | ▼ = Current Price" line */
+  .active-signals-container>div:first-child,
+  .closed-signals-container>div:first-child {
+    font-size: 12px !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    white-space: normal;
+  }
+
+  .signal-grid {
+    width: 100%;
+  }
+
+  /* Mobile tabs styling if you added them */
+  .signals-mobile-tabs {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 14px;
+    margin: 10px 0 14px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .signals-tab {
+    flex: 1;
+    padding: 12px 10px;
+    border-radius: 12px;
+    font-weight: 700;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .signals-tab.active {
+    background: linear-gradient(90deg, #1ea7ff, #22d3ee);
+    color: #fff;
+  }
+}
+
+.nc-sort-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:10px;
+  border:1px solid rgba(0,0,0,0.12);
+  background: rgba(255,255,255,0.75);
+  cursor:pointer;
+  line-height:1;
+}
+
+.theme-dark .nc-sort-btn{
+  border:1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.08);
+}
+
+.nc-sort-label{
+  font-size:12px;
+  font-weight:600;
+  opacity:.85;
+}
+
+.nc-sort-icon{
+  width:22px;
+  height:22px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:8px;
+  font-size:14px;
+  font-weight:900;
+  background: rgba(0,0,0,0.06);
+}
+
+.theme-dark .nc-sort-icon{
+  background: rgba(255,255,255,0.10);
 }
