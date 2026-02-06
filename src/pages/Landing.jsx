@@ -13,6 +13,8 @@ import {
 import { BadgePercent, Building2, Headset } from "lucide-react";
 import { Phone, MessageCircle } from "lucide-react";
 import { Mail } from "lucide-react";
+import { FaApple, FaAndroid } from "react-icons/fa";
+
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -108,6 +110,34 @@ export default function Landing() {
           </div>
         </div>
       </header>
+      {/* ✅ Coming Soon Mobile Apps (Left Side Floating) */}
+{/* ✅ Coming Soon Mobile App (Single Badge - Left Side) */}
+<div className="fixed left-4 top -translate-y-1/2 z-40 flex
+">
+  <div
+    className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl px-5 py-4
+               hover:bg-white/10 hover:border-cyan-400/30 transition-all duration-300
+               hover:shadow-[0_20px_50px_rgba(34,211,238,0.18)]"
+  >
+    <div className="flex items-center gap-3">
+      {/* Icons */}
+      <div className="flex items-center gap-2">
+        <FaAndroid className="w-5 h-5 text-cyan-300 drop-shadow-[0_0_14px_rgba(34,211,238,0.5)]" />
+        <FaApple className="w-5 h-5 text-cyan-300 drop-shadow-[0_0_14px_rgba(34,211,238,0.5)]" />
+      </div>
+
+      {/* Text */}
+      <div className="leading-tight">
+        <div className={`text-sm font-extrabold ${brandGradient} bg-clip-text text-transparent`}>
+  Coming Soon
+</div>
+
+        <div className="text-sm font-bold text-white">Android &amp; iOS App</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       <main className="relative z-10">
         {/* HERO SECTION */}
