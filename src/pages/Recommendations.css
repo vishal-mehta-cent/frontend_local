@@ -306,14 +306,23 @@
   background-color: #f5f9ff;
   border-radius: 12px;
   width: 340px;
-  height: 200px;
+
+  /* ✅ FIX: don’t force fixed height on desktop */
+  height: auto;
+  min-height: 245px;
+
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+
+  /* ✅ FIX: use gap instead of space-between (prevents squeeze overlap) */
+  justify-content: flex-start;
+  gap: 10px;
+
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   position: relative;
 }
+
 
 /* Header remains same */
 .clean-line-layout .signal-header {
@@ -340,8 +349,8 @@
 .indicator-container {
   position: relative;
   width: 100%;
-  margin: 15px 0;
-  height: 90px;
+  margin: 15px 0 18px;  /* ✅ more bottom space */
+  height: 50px;         /* ✅ slightly taller */
 }
 
 /* Gray horizontal line */
