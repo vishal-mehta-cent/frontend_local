@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef, startTransition } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  startTransition,
+  useLayoutEffect,
+} from "react";
 import "./Recommendations.css";
 import SignalCard from "../components/SignalCard";
 import BackButton from "../components/BackButton";
@@ -250,12 +257,14 @@ export default function Recommendations() {
   const pickTarget = (r) =>
     toNum(getField(r, ["target", "Target", "fno_target", "FNO_target"]));
 
-  const pickSupport = (r) => toNum(getField(r, ["support", "Support", "sup", "SUP"]));
+  const pickSupport = (r) =>
+    toNum(getField(r, ["support", "Support", "sup", "SUP"]));
 
   const pickResistance = (r) =>
     toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
 
-  const pickAlertType = (r) => getField(r, ["signal_type", "Signal_type"]) || "N/A";
+  const pickAlertType = (r) =>
+    getField(r, ["signal_type", "Signal_type"]) || "N/A";
 
   const pickDescription = (r) =>
     getField(r, ["Alert_description", "description", "Description"]) || "";
@@ -265,9 +274,11 @@ export default function Recommendations() {
     return s ? String(s).trim() : "N/A";
   };
 
-  const pickScreener = (r) => getField(r, ["screener", "Screener"]) || "Unknown";
+  const pickScreener = (r) =>
+    getField(r, ["screener", "Screener"]) || "Unknown";
 
-  const pickRawDate = (r) => getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
+  const pickRawDate = (r) =>
+    getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
 
   const pickTime = (row) => {
     const raw = getField(row, ["raw_datetime", "Date", "date", "signal_date"]);
@@ -307,7 +318,8 @@ export default function Recommendations() {
     return raw;
   };
 
-  const pickAlertText = (r) => getField(r, ["alert", "ALERT", "Alert"]) || "";
+  const pickAlertText = (r) =>
+    getField(r, ["alert", "ALERT", "Alert"]) || "";
 
   const pickUserActions = (r) => getField(r, ["user_actions"]) || "";
 
@@ -316,10 +328,14 @@ export default function Recommendations() {
 
   async function fetchLivePrice(script) {
     try {
-      const res = await fetch(`${API}/quotes/price?symbol=${encodeURIComponent(script)}`);
+      const res = await fetch(
+        `${API}/quotes/price?symbol=${encodeURIComponent(script)}`
+      );
       const json = await res.json();
 
-      return Number(json?.price || json?.ltp || json?.last_price || json?.currentPrice);
+      return Number(
+        json?.price || json?.ltp || json?.last_price || json?.currentPrice
+      );
     } catch (e) {
       console.error("Live price error for:", script, e);
       return null;
@@ -360,7 +376,12 @@ export default function Recommendations() {
     const strategy = pickStrategy(row);
 
     // ✅ FULL datetime (date + time) — DO NOT MODIFY
-    const rawDateTime = getField(row, ["raw_datetime", "signal_date", "Date", "date"]);
+    const rawDateTime = getField(row, [
+      "raw_datetime",
+      "signal_date",
+      "Date",
+      "date",
+    ]);
 
     // ✅ Date only (used for date filter dropdown)
     const dateVal = normalizeToISODate(rawDateTime);
@@ -417,7 +438,9 @@ export default function Recommendations() {
     }
 
     const res = await fetch(
-      `${API}/recommendations/data?username=${encodeURIComponent(username)}&ts=${Date.now()}`,
+      `${API}/recommendations/data?username=${encodeURIComponent(
+        username
+      )}&ts=${Date.now()}`,
       { cache: "no-store" }
     );
 
@@ -519,6 +542,46 @@ export default function Recommendations() {
       setPriceRefreshing(false);
     }
   };
+
+  // =====================================================
+  // ✅ FIX: prevent scroll jumping on tab changes
+  // =====================================================
+  const scrollYBeforeSwitchRef = useRef(0);
+  const restoringScrollRef = useRef(false);
+
+  const setSignalTabKeepScroll = (nextTab) => {
+    // Save current position, then switch tab
+    scrollYBeforeSwitchRef.current =
+      window.scrollY || document.documentElement.scrollTop || 0;
+    restoringScrollRef.current = true;
+    setSignalTab(nextTab);
+  };
+
+  const setActiveTypeKeepScroll = (nextType) => {
+    scrollYBeforeSwitchRef.current =
+      window.scrollY || document.documentElement.scrollTop || 0;
+    restoringScrollRef.current = true;
+
+    setActiveType(nextType);
+    setSubIntraday("All");
+    setSignalTab("active");
+  };
+
+  // Restore scroll immediately after React commits DOM updates
+  useLayoutEffect(() => {
+    if (!restoringScrollRef.current) return;
+
+    restoringScrollRef.current = false;
+
+    const y = scrollYBeforeSwitchRef.current || 0;
+
+    // 2 RAFs makes it stable in mobile chrome
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: y, left: 0, behavior: "auto" });
+      });
+    });
+  }, [signalTab, activeType]);
 
   useEffect(() => {
     // Hydrate filters from URL only on first mount
@@ -700,7 +763,8 @@ export default function Recommendations() {
 
         // optional tie-breaker (keeps same-day order stable without Date parsing)
         return (
-          String(a.rawDateTime || "").localeCompare(String(b.rawDateTime || "")) * dir
+          String(a.rawDateTime || "").localeCompare(String(b.rawDateTime || "")) *
+          dir
         );
       })
       .slice(0, 30);
@@ -730,7 +794,9 @@ export default function Recommendations() {
 
       try {
         const res = await fetch(
-          `${API}/quotes?symbols=${encodeURIComponent(syms.join(","))}&ts=${Date.now()}`,
+          `${API}/quotes?symbols=${encodeURIComponent(
+            syms.join(",")
+          )}&ts=${Date.now()}`,
           { cache: "no-store" }
         );
 
@@ -1060,7 +1126,7 @@ export default function Recommendations() {
           >
             <button
               type="button"
-              onClick={() => setSignalTab("active")}
+              onClick={() => setSignalTabKeepScroll("active")}
               className={[
                 "flex-1 py-3 rounded-xl text-sm font-semibold transition-all",
                 "text-center",
@@ -1076,7 +1142,7 @@ export default function Recommendations() {
 
             <button
               type="button"
-              onClick={() => setSignalTab("closed")}
+              onClick={() => setSignalTabKeepScroll("closed")}
               className={[
                 "flex-1 py-3 rounded-xl text-sm font-semibold transition-all",
                 "text-center",
@@ -1582,11 +1648,7 @@ export default function Recommendations() {
               return (
                 <button
                   key={type}
-                  onClick={() => {
-                    setActiveType(type);
-                    setSubIntraday("All");
-                    setSignalTab("active");
-                  }}
+                  onClick={() => setActiveTypeKeepScroll(type)}
                   className={[
                     "px-5 py-3 rounded-xl text-sm font-semibold",
                     "transition-all duration-200",
