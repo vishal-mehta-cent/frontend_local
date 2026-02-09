@@ -154,7 +154,8 @@ export default function SignalCard({
     if (outHour > 12) outHour -= 12;
     if (outHour === 0) outHour = 12;
 
-    return `${outDay}/${outMonth} | ${outHour}:${outMinutes} ${outAMPM}`;
+    return `${outMonth}/${outDay} | ${outHour}:${outMinutes} ${outAMPM}`;
+
   };
 
   const formattedCloseDT = formatCloseDateTime(closeTime);
