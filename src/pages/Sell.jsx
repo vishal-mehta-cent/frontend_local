@@ -171,7 +171,8 @@ export default function Sell() {
   useEffect(() => {
     if (!symbol) return;
 
-    fetch(`${API}/market/instrument-info?symbol=${symbol}`)
+    fetch(`${API}/market/instrument-info?symbol=${encodeURIComponent(symbol)}`)
+
       .then((res) => res.json())
       .then((data) => {
         if (data.is_fno === true) {
@@ -249,7 +250,8 @@ export default function Sell() {
 
     const fetchLive = async () => {
       try {
-        const res = await fetch(`${API}/quotes?symbols=${symbol}`);
+        const res = await fetch(`${API}/quotes?symbols=${encodeURIComponent(symbol)}`)
+;
         const data = await res.json();
         if (!cancelled && data && data[0]) {
           const live = Number(data[0].price);
