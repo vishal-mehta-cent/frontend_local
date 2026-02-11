@@ -15,6 +15,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 // ✅ add
 import AlertModal from "./components/AlertModal";
+import NeuroBotChat from "./components/NeuroBotChat";
 import { useTheme } from "./context/ThemeContext";
 import RequireSubscription from "./components/RequireSubscription";
 // Pages
@@ -46,6 +47,7 @@ import ProfileDetail from "./pages/ProfileDetail";
 import Payments from "./pages/Payments.jsx";
 import LiveChart from "./pages/LiveChart";
 import Whatsapp from "./pages/Whatsapp";
+
 
 // ✅ Backend API base
 const API =
@@ -266,8 +268,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
               username ? (
                 <RequireSubscription>
                   (
-                <Trade username={username} />
-              )
+                  <Trade username={username} />
+                  )
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -280,8 +282,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
               username ? (
                 <RequireSubscription>
                   (
-                <ScriptDetail username={username} />
-              )
+                  <ScriptDetail username={username} />
+                  )
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -295,8 +297,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
               username ? (
                 <RequireSubscription>
                   (
-                <Orders username={username} />
-              )
+                  <Orders username={username} />
+                  )
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -306,51 +308,51 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           <Route
             path="/buy/:symbol"
             element={username ? (
-                <RequireSubscription>
-                  <Buy />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <Buy />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
           <Route
             path="/sell/:symbol"
             element={username ? (
-                <RequireSubscription>
-                  <Sell />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <Sell />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
           <Route
             path="/trade-success"
             element={username ? (
-                <RequireSubscription>
-                  <TradeSuccess />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <TradeSuccess />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
 
           <Route
             path="/chart/:symbol"
             element={username ? (
-                <RequireSubscription>
-                  <ChartPage />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <ChartPage />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
           <Route
             path="/alert/:symbol"
             element={username ? (
-                <RequireSubscription>
-                  <SetAlert />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <SetAlert />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
           <Route
             path="/notes/:symbol"
             element={username ? (
-                <RequireSubscription>
-                  <Notes />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <Notes />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
 
           <Route
@@ -359,8 +361,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
               username ? (
                 <RequireSubscription>
                   (
-                <Portfolio username={username} />
-              )
+                  <Portfolio username={username} />
+                  )
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -382,19 +384,19 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           <Route
             path="/insight"
             element={username ? (
-                <RequireSubscription>
-                  <Insight />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <Insight />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
 
           <Route
             path="/ipo-tracker"
             element={username ? (
-                <RequireSubscription>
-                  <IpoTracker />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <IpoTracker />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
 
           <Route path="/feedback" element={<Feedback username={username} />} />
@@ -405,8 +407,8 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
               username ? (
                 <RequireSubscription>
                   (
-                <Profile username={username} logout={onLogout} />
-              )
+                  <Profile username={username} logout={onLogout} />
+                  )
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -429,17 +431,17 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route path="/payments" element={<Payments username={username} />} />
           <Route
-  path="/trade"
-  element={
-    username ? (
-      <RequireSubscription>
-        <Trade username={username} />
-      </RequireSubscription>
-    ) : (
-      <Navigate to="/" replace />
-    )
-  }
-/>
+            path="/trade"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <Trade username={username} />
+                </RequireSubscription>
+              ) : (
+                <Navigate to="/" replace />
+              )
+            }
+          />
           <Route
             path="/history"
             element={
@@ -452,47 +454,47 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           />
 
           <Route
-  path="/settings"
-  element={username ? (
-                <RequireSubscription>
-                  <Settings />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
-/>
+            path="/settings"
+            element={username ? (
+              <RequireSubscription>
+                <Settings />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
+          />
 
-<Route
-  path="/settings/change-password"
-  element={
-    username ? (
-                <RequireSubscription>
-                  <PasswordChange username={username} />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />
-  }
-/>
-
-{/* ✅ Short route for Profile tile */}
-<Route
-  path="/passwordchange"
-  element={
-    username ? (
+          <Route
+            path="/settings/change-password"
+            element={
+              username ? (
                 <RequireSubscription>
                   <PasswordChange username={username} />
                 </RequireSubscription>
               ) : <Navigate to="/" replace />
-  }
-/>
+            }
+          />
 
-<Route
-  path="/settings/change-email"
-  element={
-    username ? (
+          {/* ✅ Short route for Profile tile */}
+          <Route
+            path="/passwordchange"
+            element={
+              username ? (
+                <RequireSubscription>
+                  <PasswordChange username={username} />
+                </RequireSubscription>
+              ) : <Navigate to="/" replace />
+            }
+          />
+
+          <Route
+            path="/settings/change-email"
+            element={
+              username ? (
                 <RequireSubscription>
                   <EmailChange username={username} />
                 </RequireSubscription>
               ) : <Navigate to="/" replace />
-  }
-/>
+            }
+          />
 
 
           <Route path="/modify/:id" element={<ModifyOrderPage />} />
@@ -500,26 +502,26 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           <Route
             path="/live"
             element={username ? (
-                <RequireSubscription>
-                  <LiveChart />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <LiveChart />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
 
           <Route
             path="/whatsapp"
             element={username ? (
-                <RequireSubscription>
-                  <Whatsapp />
-                </RequireSubscription>
-              ) : <Navigate to="/" replace />}
+              <RequireSubscription>
+                <Whatsapp />
+              </RequireSubscription>
+            ) : <Navigate to="/" replace />}
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        
+
       </AnimatePresence>
-       
+
       {/* ✅ Chart-style popup modal */}
       <AlertModal
         open={popup.open}
@@ -528,6 +530,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
         onClose={closePopup}
         isDark={isDark}
       />
+
+      {/* ✅ Floating chatbot on all pages (bottom-right) */}
+      <NeuroBotChat />
     </>
   );
 }
