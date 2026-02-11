@@ -28,7 +28,9 @@ function AlertModal({ open, title, message, onClose, isDark }) {
     <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-black/60 backdrop-blur-sm px-3">
       <div
         className={`w-full max-w-md rounded-2xl shadow-2xl p-5 ${
-          isDark ? "bg-[#0b1220] border border-white/10" : "bg-white border border-black/10"
+          isDark
+            ? "bg-[#0b1220] border border-white/10"
+            : "bg-white border border-black/10"
         }`}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -56,7 +58,9 @@ function AlertModal({ open, title, message, onClose, isDark }) {
           <button
             onClick={onClose}
             className={`w-9 h-9 rounded-xl grid place-items-center ${
-              isDark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10"
+              isDark
+                ? "bg-white/10 hover:bg-white/15"
+                : "bg-black/5 hover:bg-black/10"
             } transition`}
             title="Close"
             type="button"
@@ -98,6 +102,12 @@ export default function Feedback() {
     ? "bg-white/5 border-white/10 text-white placeholder-slate-400"
     : "bg-white/80 border-slate-200 text-slate-900 placeholder-slate-500";
 
+  // ✅ Support details (for the strip like your 1st image)
+  const SUPPORT_PHONE = "9426001601";
+  const SUPPORT_EMAIL = "neurocrest.app@gmail.com";
+  const WHATSAPP_LINK = `https://wa.me/91${SUPPORT_PHONE}`;
+  const MAILTO_LINK = `mailto:${SUPPORT_EMAIL}`;
+
   const [feedbackName, setFeedbackName] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
 
@@ -113,7 +123,11 @@ export default function Feedback() {
   const [popup, setPopup] = useState({ open: false, title: "", message: "" });
 
   const showPopup = (title, message) => {
-    setPopup({ open: true, title: title || "Alert", message: message || "" });
+    setPopup({
+      open: true,
+      title: title || "Alert",
+      message: message || "",
+    });
   };
 
   const closePopup = () => {
@@ -179,7 +193,12 @@ export default function Feedback() {
     e.preventDefault();
 
     // ✅ Subject is optional
-    if (!contactName.trim() || !contactEmail.trim() || !contactPhone.trim() || !contactMessage.trim()) {
+    if (
+      !contactName.trim() ||
+      !contactEmail.trim() ||
+      !contactPhone.trim() ||
+      !contactMessage.trim()
+    ) {
       showPopup("Missing Details", "Please fill in required contact fields.");
       return;
     }
@@ -217,7 +236,9 @@ export default function Feedback() {
   };
 
   return (
-    <div className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}>
+    <div
+      className={`min-h-screen ${bgClass} ${textClass} relative transition-colors duration-300 overflow-hidden`}
+    >
       {/* ✅ Styled popup like Chart.jsx */}
       <AlertModal
         open={popup.open}
@@ -237,8 +258,14 @@ export default function Feedback() {
       </div>
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 py-6">
-        <div className={`${glassClass} rounded-2xl p-4 mb-8 flex items-center justify-between shadow-2xl`}>
-          <BackButton to="/menu" className={isDark ? "text-slate-200 hover:text-white" : "text-slate-600"} />
+        {/* Header */}
+        <div
+          className={`${glassClass} rounded-2xl p-4 mb-5 flex items-center justify-between shadow-2xl`}
+        >
+          <BackButton
+            to="/menu"
+            className={isDark ? "text-slate-200 hover:text-white" : "text-slate-600"}
+          />
 
           <div className="flex items-center space-x-2">
             <MessageCircle className="w-5 h-5 text-blue-400" />
@@ -246,6 +273,7 @@ export default function Feedback() {
               FEEDBACK & CONTACT
             </h2>
           </div>
+
           <button
             onClick={() => setIsDark(!isDark)}
             className={`${glassClass} p-3 rounded-xl ${cardHoverClass} transition-all shadow-lg`}
@@ -255,6 +283,42 @@ export default function Feedback() {
           </button>
         </div>
 
+        {/* ✅ Support strip (single pill like your 1st image) */}
+        <div className={`${glassClass} rounded-2xl p-3 mb-6 shadow-2xl`}>
+          <div
+            className={`w-full flex flex-wrap items-center justify-center gap-4 px-4 py-3 rounded-2xl border ${
+              isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white/60"
+            }`}
+          >
+            <a
+              href={WHATSAPP_LINK}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 hover:opacity-90 transition"
+              title="Chat on WhatsApp"
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span className="text-[14px] font-semibold tracking-wide">
+                {SUPPORT_PHONE}
+              </span>
+            </a>
+
+            <span className={`${isDark ? "text-white/25" : "text-slate-400"}`}>|</span>
+
+            <a
+              href={MAILTO_LINK}
+              className="flex items-center gap-2 hover:opacity-90 transition"
+              title="Send Email"
+            >
+              <Mail className="w-5 h-5" />
+              <span className="text-[14px] font-semibold tracking-wide">
+                {SUPPORT_EMAIL}
+              </span>
+            </a>
+          </div>
+        </div>
+
+        {/* Main Card */}
         <div className={`${glassClass} rounded-3xl p-6 mb-8 shadow-2xl`}>
           <div className="flex justify-center mb-8 space-x-3">
             <button
@@ -269,6 +333,7 @@ export default function Feedback() {
               <MessageSquare className="w-5 h-5" />
               <span>Feedback</span>
             </button>
+
             <button
               onClick={() => setTab("contact")}
               className={`px-6 py-3 rounded-xl font-semibold transition-all shadow-lg flex items-center space-x-2 ${
@@ -293,14 +358,19 @@ export default function Feedback() {
                     <Sparkles className="w-8 h-8 text-blue-400" />
                   </div>
                 </div>
-                <h3 className="text-center text-xl font-bold mb-2">Share Your Feedback</h3>
+
+                <h3 className="text-center text-xl font-bold mb-2">
+                  Share Your Feedback
+                </h3>
                 <p className={`text-center ${textSecondaryClass} mb-6`}>
                   We value your opinion and would love to hear from you
                 </p>
 
                 <form onSubmit={handleFeedbackSubmit} className="space-y-5">
                   <div className="relative">
-                    <User className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
+                    <User
+                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`}
+                    />
                     <input
                       type="text"
                       value={feedbackName}
@@ -310,8 +380,11 @@ export default function Feedback() {
                       required
                     />
                   </div>
+
                   <div className="relative">
-                    <MessageSquare className={`absolute left-4 top-6 w-5 h-5 ${textSecondaryClass}`} />
+                    <MessageSquare
+                      className={`absolute left-4 top-6 w-5 h-5 ${textSecondaryClass}`}
+                    />
                     <textarea
                       value={feedbackMessage}
                       onChange={(e) => setFeedbackMessage(e.target.value)}
@@ -321,6 +394,7 @@ export default function Feedback() {
                       required
                     />
                   </div>
+
                   <button
                     type="submit"
                     disabled={isSubmitting}
@@ -332,7 +406,7 @@ export default function Feedback() {
                 </form>
               </div>
 
-              <p className={`text-center ${textSecondaryClass}`}>
+              <p className={`text-center ${textSecondaryClass} mt-4`}>
                 Your feedback helps us improve. Thank you for reaching out!
               </p>
             </div>
@@ -348,12 +422,17 @@ export default function Feedback() {
                     <Shield className="w-8 h-8 text-cyan-400" />
                   </div>
                 </div>
+
                 <h3 className="text-center text-xl font-bold mb-2">Get In Touch</h3>
-                <p className={`text-center ${textSecondaryClass} mb-6`}>Have questions? We're here to help you 24/7</p>
+                <p className={`text-center ${textSecondaryClass} mb-6`}>
+                  Have questions? We're here to help you 24/7
+                </p>
 
                 <form onSubmit={handleContactSubmit} className="space-y-5">
                   <div className="relative">
-                    <User className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
+                    <User
+                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`}
+                    />
                     <input
                       type="text"
                       value={contactName}
@@ -365,7 +444,9 @@ export default function Feedback() {
                   </div>
 
                   <div className="relative">
-                    <Phone className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
+                    <Phone
+                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`}
+                    />
                     <input
                       type="tel"
                       value={contactPhone}
@@ -377,7 +458,9 @@ export default function Feedback() {
                   </div>
 
                   <div className="relative">
-                    <Mail className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
+                    <Mail
+                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`}
+                    />
                     <input
                       type="email"
                       value={contactEmail}
@@ -389,7 +472,9 @@ export default function Feedback() {
                   </div>
 
                   <div className="relative">
-                    <FileText className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`} />
+                    <FileText
+                      className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 ${textSecondaryClass}`}
+                    />
                     <input
                       type="text"
                       value={contactSubject}
@@ -400,7 +485,9 @@ export default function Feedback() {
                   </div>
 
                   <div className="relative">
-                    <MessageSquare className={`absolute left-4 top-6 w-5 h-5 ${textSecondaryClass}`} />
+                    <MessageSquare
+                      className={`absolute left-4 top-6 w-5 h-5 ${textSecondaryClass}`}
+                    />
                     <textarea
                       value={contactMessage}
                       onChange={(e) => setContactMessage(e.target.value)}
