@@ -760,7 +760,7 @@ export default function Trade({ username }) {
       <AppHeader />
 
       {/* MAIN CONTENT */}
-      <div className="w-full px-3 sm:px-4 md:px-6 pt-3 sm:pt-[0] pb-24 relative">
+      <div className="w-full px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-24 relative">
         <div className="space-y-6">
           {/* Tabs + Funds (same line) */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
