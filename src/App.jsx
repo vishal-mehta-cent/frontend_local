@@ -401,20 +401,18 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
 
           <Route path="/feedback" element={<Feedback username={username} />} />
 
-          <Route
-            path="/profile"
-            element={
-              username ? (
-                <RequireSubscription>
-                  (
-                  <Profile username={username} logout={onLogout} />
-                  )
-                </RequireSubscription>
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
-          />
+                    <Route
+  path="/profile"
+  element={
+    username ? (
+      <RequireSubscription>
+        <Profile username={username} logout={onLogout} />
+      </RequireSubscription>
+    ) : (
+      <Navigate to="/" replace />
+    )
+  }
+/>
 
           <Route
             path="/profile/funds"
