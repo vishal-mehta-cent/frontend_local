@@ -267,9 +267,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             element={
               username ? (
                 <RequireSubscription>
-                  (
+                
                   <Trade username={username} />
-                  )
+                
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -281,9 +281,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             element={
               username ? (
                 <RequireSubscription>
-                  (
+
                   <ScriptDetail username={username} />
-                  )
+                 
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -296,9 +296,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             element={
               username ? (
                 <RequireSubscription>
-                  (
+                
                   <Orders username={username} />
-                  )
+                 
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
@@ -360,9 +360,9 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
             element={
               username ? (
                 <RequireSubscription>
-                  (
+                
                   <Portfolio username={username} />
-                  )
+             
                 </RequireSubscription>
               ) : (
                 <Navigate to="/" replace />
