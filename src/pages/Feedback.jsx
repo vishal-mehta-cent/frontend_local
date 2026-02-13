@@ -353,12 +353,6 @@ export default function Feedback() {
               <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl"></div>
 
               <div className="relative">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
-                    <Sparkles className="w-8 h-8 text-blue-400" />
-                  </div>
-                </div>
-
                 <h3 className="text-center text-xl font-bold mb-2">
                   Share Your Feedback
                 </h3>
@@ -417,12 +411,6 @@ export default function Feedback() {
               <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 blur-2xl"></div>
 
               <div className="relative">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20">
-                    <Shield className="w-8 h-8 text-cyan-400" />
-                  </div>
-                </div>
-
                 <h3 className="text-center text-xl font-bold mb-2">Get In Touch</h3>
                 <p className={`text-center ${textSecondaryClass} mb-6`}>
                   Have questions? We're here to help you 24/7
