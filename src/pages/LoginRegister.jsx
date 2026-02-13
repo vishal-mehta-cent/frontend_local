@@ -43,15 +43,15 @@ export default function LoginRegister({ onLoginSuccess }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Forgot Password modal
-const [fpOpen, setFpOpen] = useState(false);
-const [fpStage, setFpStage] = useState("input"); // "input" | "otp" | "done"
-const [fpEmail, setFpEmail] = useState("");
-const [fpPhone, setFpPhone] = useState("");
-const [fpOtpDigits, setFpOtpDigits] = useState(["", "", "", ""]);
-const fpOtpRefs = useRef([]);
-const [fpLoading, setFpLoading] = useState(false);
-const [fpMsg, setFpMsg] = useState("");
-const [fpMsgType, setFpMsgType] = useState(""); // "success" | "error"
+  const [fpOpen, setFpOpen] = useState(false);
+  const [fpStage, setFpStage] = useState("input"); // "input" | "otp" | "done"
+  const [fpEmail, setFpEmail] = useState("");
+  const [fpPhone, setFpPhone] = useState("");
+  const [fpOtpDigits, setFpOtpDigits] = useState(["", "", "", ""]);
+  const fpOtpRefs = useRef([]);
+  const [fpLoading, setFpLoading] = useState(false);
+  const [fpMsg, setFpMsg] = useState("");
+  const [fpMsgType, setFpMsgType] = useState(""); // "success" | "error"
 
   useEffect(() => {
     const mode = new URLSearchParams(location.search).get("mode");
@@ -250,74 +250,74 @@ const [fpMsgType, setFpMsgType] = useState(""); // "success" | "error"
 
       const data = await res.json();
 
-    if (data.success) {
-  const u = (data.username || username || "").trim();
+      if (data.success) {
+        const u = (data.username || username || "").trim();
 
-  localStorage.setItem("user_id", u);
-  localStorage.setItem("username", u);
-  localStorage.setItem("session_id", data.session_id || "");
+        localStorage.setItem("user_id", u);
+        localStorage.setItem("username", u);
+        localStorage.setItem("session_id", data.session_id || "");
 
-  // ✅ store email/phone in consistent keys (not only email_id)
-  localStorage.setItem("email", data.email || "");
-  localStorage.setItem("phone", data.phone || "");
+        // ✅ store email/phone in consistent keys (not only email_id)
+        localStorage.setItem("email", data.email || "");
+        localStorage.setItem("phone", data.phone || "");
 
-  // keep your old key too (optional)
-  localStorage.setItem("email_id", data.email || "");
+        // keep your old key too (optional)
+        localStorage.setItem("email_id", data.email || "");
 
-  // ✅ also fetch full profile (so allowlist users also get email/phone if stored)
-  try {
-    const pr = await fetch(`${backendBaseUrl}/users/${encodeURIComponent(u)}`);
-    if (pr.ok) {
-      const p = await pr.json();
+        // ✅ also fetch full profile (so allowlist users also get email/phone if stored)
+        try {
+          const pr = await fetch(`${backendBaseUrl}/users/${encodeURIComponent(u)}`);
+          if (pr.ok) {
+            const p = await pr.json();
 
-      const fullName =
-        (p.full_name || "").trim() ||
-        [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+            const fullName =
+              (p.full_name || "").trim() ||
+              [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
 
-      const ncUser = {
-        username: u,
-        email: (p.email || data.email || "").trim(),
-        phone: (p.phone || data.phone || "").trim(),
-        full_name: fullName,
-        first_name: (p.first_name || "").trim(),
-        last_name: (p.last_name || "").trim(),
-        city: (p.city || "").trim(),
-        created_at: (p.created_at || "").trim(),
-      };
+            const ncUser = {
+              username: u,
+              email: (p.email || data.email || "").trim(),
+              phone: (p.phone || data.phone || "").trim(),
+              full_name: fullName,
+              first_name: (p.first_name || "").trim(),
+              last_name: (p.last_name || "").trim(),
+              city: (p.city || "").trim(),
+              created_at: (p.created_at || "").trim(),
+            };
 
-      localStorage.setItem("nc_user", JSON.stringify(ncUser));
+            localStorage.setItem("nc_user", JSON.stringify(ncUser));
 
-      // also mirror common keys for pages that read them
-      localStorage.setItem("full_name", ncUser.full_name);
-      localStorage.setItem("created_at", ncUser.created_at);
-      localStorage.setItem("email", ncUser.email);
-      localStorage.setItem("phone", ncUser.phone);
-    } else {
-      // fallback nc_user from login response only
-      localStorage.setItem(
-        "nc_user",
-        JSON.stringify({
-          username: u,
-          email: data.email || "",
-          phone: data.phone || "",
-        })
-      );
-    }
-  } catch {
-    localStorage.setItem(
-      "nc_user",
-      JSON.stringify({
-        username: u,
-        email: data.email || "",
-        phone: data.phone || "",
-      })
-    );
-  }
+            // also mirror common keys for pages that read them
+            localStorage.setItem("full_name", ncUser.full_name);
+            localStorage.setItem("created_at", ncUser.created_at);
+            localStorage.setItem("email", ncUser.email);
+            localStorage.setItem("phone", ncUser.phone);
+          } else {
+            // fallback nc_user from login response only
+            localStorage.setItem(
+              "nc_user",
+              JSON.stringify({
+                username: u,
+                email: data.email || "",
+                phone: data.phone || "",
+              })
+            );
+          }
+        } catch {
+          localStorage.setItem(
+            "nc_user",
+            JSON.stringify({
+              username: u,
+              email: data.email || "",
+              phone: data.phone || "",
+            })
+          );
+        }
 
-  onLoginSuccess(u);
-} else {
-  showError(data.message || "Invalid credentials");
-}
+        onLoginSuccess(u);
+      } else {
+        showError(data.message || "Invalid credentials");
+      }
 
     } catch (err) {
       showError("Cannot connect to server.");
@@ -327,126 +327,126 @@ const [fpMsgType, setFpMsgType] = useState(""); // "success" | "error"
   };
 
   const fpClear = () => {
-  setFpMsg("");
-  setFpMsgType("");
-};
+    setFpMsg("");
+    setFpMsgType("");
+  };
 
-const fpError = (msg) => {
-  setFpMsg("❌ " + msg);
-  setFpMsgType("error");
-};
+  const fpError = (msg) => {
+    setFpMsg("❌ " + msg);
+    setFpMsgType("error");
+  };
 
-const fpSuccess = (msg) => {
-  setFpMsg("✅ " + msg);
-  setFpMsgType("success");
-};
+  const fpSuccess = (msg) => {
+    setFpMsg("✅ " + msg);
+    setFpMsgType("success");
+  };
 
-const openForgot = () => {
-  fpClear();
-  setIsLogin(true);          // ✅ force Sign In tab
-  setFpOpen(true);
-  setFpStage("input");
-  setFpEmail("");
-  setFpPhone("");
-  setFpOtpDigits(["", "", "", ""]);
-};
-
-
-const closeForgot = () => {
-  setFpOpen(false);
-  setFpStage("input");
-  setFpEmail("");
-  setFpPhone("");
-  setFpOtpDigits(["", "", "", ""]);
-  fpClear();
-};
-
-const requestForgotOtp = async () => {
-  fpClear();
-
-  const emailTrim = String(fpEmail || "").trim();
-  const phoneDigits = String(fpPhone || "").replace(/\D/g, "");
-
-  if (!emailTrim && !phoneDigits) {
-    fpError("Please enter Email ID or Mobile No.");
-    return;
-  }
-  if (emailTrim && !/^\S+@\S+\.\S+$/.test(emailTrim)) {
-    fpError("Please enter a valid Email ID.");
-    return;
-  }
-  if (phoneDigits && phoneDigits.length !== 10) {
-    fpError("Mobile No. must be 10 digits.");
-    return;
-  }
-
-  setFpLoading(true);
-  try {
-    const res = await fetch(`${backendBaseUrl}/auth/forgot-password/request-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: emailTrim || null,
-        phone: phoneDigits || null,
-      }),
-    });
-    const data = await res.json();
-
-    if (!data.success) {
-      fpError(data.message || "Failed to send OTP.");
-      return;
-    }
-
-    fpSuccess(`OTP sent to ${data.email || emailTrim}. Please enter the 4-digit OTP.`);
-    setFpStage("otp");
+  const openForgot = () => {
+    fpClear();
+    setIsLogin(true);          // ✅ force Sign In tab
+    setFpOpen(true);
+    setFpStage("input");
+    setFpEmail("");
+    setFpPhone("");
     setFpOtpDigits(["", "", "", ""]);
-    setTimeout(() => fpOtpRefs.current?.[0]?.focus?.(), 150);
-  } catch (e) {
-    fpError("Cannot connect to server.");
-  } finally {
-    setFpLoading(false);
-  }
-};
+  };
 
-const verifyForgotOtp = async () => {
-  fpClear();
 
-  const otp = fpOtpDigits.join("");
-  if (otp.length !== 4) {
-    fpError("Please enter 4-digit OTP.");
-    return;
-  }
+  const closeForgot = () => {
+    setFpOpen(false);
+    setFpStage("input");
+    setFpEmail("");
+    setFpPhone("");
+    setFpOtpDigits(["", "", "", ""]);
+    fpClear();
+  };
 
-  const emailTrim = String(fpEmail || "").trim();
-  const phoneDigits = String(fpPhone || "").replace(/\D/g, "");
+  const requestForgotOtp = async () => {
+    fpClear();
 
-  setFpLoading(true);
-  try {
-    const res = await fetch(`${backendBaseUrl}/auth/forgot-password/verify-otp`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: emailTrim || null,
-        phone: phoneDigits || null,
-        otp,
-      }),
-    });
-    const data = await res.json();
+    const emailTrim = String(fpEmail || "").trim();
+    const phoneDigits = String(fpPhone || "").replace(/\D/g, "");
 
-    if (!data.success) {
-      fpError(data.message || "Incorrect OTP. Please enter the correct OTP.");
-      setFpStage("otp");
+    if (!emailTrim && !phoneDigits) {
+      fpError("Please enter Email ID or Mobile No.");
+      return;
+    }
+    if (emailTrim && !/^\S+@\S+\.\S+$/.test(emailTrim)) {
+      fpError("Please enter a valid Email ID.");
+      return;
+    }
+    if (phoneDigits && phoneDigits.length !== 10) {
+      fpError("Mobile No. must be 10 digits.");
       return;
     }
 
-    fpSuccess(`Password Sent successfully on ${data.email || emailTrim}`);
-    setFpStage("done");
-  } catch (e) {
-    fpError("Cannot connect to server.");
-  } finally {
-    setFpLoading(false);
-  }
-};
+    setFpLoading(true);
+    try {
+      const res = await fetch(`${backendBaseUrl}/auth/forgot-password/request-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailTrim || null,
+          phone: phoneDigits || null,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        fpError(data.message || "Failed to send OTP.");
+        return;
+      }
+
+      fpSuccess(`OTP sent to ${data.email || emailTrim}. Please enter the 4-digit OTP.`);
+      setFpStage("otp");
+      setFpOtpDigits(["", "", "", ""]);
+      setTimeout(() => fpOtpRefs.current?.[0]?.focus?.(), 150);
+    } catch (e) {
+      fpError("Cannot connect to server.");
+    } finally {
+      setFpLoading(false);
+    }
+  };
+
+  const verifyForgotOtp = async () => {
+    fpClear();
+
+    const otp = fpOtpDigits.join("");
+    if (otp.length !== 4) {
+      fpError("Please enter 4-digit OTP.");
+      return;
+    }
+
+    const emailTrim = String(fpEmail || "").trim();
+    const phoneDigits = String(fpPhone || "").replace(/\D/g, "");
+
+    setFpLoading(true);
+    try {
+      const res = await fetch(`${backendBaseUrl}/auth/forgot-password/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: emailTrim || null,
+          phone: phoneDigits || null,
+          otp,
+        }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        fpError(data.message || "Incorrect OTP. Please enter the correct OTP.");
+        setFpStage("otp");
+        return;
+      }
+
+      fpSuccess(`Password Sent successfully on ${data.email || emailTrim}`);
+      setFpStage("done");
+    } catch (e) {
+      fpError("Cannot connect to server.");
+    } finally {
+      setFpLoading(false);
+    }
+  };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const token = credentialResponse.credential;
@@ -534,9 +534,8 @@ const verifyForgotOtp = async () => {
 
           {/* Toggle */}
           <div
-            className={`flex rounded-full p-1 mb-6 ${
-              isDark ? "bg-white/10" : "bg-white/70 border border-white/40"
-            }`}
+            className={`flex rounded-full p-1 mb-6 ${isDark ? "bg-white/10" : "bg-white/70 border border-white/40"
+              }`}
           >
             <button
               type="button"
@@ -545,41 +544,38 @@ const verifyForgotOtp = async () => {
                 clearMessage();
                 setSignupStage("basic");
               }}
-              className={`flex-1 py-2 rounded-full font-semibold transition-all ${
-                isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
-              }`}
+              className={`flex-1 py-2 rounded-full font-semibold transition-all ${isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
+                }`}
             >
               Sign In
             </button>
             <button
-  type="button"
-  onClick={() => {
-    closeForgot(); // ✅ Important
-    setIsLogin(false);
-    clearMessage();
-    resetSignupState();
-  }}
-  className={`flex-1 py-2 rounded-full font-semibold transition-all ${
-    !isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
-  }`}
->
-  Sign Up
-</button>
+              type="button"
+              onClick={() => {
+                closeForgot(); // ✅ Important
+                setIsLogin(false);
+                clearMessage();
+                resetSignupState();
+              }}
+              className={`flex-1 py-2 rounded-full font-semibold transition-all ${!isLogin ? `${brandGradient} text-black shadow-lg` : `${textSecondaryClass} hover:opacity-90`
+                }`}
+            >
+              Sign Up
+            </button>
 
           </div>
 
           {/* message */}
           {message && (
             <div
-              className={`mb-4 text-sm text-center ${
-                messageType === "success"
-                  ? isDark
-                    ? "text-emerald-400"
-                    : "text-emerald-600"
-                  : isDark
+              className={`mb-4 text-sm text-center ${messageType === "success"
+                ? isDark
+                  ? "text-emerald-400"
+                  : "text-emerald-600"
+                : isDark
                   ? "text-rose-400"
                   : "text-rose-600"
-              }`}
+                }`}
             >
               {message}
             </div>
@@ -588,37 +584,45 @@ const verifyForgotOtp = async () => {
           {/* LOGIN FORM */}
           {isLogin ? (
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                doLogin();
-              }}
-              className="space-y-4"
-            >
+  autoComplete="off"   // ✅ add here
+  onSubmit={(e) => {
+    e.preventDefault();
+    doLogin();
+  }}
+  className="space-y-4"
+>
+
               <input
                 type="text"
+                name="nc_login_username"   // ✅ ADD
+                id="nc_login_username"     // ✅ ADD
                 placeholder="Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                autoComplete="username"
+                autoComplete="off"         // ✅ CHANGE (was "username")
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all ${inputClass}`}
               />
 
               <div className="relative">
                 <input
                   type={showPwd ? "text" : "password"}
+                  name="nc_login_password"   // ✅ ADD
+                  id="nc_login_password"     // ✅ ADD
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
+                  autoComplete="new-password" // ✅ CHANGE (was "current-password")
                   className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all pr-12 ${inputClass}`}
                 />
                 <button
                   type="button"
                   aria-label={showPwd ? "Hide password" : "Show password"}
                   onClick={() => setShowPwd((s) => !s)}
-                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${
-                    isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
+                    }`}
                   tabIndex={-1}
                 >
                   {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -626,14 +630,13 @@ const verifyForgotOtp = async () => {
               </div>
 
               <button
-  type="button"
-  onClick={openForgot}
-  className={`w-full text-xs text-right cursor-pointer hover:underline select-none ${
-    isDark ? "text-cyan-300" : "text-blue-600"
-  }`}
->
-  Forgot Password?
-</button>
+                type="button"
+                onClick={openForgot}
+                className={`w-full text-xs text-right cursor-pointer hover:underline select-none ${isDark ? "text-cyan-300" : "text-blue-600"
+                  }`}
+              >
+                Forgot Password?
+              </button>
 
 
               <button
@@ -644,7 +647,7 @@ const verifyForgotOtp = async () => {
                 {isLoading ? "Please wait..." : "Sign In"}
               </button>
 
-              
+
 
               <p className={`mt-6 text-xs text-center ${textSecondaryClass}`}>
                 By continuing, you agree to our Terms of Service and Privacy Policy
@@ -655,30 +658,42 @@ const verifyForgotOtp = async () => {
             <div className="space-y-4">
               {/* Basic signup */}
               <input
-                type="text"
-                placeholder="User Name"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoComplete="new-username"
-                className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
-              />
+  type="text"
+  name="nc_login_username"
+  id="nc_login_username"
+  placeholder="Username"
+  value={username}
+  onChange={(e) => setUsername(e.target.value)}
+  autoComplete="off"
+  autoCapitalize="none"
+  autoCorrect="off"
+  spellCheck={false}
+  data-lpignore="true"       // ✅ ADD HERE
+  data-1p-ignore="true"      // ✅ ADD HERE
+  className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all ${inputClass}`}
+/>
+
 
               <div className="relative">
                 <input
-                  type={showPwd ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                  className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all pr-12 ${inputClass}`}
-                />
+  type={showPwd ? "text" : "password"}
+  name="nc_login_password"
+  id="nc_login_password"
+  placeholder="Password"
+  value={password}
+  onChange={(e) => setPassword(e.target.value)}
+  autoComplete="new-password"
+  data-lpignore="true"       // ✅ ADD HERE
+  data-1p-ignore="true"      // ✅ ADD HERE
+  className={`w-full rounded-xl px-4 py-3 outline-none border focus:ring-2 focus:ring-blue-500/40 shadow-lg transition-all pr-12 ${inputClass}`}
+/>
+
                 <button
                   type="button"
                   aria-label={showPwd ? "Hide password" : "Show password"}
                   onClick={() => setShowPwd((s) => !s)}
-                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${
-                    isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
+                    }`}
                   tabIndex={-1}
                 >
                   {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -698,16 +713,15 @@ const verifyForgotOtp = async () => {
                   type="button"
                   aria-label={showPwd2 ? "Hide confirm password" : "Show confirm password"}
                   onClick={() => setShowPwd2((s) => !s)}
-                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${
-                    isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`absolute right-4 top-1/2 -translate-y-1/2 ${isDark ? "text-slate-200 hover:text-white" : "text-slate-600 hover:text-slate-900"
+                    }`}
                   tabIndex={-1}
                 >
                   {showPwd2 ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-        
-    
+
+
               {/* Details */}
               <input
                 type="text"
@@ -741,9 +755,8 @@ const verifyForgotOtp = async () => {
                     setPhone(e.target.value);
                   }}
                   disabled={phoneLocked}
-                  className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass} ${
-                    phoneLocked ? "opacity-80 cursor-not-allowed" : ""
-                  }`}
+                  className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass} ${phoneLocked ? "opacity-80 cursor-not-allowed" : ""
+                    }`}
                 />
                 <div className={`text-xs ${isDark ? "text-amber-300" : "text-amber-700"}`}>
                   ⚠️ Please enter your WhatsApp number. Once this mobile number is saved then can’t be changed.
@@ -761,9 +774,8 @@ const verifyForgotOtp = async () => {
                     setEmail(e.target.value);
                   }}
                   disabled={emailLocked}
-                  className={`flex-1 rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass} ${
-                    emailLocked ? "opacity-80 cursor-not-allowed" : ""
-                  }`}
+                  className={`flex-1 rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass} ${emailLocked ? "opacity-80 cursor-not-allowed" : ""
+                    }`}
                 />
 
                 <button
@@ -831,9 +843,8 @@ const verifyForgotOtp = async () => {
                       clearMessage();
                       sendSignupOtp();
                     }}
-                    className={`w-full py-3 rounded-xl font-bold ${
-                      isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-slate-900 hover:bg-black/10"
-                    } shadow-xl`}
+                    className={`w-full py-3 rounded-xl font-bold ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-slate-900 hover:bg-black/10"
+                      } shadow-xl`}
                   >
                     Resend OTP
                   </button>
@@ -843,161 +854,159 @@ const verifyForgotOtp = async () => {
               <p className={`mt-2 text-xs text-center ${textSecondaryClass}`}>
                 By continuing, you agree to our Terms of Service and Privacy Policy
               </p>
-              
+
             </div>
           )}
         </div>
-            {/* ✅ Forgot Password Modal (ONLY for Sign In) */}
-      {isLogin && fpOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => (fpLoading ? null : closeForgot())}
-          />
+        {/* ✅ Forgot Password Modal (ONLY for Sign In) */}
+        {isLogin && fpOpen && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center px-4">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => (fpLoading ? null : closeForgot())}
+            />
 
-          {/* Modal */}
-          <div className={`relative w-full max-w-md rounded-3xl ${glassClass} shadow-2xl p-6`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-extrabold">Forgot Password</h3>
-              <button
-                type="button"
-                onClick={() => (fpLoading ? null : closeForgot())}
-                className={`${textSecondaryClass} hover:opacity-80`}
-              >
-                ✕
-              </button>
-            </div>
+            {/* Modal */}
+            <div className={`relative w-full max-w-md rounded-3xl ${glassClass} shadow-2xl p-6`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-extrabold">Forgot Password</h3>
+                <button
+                  type="button"
+                  onClick={() => (fpLoading ? null : closeForgot())}
+                  className={`${textSecondaryClass} hover:opacity-80`}
+                >
+                  ✕
+                </button>
+              </div>
 
-            {fpMsg && (
-              <div
-                className={`mb-4 text-sm text-center ${
-                  fpMsgType === "success"
+              {fpMsg && (
+                <div
+                  className={`mb-4 text-sm text-center ${fpMsgType === "success"
                     ? isDark
                       ? "text-emerald-400"
                       : "text-emerald-700"
                     : isDark
-                    ? "text-rose-400"
-                    : "text-rose-700"
-                }`}
-              >
-                {fpMsg}
-              </div>
-            )}
-
-            {fpStage === "input" && (
-              <div className="space-y-3">
-                <input
-                  type="tel"
-                  placeholder="Mobile No."
-                  value={fpPhone}
-                  onChange={(e) => setFpPhone(e.target.value)}
-                  className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
-                />
-
-                <input
-                  type="email"
-                  placeholder="Email ID"
-                  value={fpEmail}
-                  onChange={(e) => setFpEmail(e.target.value)}
-                  className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
-                />
-
-                <div className={`text-xs ${textSecondaryClass}`}>
-                  Enter <b>either</b> Mobile No. or Email ID. OTP will be sent on Email.
-                </div>
-
-                <button
-                  type="button"
-                  disabled={fpLoading}
-                  onClick={requestForgotOtp}
-                  className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
+                      ? "text-rose-400"
+                      : "text-rose-700"
+                    }`}
                 >
-                  {fpLoading ? "Please wait..." : "Send OTP"}
-                </button>
-              </div>
-            )}
-
-            {fpStage === "otp" && (
-              <div className="space-y-4">
-                <div className={`text-sm ${textSecondaryClass}`}>
-                  Enter the 4-digit OTP sent to your email.
+                  {fpMsg}
                 </div>
+              )}
 
-                <div className="flex justify-center gap-3">
-                  {fpOtpDigits.map((d, idx) => (
-                    <input
-                      key={idx}
-                      ref={(el) => (fpOtpRefs.current[idx] = el)}
-                      value={d}
-                      inputMode="numeric"
-                      maxLength={1}
-                      onChange={(e) => {
-                        const v = (e.target.value || "").replace(/\D/g, "");
-                        const next = [...fpOtpDigits];
-                        next[idx] = v;
-                        setFpOtpDigits(next);
-                        if (v && idx < 3) fpOtpRefs.current[idx + 1]?.focus?.();
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Backspace" && !fpOtpDigits[idx] && idx > 0) {
-                          fpOtpRefs.current[idx - 1]?.focus?.();
-                        }
-                      }}
-                      className={[
-                        "w-14 h-14 text-center text-xl font-extrabold rounded-xl outline-none border shadow-lg transition-all",
-                        inputClass,
-                      ].join(" ")}
-                    />
-                  ))}
+              {fpStage === "input" && (
+                <div className="space-y-3">
+                  <input
+                    type="tel"
+                    placeholder="Mobile No."
+                    value={fpPhone}
+                    onChange={(e) => setFpPhone(e.target.value)}
+                    className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
+                  />
+
+                  <input
+                    type="email"
+                    placeholder="Email ID"
+                    value={fpEmail}
+                    onChange={(e) => setFpEmail(e.target.value)}
+                    className={`w-full rounded-xl px-4 py-3 outline-none border shadow-lg transition-all ${inputClass}`}
+                  />
+
+                  <div className={`text-xs ${textSecondaryClass}`}>
+                    Enter <b>either</b> Mobile No. or Email ID. OTP will be sent on Email.
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={fpLoading}
+                    onClick={requestForgotOtp}
+                    className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
+                  >
+                    {fpLoading ? "Please wait..." : "Send OTP"}
+                  </button>
                 </div>
+              )}
 
-                <button
-                  type="button"
-                  disabled={fpLoading}
-                  onClick={verifyForgotOtp}
-                  className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
-                >
-                  {fpLoading ? "Please wait..." : "Verify OTP"}
-                </button>
+              {fpStage === "otp" && (
+                <div className="space-y-4">
+                  <div className={`text-sm ${textSecondaryClass}`}>
+                    Enter the 4-digit OTP sent to your email.
+                  </div>
 
-                <button
-                  type="button"
-                  disabled={fpLoading}
-                  onClick={requestForgotOtp}
-                  className={`w-full py-3 rounded-xl font-bold ${
-                    isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-slate-900 hover:bg-black/10"
-                  } shadow-xl`}
-                >
-                  Resend OTP
-                </button>
-              </div>
-            )}
+                  <div className="flex justify-center gap-3">
+                    {fpOtpDigits.map((d, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => (fpOtpRefs.current[idx] = el)}
+                        value={d}
+                        inputMode="numeric"
+                        maxLength={1}
+                        onChange={(e) => {
+                          const v = (e.target.value || "").replace(/\D/g, "");
+                          const next = [...fpOtpDigits];
+                          next[idx] = v;
+                          setFpOtpDigits(next);
+                          if (v && idx < 3) fpOtpRefs.current[idx + 1]?.focus?.();
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Backspace" && !fpOtpDigits[idx] && idx > 0) {
+                            fpOtpRefs.current[idx - 1]?.focus?.();
+                          }
+                        }}
+                        className={[
+                          "w-14 h-14 text-center text-xl font-extrabold rounded-xl outline-none border shadow-lg transition-all",
+                          inputClass,
+                        ].join(" ")}
+                      />
+                    ))}
+                  </div>
 
-            {fpStage === "done" && (
-              <div className="space-y-4">
-                <div className={`text-sm ${textSecondaryClass} text-center`}>
-                  Password has been sent to your email.
+                  <button
+                    type="button"
+                    disabled={fpLoading}
+                    onClick={verifyForgotOtp}
+                    className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} disabled:opacity-70 shadow-xl`}
+                  >
+                    {fpLoading ? "Please wait..." : "Verify OTP"}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={fpLoading}
+                    onClick={requestForgotOtp}
+                    className={`w-full py-3 rounded-xl font-bold ${isDark ? "bg-white/10 text-white hover:bg-white/15" : "bg-black/5 text-slate-900 hover:bg-black/10"
+                      } shadow-xl`}
+                  >
+                    Resend OTP
+                  </button>
                 </div>
+              )}
 
-                <button
-                  type="button"
-                  onClick={closeForgot}
-                  className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} shadow-xl`}
-                >
-                  OK
-                </button>
-              </div>
-            )}
+              {fpStage === "done" && (
+                <div className="space-y-4">
+                  <div className={`text-sm ${textSecondaryClass} text-center`}>
+                    Password has been sent to your email.
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={closeForgot}
+                    className={`w-full py-3 rounded-xl font-bold text-black ${brandGradient} shadow-xl`}
+                  >
+                    OK
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
       </div>
-      
+
     </div>
   );
-  
+
 
   return createPortal(ui, document.body);
 }
