@@ -4,8 +4,11 @@ const ThemeContext = createContext(null);
 
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
+    // ✅ Default DARK mode (unless user explicitly chose light)
     const saved = localStorage.getItem("theme");
-    return saved === "dark";
+    if (saved === "light") return false;
+    if (saved === "dark") return true;
+    return true; // default = dark
   });
 
   useEffect(() => {
@@ -34,8 +37,6 @@ export function ThemeProvider({ children }) {
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) {
-    throw new Error("useTheme must be used inside ThemeProvider");
-  }
+  if (!ctx) throw new Error("useTheme must be used inside ThemeProvider");
   return ctx;
 }
