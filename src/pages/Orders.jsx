@@ -802,20 +802,14 @@ export default function Orders({ username }) {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
       </div>
-
       <AppHeader />
-
-
       {/* ✅ Main content */}
-      <div className="w-full px-3 sm:px-4 md:px-6 pt-3 sm:pt-[0] pb-24 relative">
-
-
+      <div className="w-full px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-24 relative">
         {/* Page header + Tabs + Refresh button */}
         <div className="flex items-start justify-between mb-6">
           <div>
             {/*<h2 className={`text-4xl font-bold ${textClass} mb-1`}>Orders</h2>
             <p className={textSecondaryClass}>Your active trades and positions</p>*/}
-
             <div className={`flex p-1.5 rounded-2xl ${glassClass} w-fit mt-4 shadow-lg`}>
               {["open", "positions"].map((t) => (
                 <button
