@@ -119,7 +119,7 @@ export default function NeuroBotChat({ username }) {
             fixed z-[9999]
             inset-0 sm:inset-auto
             sm:bottom-5 sm:right-5
-            w-screen h-screen sm:w-[460px]
+            w-screen h-screen [height:100dvh] sm:w-[460px]
             sm:h-[92vh]
             rounded-none sm:rounded-[28px]
             overflow-hidden
@@ -149,7 +149,8 @@ export default function NeuroBotChat({ username }) {
           </div>
 
           {/* Layout: header + (ONE scroll area) + input */}
-          <div className="relative flex flex-col h-[calc(100vh-56px)] sm:h-[calc(92vh-56px)] min-h-0">
+          <div className="relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] sm:h-[calc(92vh-56px)] min-h-0"
+>
             {/* ✅ ONE SCROLL AREA (only scrollbar here) */}
            <div
   ref={scrollRef}
