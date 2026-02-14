@@ -198,7 +198,8 @@ export default function Payments({ username }) {
   const [verifying, setVerifying] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null); // null | "submitted" | "success"
-  const [openedUPI, setOpenedUPI] = useState(false);
+  const [openedUPI, setOpenedUPI] = useState(true);
+
 
   const [sub, setSub] = useState(null);
   const [subLoading, setSubLoading] = useState(true);
@@ -378,7 +379,8 @@ export default function Payments({ username }) {
     setUtr("");
     setVerifying(false);
     setPaymentStatus(null);
-    setOpenedUPI(false);
+   setOpenedUPI(true);
+
 
     // ✅ reset help defaults for new payment screen
     setHelpApp("gpay");
@@ -911,26 +913,7 @@ export default function Payments({ username }) {
                       <img src={`data:image/png;base64,${upiQR.qr_b64}`} alt="UPI QR" className="w-64 h-64" />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          if (tr) {
-                            await fetch(`${API}/payments/upi/opened`, {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ tr }),
-                            });
-                          }
-                        } catch { }
-                        setOpenedUPI(true);
-                        window.location.href = upiQR.upi_uri;
-                      }}
-                      className="flex items-center gap-2 px-6 py-3 rounded-xl bg-green-500 text-black font-semibold"
-                    >
-                      <Smartphone className="w-4 h-4" />
-                      Click Here and Then Scan QR and fill Transaction ID
-                    </button>
+                    
 
                     <div className="flex items-center gap-2 text-slate-300 text-sm">
                       <Loader className="w-4 h-4 animate-spin" />
