@@ -12,9 +12,20 @@ function prettyName(raw) {
   return String(raw).replace(/_/g, " ").trim();
 }
 
+function ThinkingDots() {
+  return (
+    <span className="inline-flex items-center gap-1 align-middle">
+      <span className="h-1.5 w-1.5 rounded-full bg-white/70 animate-pulse" />
+      <span className="h-1.5 w-1.5 rounded-full bg-white/70 animate-pulse [animation-delay:150ms]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-white/70 animate-pulse [animation-delay:300ms]" />
+    </span>
+  );
+}
+
 export default function NeuroBotChat({ username }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
   const displayName = useMemo(() => {
     return prettyName(
@@ -39,53 +50,77 @@ export default function NeuroBotChat({ username }) {
 
   useEffect(() => {
     if (!open) return;
-    // Always jump to bottom when new messages arrive (same behavior as before)
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, open]);
 
   useEffect(() => {
     if (!open) return;
-    // Ensure it goes to bottom when opening too
     setTimeout(() => {
       bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
     }, 50);
   }, [open]);
 
-async function send(qOverride) {
-  const q = (qOverride ?? input).trim();
-  if (!q) return;
+  async function send(qOverride) {
+    const q = (qOverride ?? input).trim();
+    if (!q) return;
 
-  if (qOverride == null) setInput("");
-  setMessages((m) => [...m, { role: "user", text: q, ts: Date.now() }]);
+    // Prevent double-sends while an answer is in progress
+    if (isSending) return;
 
-  let answer = "Thinking…";   // ✅ CHANGED HERE
+    if (qOverride == null) setInput("");
 
-  try {
-    const r = await fetch(`${API}/chatbot/ask`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, username: displayName }),
-    });
+    const now = Date.now();
+    const thinkingId = `thinking_${now}`;
 
-    const raw = await r.text();
+    // 1) Push user message immediately
+    // 2) Push a "thinking" assistant bubble immediately (like ChatGPT/Gemini)
+    setMessages((m) => [
+      ...m,
+      { role: "user", text: q, ts: now },
+      {
+        id: thinkingId,
+        role: "bot",
+        text: "Thinking…",
+        thinking: true,
+        ts: now + 1,
+      },
+    ]);
 
-    if (!r.ok) {
-      answer = `Bot backend error (${r.status}): ${raw}`;
-    } else {
-      let d = {};
-      try { d = JSON.parse(raw); } catch {}
-      answer = d?.answer || d?.markdown || `Bot ok but empty response: ${raw}`;
+    setIsSending(true);
+
+    let answer = "";
+
+    try {
+      const r = await fetch(`${API}/chatbot/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, username: displayName }),
+      });
+
+      const raw = await r.text();
+
+      if (!r.ok) {
+        answer = `Bot backend error (${r.status}): ${raw}`;
+      } else {
+        let d = {};
+        try { d = JSON.parse(raw); } catch {}
+        answer = d?.answer || d?.markdown || `Bot ok but empty response: ${raw}`;
+      }
+    } catch (e) {
+      answer = `Bot connection failed: ${String(e?.message || e)}`;
     }
-  } catch (e) {
-    answer = `Bot connection failed: ${String(e?.message || e)}`;
+
+    // Replace the thinking bubble with the real answer
+    setMessages((m) =>
+      m.map((msg) =>
+        msg?.id === thinkingId
+          ? { ...msg, text: answer || "(No response)", thinking: false, ts: Date.now() + 1 }
+          : msg
+      )
+    );
+
+    setIsSending(false);
   }
-
-  setMessages((m) => [
-    ...m,
-    { role: "bot", text: answer, ts: Date.now() + 1 },
-  ]);
-}
-
 
   function quickAsk(text) {
     if (!open) setOpen(true);
@@ -160,39 +195,17 @@ async function send(qOverride) {
             </button>
           </div>
 
-          {/* Layout: header + (ONE scroll area) + input */}
-          <div className="relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] sm:h-[calc(92vh-56px)] min-h-0"
->
-            {/* ✅ ONE SCROLL AREA (only scrollbar here) */}
-           <div
-  ref={scrollRef}
-  className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3 nc-chat-scroll"
->
-
+          <div className="relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] sm:h-[calc(92vh-56px)] min-h-0">
+            <div
+              ref={scrollRef}
+              className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3 nc-chat-scroll"
+            >
               {/* HERO */}
-              <div
-                className="
-                  rounded-[26px] p-4
-                  bg-gradient-to-r from-white/12 to-white/6
-                  border border-white/10
-                  backdrop-blur-xl
-                  shadow-[0_0_50px_rgba(120,120,255,0.12)]
-                "
-              >
+              <div className="rounded-[26px] p-4 bg-gradient-to-r from-white/12 to-white/6 border border-white/10 backdrop-blur-xl shadow-[0_0_50px_rgba(120,120,255,0.12)]">
                 <div className="flex items-center gap-4">
-                  <div
-                    className="
-                      h-16 w-16 rounded-2xl
-                      bg-gradient-to-br from-[#6dfcff]/25 to-[#b56dff]/20
-                      border border-white/10
-                      flex items-center justify-center
-                      text-3xl
-                      shadow-[0_0_30px_rgba(120,200,255,0.18)]
-                    "
-                  >
+                  <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#6dfcff]/25 to-[#b56dff]/20 border border-white/10 flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(120,200,255,0.18)]">
                     🤖
                   </div>
-
                   <div className="min-w-0">
                     <div className="text-[22px] font-extrabold leading-tight">
                       Welcome, {displayName}!
@@ -217,7 +230,6 @@ async function send(qOverride) {
                   <div className="text-base font-bold">What NeuroCrest Offers</div>
                   <ChevronRight size={18} className="text-white/60" />
                 </button>
-
                 <div className="px-3 pb-3">
                   <div className="grid grid-cols-4 gap-3">
                     {offers.map((o) => (
@@ -225,18 +237,11 @@ async function send(qOverride) {
                         key={o.label}
                         onClick={() => quickAsk(o.q)}
                         type="button"
-                        className="
-                          relative rounded-2xl p-3 text-left overflow-hidden
-                          bg-gradient-to-b from-[#1b2a64]/60 to-[#0b1230]/60
-                          border border-white/10
-                          shadow-[0_10px_30px_rgba(0,0,0,0.30)]
-                          hover:from-[#22347a]/65 hover:to-[#0b1230]/65 transition
-                        "
+                        className="relative rounded-2xl p-3 text-left overflow-hidden bg-gradient-to-b from-[#1b2a64]/60 to-[#0b1230]/60 border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.30)] hover:from-[#22347a]/65 hover:to-[#0b1230]/65 transition"
                         title={o.label}
                       >
                         <div className="pointer-events-none absolute -top-8 -left-8 h-20 w-20 rounded-full bg-cyan-400/15 blur-2xl" />
                         <div className="pointer-events-none absolute -bottom-10 -right-10 h-24 w-24 rounded-full bg-fuchsia-400/10 blur-2xl" />
-
                         <div className="text-2xl drop-shadow">{o.emoji}</div>
                         <div className="text-[11px] mt-2 font-semibold leading-tight text-white/95">
                           {o.label}
@@ -263,12 +268,7 @@ async function send(qOverride) {
                     <button
                       key={a.label}
                       onClick={() => quickAsk(a.q)}
-                      className="
-                        rounded-2xl p-4 flex items-center gap-3 text-left
-                        bg-gradient-to-b from-white/10 to-white/5
-                        border border-white/10
-                        hover:from-white/12 hover:to-white/7 transition
-                      "
+                      className="rounded-2xl p-4 flex items-center gap-3 text-left bg-gradient-to-b from-white/10 to-white/5 border border-white/10 hover:from-white/12 hover:to-white/7 transition"
                       type="button"
                     >
                       <div className="text-xl">{a.icon}</div>
@@ -287,7 +287,7 @@ async function send(qOverride) {
                 <div className="font-semibold">Have a question? Just ask!</div>
               </div>
 
-              {/* ✅ MESSAGES (no scrollbar here now) */}
+              {/* ✅ MESSAGES */}
               <div className="mt-4 space-y-2">
                 {messages.map((m) => (
                   <div
@@ -302,7 +302,14 @@ async function send(qOverride) {
                           : "bg-white/10 text-white"}
                       `}
                     >
-                      {m.text}
+                      {m.thinking ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/90">Thinking</span>
+                          <ThinkingDots />
+                        </div>
+                      ) : (
+                        m.text
+                      )}
                     </div>
                   </div>
                 ))}
@@ -323,11 +330,13 @@ async function send(qOverride) {
                 }}
                 rows={1}
                 placeholder="Type your message..."
-                className="flex-1 resize-none rounded-xl px-3 py-2 text-sm bg-white/5 border border-white/10 outline-none focus:border-cyan-400"
+                disabled={isSending}
+                className="flex-1 resize-none rounded-xl px-3 py-2 text-sm bg-white/5 border border-white/10 outline-none focus:border-cyan-400 disabled:opacity-60 disabled:cursor-not-allowed"
               />
               <button
                 onClick={() => send()}
-                className="p-2 rounded-xl bg-cyan-400 text-black hover:bg-cyan-300 transition"
+                disabled={isSending}
+                className="p-2 rounded-xl bg-cyan-400 text-black hover:bg-cyan-300 transition disabled:opacity-60 disabled:cursor-not-allowed"
                 aria-label="Send"
               >
                 <Send size={18} />
