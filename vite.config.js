@@ -24,11 +24,7 @@ export default defineConfig(({ mode }) => {
     // automatically redirect to your backend.
     server: {
       proxy: {
-        "/payments": {
-          target: backendBase,
-          changeOrigin: true,
-          secure: false,
-        },
+       
         "/watchlist": {
           target: backendBase,
           changeOrigin: true,
