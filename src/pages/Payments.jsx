@@ -351,7 +351,7 @@ export default function Payments({ username }) {
 
           // ✅ unlock + go to menu
           localStorage.removeItem("force_payment");
-          clearSubscriptionGateCache();
+                
           window.location.replace("/menu");
 
         }
@@ -460,31 +460,32 @@ export default function Payments({ username }) {
     }
   };
 
-  const handleBack = () => {
-    if (locked) {
-      setShowLockModal(true);
-      return;
-    }
+ const handleBack = () => {
+  if (locked) {
+    setShowLockModal(true);
+    return;
+  }
 
-    if (view === "QR") {
-      setView("PLANS");
-      setSelectedPlan(null);
-      setUpiQR(null);
-      setTr(null);
-      setUtr("");
-      setVerifying(false);
-      setSuccess(false);
-      setPaymentStatus(null);
-      setOpenedUPI(false);
+  if (view === "QR") {
+    setView("PLANS");
+    setSelectedPlan(null);
+    setUpiQR(null);
+    setTr(null);
+    setUtr("");
+    setVerifying(false);
+    setSuccess(false);
+    setPaymentStatus(null);
+    setOpenedUPI(false);
+    setHelpApp("gpay");
+    setImgOk({ gpay: true, phonepe: true, paytm: true });
+    return;
+  }
+   clearSubscriptionGateCache();
+localStorage.removeItem("force_payment");
+  // ✅ Universal safe back: always go to menu
+  nav("/menu", { replace: true });
+};
 
-      // ✅ reset help state too
-      setHelpApp("gpay");
-      setImgOk({ gpay: true, phonepe: true, paytm: true });
-      return;
-    }
-    if (window.history.length > 1) locked ? setShowLockModal(true) : nav(-1);
-    else nav("/menu");
-  };
 
   const primaryBtn =
     "w-full py-3 rounded-xl font-semibold text-white " +
