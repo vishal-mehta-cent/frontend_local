@@ -13,6 +13,8 @@ import { AnimatePresence } from "framer-motion";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+
+
 // ✅ add
 import AlertModal from "./components/AlertModal";
 import NeuroBotChat from "./components/NeuroBotChat";
@@ -47,6 +49,7 @@ import ProfileDetail from "./pages/ProfileDetail";
 import Payments from "./pages/Payments.jsx";
 import LiveChart from "./pages/LiveChart";
 import Whatsapp from "./pages/Whatsapp";
+import AutoTrade from "./pages/AutoTrade";
 
 
 // ✅ Backend API base
@@ -516,7 +519,21 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
           />
 
           <Route path="*" element={<Navigate to="/" replace />} />
+          <Route
+    path="/autotrade"
+    element={
+      username ? (
+        <RequireSubscription>
+          <AutoTrade />
+        </RequireSubscription>
+      ) : (
+        <Navigate to="/" replace />
+      )
+    }
+  />
+  <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        
 
       </AnimatePresence>
 
