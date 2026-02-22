@@ -10,7 +10,6 @@ import {
   Activity,
   Bell,
   Sparkles,
-  Play,
   Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -34,7 +33,20 @@ function normalizeSymbol(s) {
     .replace(/[^A-Z0-9_-]/g, "");
 }
 
-function TogglePill({ value, onChange, disabled }) {
+function fmtTime(d) {
+  try {
+    const dt = d instanceof Date ? d : new Date(d);
+    return new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(dt);
+  } catch {
+    return "";
+  }
+}
+
+function TogglePill({ value, onChange, disabled, loading = false }) {
   return (
     <button
       type="button"
@@ -49,7 +61,16 @@ function TogglePill({ value, onChange, disabled }) {
           : "bg-white/10 text-white/80 hover:bg-white/15",
       ].join(" ")}
     >
-      {value ? "ON" : "OFF"}
+      {loading ? (
+        <span className="inline-flex items-center gap-2">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>{value ? "ON" : "OFF"}</span>
+        </span>
+      ) : value ? (
+        "ON"
+      ) : (
+        "OFF"
+      )}
     </button>
   );
 }
@@ -64,6 +85,22 @@ export default function AutoTrade() {
   const [addSymbol, setAddSymbol] = useState("");
   const [search, setSearch] = useState("");
 
+  // master enable
+  const [enabled, setEnabled] = useState(true);
+
+  // Amount per trade (₹)
+  const [amounts, setAmounts] = useState({
+    intraday: 100000,
+    fast_alert: 100000,
+    generate_signals: 100000,
+    btst: 100000,
+    short_term: 100000,
+  });
+  const amountsRef = useRef(amounts);
+  useEffect(() => {
+    amountsRef.current = amounts;
+  }, [amounts]);
+
   // rows: [{symbol, fast_alert, intraday, btst, short_term, generate_signals}]
   const [rows, setRows] = useState([]);
 
@@ -72,8 +109,169 @@ export default function AutoTrade() {
   const [sLoading, setSLoading] = useState(false);
   const sAbort = useRef(null);
 
-  // per-script generate run state
+  // UI status
   const [genRunning, setGenRunning] = useState({}); // symbol -> bool
+  const [genStatus, setGenStatus] = useState({}); // symbol -> { ok, at, msg }
+  const [engineStatus, setEngineStatus] = useState(null);
+
+  // --- Frontend 20s loop (supports MULTIPLE generate_signals scripts) ---
+  const loopRef = useRef({
+    timers: {}, // sym -> timeout id
+    aborts: {}, // sym -> AbortController
+    inFlight: {}, // sym -> bool
+  });
+
+  function stopLoop(sym) {
+    if (!sym) return;
+    const t = loopRef.current.timers?.[sym];
+    if (t) {
+      clearTimeout(t);
+      delete loopRef.current.timers[sym];
+    }
+    const a = loopRef.current.aborts?.[sym];
+    if (a) {
+      try {
+        a.abort();
+      } catch {}
+      delete loopRef.current.aborts[sym];
+    }
+    delete loopRef.current.inFlight[sym];
+    setGenRunning((p) => ({ ...p, [sym]: false }));
+  }
+
+  function stopAllLoops() {
+    const syms = Object.keys(loopRef.current.timers || {});
+    syms.forEach(stopLoop);
+  }
+
+  async function runOnce(sym, { navigateToPositions = false } = {}) {
+    if (!sym) return { ok: false };
+    if (loopRef.current.inFlight[sym]) return { ok: false };
+
+    loopRef.current.inFlight[sym] = true;
+    setGenRunning((p) => ({ ...p, [sym]: true }));
+
+    try {
+      // cancel previous request for this sym
+      const prev = loopRef.current.aborts[sym];
+      if (prev) {
+        try {
+          prev.abort();
+        } catch {}
+      }
+      const controller = new AbortController();
+      loopRef.current.aborts[sym] = controller;
+
+      const res = await fetch(`${API}/auto-trade/generate-signals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: userId, symbol: sym }),
+        signal: controller.signal,
+      });
+
+      const txt = await res.text();
+      let j = null;
+      try {
+        j = JSON.parse(txt);
+      } catch {}
+
+      if (!res.ok) {
+        const msg =
+          (j && (j.detail?.message || j.detail)) || txt || "Generate failed";
+        setGenStatus((p) => ({
+          ...p,
+          [sym]: { ok: false, at: new Date().toISOString(), msg: String(msg) },
+        }));
+        return { ok: false };
+      }
+
+      setGenStatus((p) => ({
+        ...p,
+        [sym]: { ok: true, at: new Date().toISOString(), msg: "CSV updated" },
+      }));
+
+      if (navigateToPositions) {
+        navigate("/positions");
+      }
+      return { ok: true, data: j };
+    } catch (e) {
+      if (e?.name === "AbortError") return { ok: false };
+      setGenStatus((p) => ({
+        ...p,
+        [sym]: {
+          ok: false,
+          at: new Date().toISOString(),
+          msg: e?.message || "Generate failed",
+        },
+      }));
+      return { ok: false };
+    } finally {
+      delete loopRef.current.aborts[sym];
+      loopRef.current.inFlight[sym] = false;
+      setGenRunning((p) => ({ ...p, [sym]: false }));
+    }
+  }
+
+  function startLoop(sym) {
+    if (!sym) return;
+    if (loopRef.current.timers?.[sym]) return; // already running
+
+    const tick = async () => {
+      // if it was stopped, do nothing
+      if (!loopRef.current.timers?.[sym]) return;
+
+      const start = Date.now();
+      await runOnce(sym);
+      const elapsed = Date.now() - start;
+
+      // reschedule
+      if (!loopRef.current.timers?.[sym]) return;
+      const delay = Math.max(0, 20000 - elapsed);
+      loopRef.current.timers[sym] = setTimeout(tick, delay);
+    };
+
+    // first run after small delay to avoid burst when enabling many
+    loopRef.current.timers[sym] = setTimeout(tick, 50);
+  }
+
+  async function setEnabledRemote(v) {
+    const res = await fetch(`${API}/auto-trade/set-enabled`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, enabled: !!v }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  async function updateAmountsRemote(nextAmounts) {
+    const res = await fetch(`${API}/auto-trade/update-amounts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, amounts: nextAmounts }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
+
+  async function updateScript(sym, patch) {
+    const res = await fetch(`${API}/auto-trade/update-script`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, symbol: sym, patch }),
+    });
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || `HTTP ${res.status}`);
+    }
+    return res.json();
+  }
 
   // -----------------------------
   // Load settings
@@ -95,6 +293,10 @@ export default function AutoTrade() {
 
         const j = await res.json();
         if (!mounted) return;
+        setEnabled(!!j?.enabled);
+        if (j?.amounts && typeof j.amounts === "object") {
+          setAmounts((p) => ({ ...p, ...j.amounts }));
+        }
         setRows(Array.isArray(j.rows) ? j.rows : []);
       } catch (e) {
         console.error(e);
@@ -111,7 +313,80 @@ export default function AutoTrade() {
   }, [userId]);
 
   // -----------------------------
-  // Suggestions (reuse /search if exists)
+  // Poll backend status
+  // -----------------------------
+  useEffect(() => {
+    let mounted = true;
+    const tick = async () => {
+      try {
+        const res = await fetch(
+          `${API}/auto-trade/run-status?user_id=${encodeURIComponent(userId)}`
+        );
+        if (!res.ok) return;
+        const j = await res.json();
+        setEngineStatus(j);
+        const u = j?.user || {};
+        const scripts = u?.scripts || {};
+        if (!mounted) return;
+
+        const next = {};
+        for (const [sym, st] of Object.entries(scripts)) {
+          if (st?.last_generate_at) {
+            next[sym] = {
+              ok: !!st?.last_generate_ok,
+              at: st?.last_generate_at,
+              msg: st?.last_generate_ok ? "CSV updated" : (st?.last_generate_msg || "Generate failed"),
+            };
+          }
+        }
+        setGenStatus((p) => ({ ...p, ...next }));
+      } catch {
+        // ignore
+      }
+    };
+
+    tick();
+    const t = setInterval(tick, 5000);
+    return () => {
+      mounted = false;
+      clearInterval(t);
+    };
+  }, [userId]);
+
+  // Stop loops when master disabled
+  useEffect(() => {
+    if (!enabled) stopAllLoops();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+
+  // Maintain loops for all scripts where generate_signals is ON
+  useEffect(() => {
+    if (!enabled) {
+      stopAllLoops();
+      return;
+    }
+
+    const activeSyms = rows.filter((x) => !!x.generate_signals).map((x) => x.symbol);
+
+    // start loops for active
+    activeSyms.forEach((sym) => startLoop(sym));
+
+    // stop loops for inactive
+    Object.keys(loopRef.current.timers || {}).forEach((sym) => {
+      if (!activeSyms.includes(sym)) stopLoop(sym);
+    });
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, enabled]);
+
+  // cleanup on unmount
+  useEffect(() => {
+    return () => stopAllLoops();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // -----------------------------
+  // Suggestions
   // -----------------------------
   useEffect(() => {
     const q = addSymbol.trim();
@@ -144,8 +419,8 @@ export default function AutoTrade() {
           ? j.results
           : [];
         setSuggestions(arr.slice(0, 10));
-      } catch (e) {
-        // ignore aborts
+      } catch {
+        // ignore
       } finally {
         setSLoading(false);
       }
@@ -203,6 +478,7 @@ export default function AutoTrade() {
   // Remove script
   // -----------------------------
   async function removeScript(sym) {
+    stopLoop(sym);
     try {
       const res = await fetch(`${API}/auto-trade/remove-script`, {
         method: "POST",
@@ -213,7 +489,7 @@ export default function AutoTrade() {
         const txt = await res.text();
         console.warn("remove-script failed:", txt);
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
     setRows((prev) => prev.filter((r) => r.symbol !== sym));
@@ -245,69 +521,47 @@ export default function AutoTrade() {
     }
   }
 
-  // -----------------------------
-  // All Signals row toggles
-  // -----------------------------
-  function setAllKpi(key, value) {
+  // IMPORTANT FIX:
+  // "All Signals" row must update backend immediately (so Recommendation_Data behavior matches UI).
+  async function setAllKpi(key, value) {
     setRows((prev) =>
       prev.map((r) => ({
         ...r,
         [key]: value,
       }))
     );
-  }
 
-  // -----------------------------
-  // Generate Signals run
-  // -----------------------------
-  async function runGenerate(sym) {
+    // push to backend for each script (best-effort)
     try {
-      setGenRunning((p) => ({ ...p, [sym]: true }));
-
-      const res = await fetch(`${API}/auto-trade/generate-signals`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: userId, symbol: sym }),
-      });
-
-      const txt = await res.text();
-      let j = null;
-      try {
-        j = JSON.parse(txt);
-      } catch {}
-
-      if (!res.ok) {
-        const msg =
-          (j && (j.detail?.message || j.detail)) ||
-          txt ||
-          "Generate Signals failed.";
-        alert(msg);
-        return;
-      }
-
-      alert("Signals generated and written to CSV.");
+      await Promise.all(
+        (rows || []).map((r) => updateScript(r.symbol, { [key]: value }))
+      );
     } catch (e) {
-      console.error(e);
-      alert("Generate Signals failed: " + (e?.message || "Please try again."));
-    } finally {
-      setGenRunning((p) => ({ ...p, [sym]: false }));
+      console.warn("Failed to update All Signals:", e?.message || e);
     }
   }
 
-  // -----------------------------
-  // Filtered rows
-  // -----------------------------
   const filtered = useMemo(() => {
     const q = search.trim().toUpperCase();
-    if (!q) return rows.slice().sort((a, b) => a.symbol.localeCompare(b.symbol));
+    if (!q)
+      return rows.slice().sort((a, b) => a.symbol.localeCompare(b.symbol));
     return rows
       .filter((r) => r.symbol.includes(q))
       .sort((a, b) => a.symbol.localeCompare(b.symbol));
   }, [rows, search]);
 
+  async function saveAmountKey(key, value) {
+    const next = { ...amountsRef.current, [key]: Number(value || 0) };
+    setAmounts(next);
+    try {
+      await updateAmountsRemote(next);
+    } catch (e) {
+      alert("Failed to save amounts: " + (e?.message || ""));
+    }
+  }
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-950 text-white">
-      {/* IMPORTANT: keep outer wrapper overflow visible */}
       <div className="mx-auto max-w-6xl px-4 py-6 overflow-visible">
         {/* Header */}
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 shadow-lg backdrop-blur">
@@ -345,7 +599,74 @@ export default function AutoTrade() {
           </div>
         </div>
 
-        {/* Add Script card (HIGH Z-INDEX so dropdown stays above table) */}
+        {/* Auto Trade Master + Amount per trade */}
+        <div className="mt-5 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-sm font-semibold text-emerald-200">
+                Auto Trade
+              </div>
+              <div className="text-xs text-white/60">
+                If OFF, no signals will be pushed to Positions.
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/60">Enabled</span>
+              <TogglePill
+                value={!!enabled}
+                onChange={async (v) => {
+                  setEnabled(v);
+                  try {
+                    await setEnabledRemote(v);
+                  } catch (e) {
+                    alert("Failed to update enabled: " + (e?.message || ""));
+                  }
+                }}
+                disabled={false}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <div className="text-sm font-semibold text-emerald-200">
+              Amount per trade (₹)
+            </div>
+            <div className="mt-2 grid grid-cols-1 gap-3 md:grid-cols-5">
+              {[
+                ["generate_signals", "Generate"],
+                ["fast_alert", "Fast Alert"],
+                ["intraday", "Intraday"],
+                ["btst", "BTST"],
+                ["short_term", "Short-Term"],
+              ].map(([key, label]) => (
+                <div
+                  key={key}
+                  className="rounded-xl border border-white/10 bg-white/5 p-3"
+                >
+                  <div className="text-xs text-white/70">{label}</div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={amounts[key] ?? 0}
+                    onChange={(e) => {
+                      const v = Number(e.target.value || 0);
+                      setAmounts((p) => ({ ...p, [key]: v }));
+                    }}
+                    onBlur={(e) => saveAmountKey(key, e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-sm outline-none focus:border-emerald-400/40"
+                  />
+                  <div className="mt-1 text-[10px] text-white/50">
+                    EQ qty = Amount/LTP • F&amp;O lots = Amount/(LTP×lotSize) → round down
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Add Script */}
         <div className="mt-5 relative z-[60] overflow-visible rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur">
           <div className="text-sm font-semibold text-emerald-200">
             Add New Script
@@ -360,7 +681,6 @@ export default function AutoTrade() {
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none placeholder:text-white/40 focus:border-emerald-400/40"
               />
 
-              {/* Suggestions dropdown (EVEN HIGHER Z) */}
               {addSymbol.trim() && suggestions.length > 0 && (
                 <div className="absolute left-0 right-0 z-[80] mt-2 max-h-[260px] overflow-auto rounded-xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur">
                   {suggestions.map((s, idx) => {
@@ -379,7 +699,6 @@ export default function AutoTrade() {
                         className="block w-full px-4 py-2 text-left text-sm hover:bg-white/10"
                       >
                         <div className="font-semibold text-white">{sym}</div>
-                        {/* if your /search returns more fields, show them */}
                         {(s?.name || s?.exchange || s?.segment) && (
                           <div className="text-xs text-white/60">
                             {s?.name ? String(s.name).toUpperCase() : ""}
@@ -402,25 +721,25 @@ export default function AutoTrade() {
               Add
             </button>
           </div>
-
-          <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-            <Search className="h-4 w-4 text-white/60" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search Existing Scripts..."
-              className="w-full bg-transparent text-sm outline-none placeholder:text-white/40"
-            />
-          </div>
         </div>
 
-        {/* Table card (LOWER Z-INDEX so it won't cover dropdown) */}
+        {/* Table */}
         <div className="mt-5 relative z-[10] rounded-2xl border border-white/10 bg-white/5 shadow-lg backdrop-blur">
-          <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-2 text-sm font-semibold text-emerald-200">
               <Bell className="h-4 w-4" />
               Alert Configurations{" "}
               <span className="text-white/60">({rows.length} scripts)</span>
+            </div>
+
+            <div className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 md:w-[360px]">
+              <Search className="h-4 w-4 text-white/60" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Existing Scripts..."
+                className="w-full bg-transparent text-sm outline-none placeholder:text-white/40"
+              />
             </div>
           </div>
 
@@ -469,7 +788,7 @@ export default function AutoTrade() {
                   <td className="border-b border-white/10 px-4 py-3">
                     <div className="font-semibold">All Signals</div>
                     <div className="text-xs text-white/50">
-                      Apply selection to all scripts
+                      Apply selection to all scripts (and backend uses this as “All Scripts”)
                     </div>
                   </td>
 
@@ -490,8 +809,7 @@ export default function AutoTrade() {
                   <td className="border-b border-white/10 px-4 py-3 text-center">
                     <TogglePill
                       value={
-                        rows.length > 0 &&
-                        rows.every((r) => r.intraday === true)
+                        rows.length > 0 && rows.every((r) => r.intraday === true)
                       }
                       onChange={(v) => setAllKpi("intraday", v)}
                       disabled={rows.length === 0}
@@ -521,19 +839,13 @@ export default function AutoTrade() {
 
                 {loading ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-white/60"
-                    >
+                    <td colSpan={7} className="px-4 py-10 text-center text-white/60">
                       Loading...
                     </td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-10 text-center text-white/60"
-                    >
+                    <td colSpan={7} className="px-4 py-10 text-center text-white/60">
                       No scripts added yet. Add your first script above.
                     </td>
                   </tr>
@@ -544,74 +856,123 @@ export default function AutoTrade() {
                         <div className="font-semibold">{r.symbol}</div>
                       </td>
 
+                      {/* Generate Signals */}
                       <td className="border-b border-white/10 px-4 py-3 text-center">
-                        <button
-                          type="button"
-                          onClick={() => runGenerate(r.symbol)}
-                          disabled={!!genRunning[r.symbol]}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/15 disabled:opacity-60"
-                          title="Run generator and write signals to CSV"
-                        >
-                          {genRunning[r.symbol] ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Play className="h-4 w-4" />
+                        <div className="flex flex-col items-center gap-1">
+                          <TogglePill
+                            value={!!r.generate_signals}
+                            loading={!!genRunning[r.symbol]}
+                            disabled={!enabled}
+                            onChange={async (v) => {
+                              const sym = r.symbol;
+
+                              // FIX: do NOT reset other scripts when toggling this one
+                              setRows((prev) =>
+                                prev.map((x) =>
+                                  x.symbol === sym ? { ...x, generate_signals: v } : x
+                                )
+                              );
+
+                              try {
+                                await updateScript(sym, { generate_signals: v });
+
+                                if (v && enabled) {
+                                  // Run once immediately for faster UX, backend will also repeat.
+                                  await runOnce(sym, { navigateToPositions: true });
+                                  startLoop(sym);
+                                } else {
+                                  stopLoop(sym);
+                                }
+                              } catch (e) {
+                                alert("Failed to update: " + (e?.message || ""));
+                                // rollback UI state (best-effort)
+                                setRows((prev) =>
+                                  prev.map((x) =>
+                                    x.symbol === sym ? { ...x, generate_signals: !v } : x
+                                  )
+                                );
+                              }
+                            }}
+                          />
+
+                          {genStatus?.[r.symbol]?.at && (
+                            <div
+                              className={[
+                                "text-[10px]",
+                                genStatus[r.symbol]?.ok
+                                  ? "text-white/50"
+                                  : "text-rose-200/80",
+                              ].join(" ")}
+                              title={genStatus?.[r.symbol]?.msg || ""}
+                            >
+                              {genStatus[r.symbol]?.ok ? "Last" : "Err"}:{" "}
+                              {fmtTime(genStatus[r.symbol].at)}
+                            </div>
                           )}
-                          Run
-                        </button>
+                        </div>
                       </td>
 
                       <td className="border-b border-white/10 px-4 py-3 text-center">
                         <TogglePill
                           value={!!r.fast_alert}
-                          onChange={(v) =>
+                          onChange={async (v) => {
                             setRows((prev) =>
                               prev.map((x) =>
                                 x.symbol === r.symbol ? { ...x, fast_alert: v } : x
                               )
-                            )
-                          }
+                            );
+                            try {
+                              await updateScript(r.symbol, { fast_alert: v });
+                            } catch {}
+                          }}
                         />
                       </td>
 
                       <td className="border-b border-white/10 px-4 py-3 text-center">
                         <TogglePill
                           value={!!r.intraday}
-                          onChange={(v) =>
+                          onChange={async (v) => {
                             setRows((prev) =>
                               prev.map((x) =>
                                 x.symbol === r.symbol ? { ...x, intraday: v } : x
                               )
-                            )
-                          }
+                            );
+                            try {
+                              await updateScript(r.symbol, { intraday: v });
+                            } catch {}
+                          }}
                         />
                       </td>
 
                       <td className="border-b border-white/10 px-4 py-3 text-center">
                         <TogglePill
                           value={!!r.btst}
-                          onChange={(v) =>
+                          onChange={async (v) => {
                             setRows((prev) =>
                               prev.map((x) =>
                                 x.symbol === r.symbol ? { ...x, btst: v } : x
                               )
-                            )
-                          }
+                            );
+                            try {
+                              await updateScript(r.symbol, { btst: v });
+                            } catch {}
+                          }}
                         />
                       </td>
 
                       <td className="border-b border-white/10 px-4 py-3 text-center">
                         <TogglePill
                           value={!!r.short_term}
-                          onChange={(v) =>
+                          onChange={async (v) => {
                             setRows((prev) =>
                               prev.map((x) =>
-                                x.symbol === r.symbol
-                                  ? { ...x, short_term: v }
-                                  : x
+                                x.symbol === r.symbol ? { ...x, short_term: v } : x
                               )
-                            )
-                          }
+                            );
+                            try {
+                              await updateScript(r.symbol, { short_term: v });
+                            } catch {}
+                          }}
                         />
                       </td>
 
@@ -633,8 +994,12 @@ export default function AutoTrade() {
           </div>
 
           <div className="px-4 py-3 text-xs text-white/50">
-            Tip: Click <span className="text-white/70 font-semibold">Run</span>{" "}
-            to generate signals for a script and write them into CSV outputs.
+            Tip: Turn{" "}
+            <span className="text-white/70 font-semibold">Generate Signals</span>{" "}
+            <span className="text-white/70 font-semibold">ON</span> to run now +
+            backend repeats every 20s. Intraday orders only before 1:00 PM IST.
+            Between 1:00–2:45 PM, signals are deferred (no intraday orders placed).
+            After 2:45 PM they execute as Delivery. BTST/Short-Term always Delivery.
           </div>
         </div>
       </div>
