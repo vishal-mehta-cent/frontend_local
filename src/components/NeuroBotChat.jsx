@@ -1,6 +1,9 @@
 // src/components/NeuroBotChat.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageCircle, X, Send, ChevronRight } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 
@@ -35,13 +38,20 @@ export default function NeuroBotChat({ username }) {
   // ✅ lightbox for image zoom
   const [lightbox, setLightbox] = useState({ open: false, src: "", title: "" });
 
-  const displayName = useMemo(() => {
-    return prettyName(
+  // ✅ RAW username for backend (do NOT pretty-format)
+  const apiUsername = useMemo(() => {
+    return String(
       username ||
         localStorage.getItem("username") ||
-        localStorage.getItem("user_id")
-    );
+        localStorage.getItem("user_id") ||
+        ""
+    ).trim();
   }, [username]);
+
+  // ✅ Pretty name only for display
+  const displayName = useMemo(() => {
+    return prettyName(apiUsername);
+  }, [apiUsername]);
 
   const [messages, setMessages] = useState([
     {
@@ -106,10 +116,19 @@ export default function NeuroBotChat({ username }) {
     let images = [];
 
     try {
+      const session_id =
+        localStorage.getItem("session_id") ||
+        localStorage.getItem("sessionId") ||
+        "";
+
       const r = await fetch(`${API}/chatbot/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, username: displayName }),
+        body: JSON.stringify({
+          question: q,
+          username: apiUsername, // ✅ send raw username (e.g., Neurocrest_jinal)
+          session_id, // ✅ optional helper for backend
+        }),
       });
 
       const raw = await r.text();
@@ -151,16 +170,40 @@ export default function NeuroBotChat({ username }) {
   }
 
   const offers = [
-    { emoji: "🧠", label: "Paper Trading", q: "How does paper trading work in NeuroCrest?" },
+    {
+      emoji: "🧠",
+      label: "Paper Trading",
+      q: "How does paper trading work in NeuroCrest?",
+    },
     { emoji: "🤖", label: "AI Alerts", q: "Explain AI alerts and how to use them." },
-    { emoji: "🔔", label: "Real-Time Alerts", q: "How do real-time alerts work? Can I get WhatsApp alerts?" },
-    { emoji: "🏆", label: "Trading Challenges", q: "What are trading challenges and how do I join?" },
+    {
+      emoji: "🔔",
+      label: "Real-Time Alerts",
+      q: "How do real-time alerts work? Can I get WhatsApp alerts?",
+    },
+    {
+      emoji: "🏆",
+      label: "Trading Challenges",
+      q: "What are trading challenges and how do I join?",
+    },
   ];
 
   const assist = [
-    { icon: "🧾", label: "Explain Strategies", q: "Explain NeuroCrest strategies in simple terms." },
-    { icon: "🔎", label: "Extract Signals by Criteria", q: "Extract signals by criteria (symbol, timeframe, direction, accuracy, date) and explain them." },
-    { icon: "📁", label: "Guide on Portfolio", q: "Help me understand Portfolio page and P&L calculations." },
+    {
+      icon: "🧾",
+      label: "Explain Strategies",
+      q: "Explain NeuroCrest strategies in simple terms.",
+    },
+    {
+      icon: "🔎",
+      label: "Extract Signals by Criteria",
+      q: "Extract signals by criteria (symbol, timeframe, direction, accuracy, date) and explain them.",
+    },
+    {
+      icon: "📁",
+      label: "Guide on Portfolio",
+      q: "Help me understand Portfolio page and P&L calculations.",
+    },
     { icon: "💳", label: "Help with Pricing", q: "Explain pricing, plans, and how payments work." },
   ];
 
@@ -269,10 +312,14 @@ export default function NeuroBotChat({ username }) {
               <div className="rounded-[26px] border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => quickAsk("What NeuroCrest offers? Give me a quick overview.")}
+                  onClick={() =>
+                    quickAsk("What NeuroCrest offers? Give me a quick overview.")
+                  }
                   className="w-full flex items-center justify-between px-4 py-3"
                 >
-                  <div className="text-base font-bold">What NeuroCrest Offers</div>
+                  <div className="text-base font-bold">
+                    What NeuroCrest Offers
+                  </div>
                   <ChevronRight size={18} className="text-white/60" />
                 </button>
                 <div className="px-3 pb-3">
@@ -326,7 +373,9 @@ export default function NeuroBotChat({ username }) {
               <div className="mt-4 space-y-2">
                 {messages.map((m) => {
                   const isUser = m.role === "user";
-                  const imgList = Array.isArray(m.images) ? m.images.map(normalizeImg).filter(Boolean) : [];
+                  const imgList = Array.isArray(m.images)
+                    ? m.images.map(normalizeImg).filter(Boolean)
+                    : [];
 
                   return (
                     <div
@@ -335,9 +384,9 @@ export default function NeuroBotChat({ username }) {
                     >
                       <div
                         className={`
-                          px-3 py-2 text-sm rounded-2xl whitespace-pre-wrap
+                          px-3 py-2 text-sm rounded-2xl
                           ${isUser
-                            ? "bg-cyan-400 text-black shadow-[0_10px_30px_rgba(34,211,238,0.22)] max-w-[85%]"
+                            ? "bg-cyan-400 text-black shadow-[0_10px_30px_rgba(34,211,238,0.22)] max-w-[85%] whitespace-pre-wrap"
                             : "bg-white/10 text-white max-w-[92%]"}
                         `}
                       >
@@ -348,7 +397,66 @@ export default function NeuroBotChat({ username }) {
                           </div>
                         ) : (
                           <>
-                            <div>{m.text}</div>
+                            {/* ✅ Markdown render for bot so tables show correctly */}
+                            {isUser ? (
+                              <div className="whitespace-pre-wrap">{m.text}</div>
+                            ) : (
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm, remarkBreaks]}
+                                components={{
+                                  p: ({ node, ...props }) => (
+                                    <p className="whitespace-pre-wrap" {...props} />
+                                  ),
+                                  a: ({ node, ...props }) => (
+                                    <a
+                                      className="text-cyan-300 underline"
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      {...props}
+                                    />
+                                  ),
+                                  ul: ({ node, ...props }) => (
+                                    <ul className="list-disc pl-5 space-y-1" {...props} />
+                                  ),
+                                  ol: ({ node, ...props }) => (
+                                    <ol className="list-decimal pl-5 space-y-1" {...props} />
+                                  ),
+                                  table: ({ node, ...props }) => (
+                                    <div className="my-2 overflow-x-auto max-w-full">
+                                      <table
+                                        className="w-full border-collapse text-[12px]"
+                                        {...props}
+                                      />
+                                    </div>
+                                  ),
+                                  th: ({ node, ...props }) => (
+                                    <th
+                                      className="border border-white/10 bg-white/10 px-2 py-1 text-left font-semibold"
+                                      {...props}
+                                    />
+                                  ),
+                                  td: ({ node, ...props }) => (
+                                    <td
+                                      className="border border-white/10 px-2 py-1 align-top"
+                                      {...props}
+                                    />
+                                  ),
+                                  code: ({ node, inline, ...props }) =>
+                                    inline ? (
+                                      <code
+                                        className="px-1 py-0.5 rounded bg-black/30 border border-white/10"
+                                        {...props}
+                                      />
+                                    ) : (
+                                      <pre className="p-3 rounded-xl bg-black/30 border border-white/10 overflow-x-auto">
+                                        <code {...props} />
+                                      </pre>
+                                    ),
+                                }}
+                              >
+                                {m.text}
+                              </ReactMarkdown>
+                            )}
 
                             {/* ✅ Render images nicely (not cropped) + click to zoom */}
                             {!isUser && imgList.length > 0 && (
@@ -360,7 +468,9 @@ export default function NeuroBotChat({ username }) {
                                     <button
                                       key={`${src}_${idx}`}
                                       type="button"
-                                      onClick={() => setLightbox({ open: true, src, title })}
+                                      onClick={() =>
+                                        setLightbox({ open: true, src, title })
+                                      }
                                       className="group text-left"
                                       title="Click to zoom"
                                     >
