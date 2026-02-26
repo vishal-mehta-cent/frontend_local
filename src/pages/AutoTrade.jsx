@@ -79,6 +79,10 @@ export default function AutoTrade() {
   const navigate = useNavigate();
   const userId = useMemo(() => safeUserId(), []);
 
+  // Feature access (same as Recommendations page)
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [allowAutoTrade, setAllowAutoTrade] = useState(true);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -114,6 +118,31 @@ export default function AutoTrade() {
   const [genStatus, setGenStatus] = useState({}); // symbol -> { ok, at, msg }
   const [engineStatus, setEngineStatus] = useState(null);
 
+  // -----------------------------
+  // Check Auto Trade access (feature_access.csv)
+  // -----------------------------
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API}/features/access/${encodeURIComponent(userId)}`);
+        if (res.ok) {
+          const j = await res.json();
+          if (!mounted) return;
+          setAllowAutoTrade(!!j?.allow_auto_trade);
+        }
+      } catch {
+        // ignore (fallback to backend 403 if any)
+      } finally {
+        if (mounted) setAccessChecked(true);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [userId]);
+
+
   // --- Frontend 20s loop (supports MULTIPLE generate_signals scripts) ---
   const loopRef = useRef({
     timers: {}, // sym -> timeout id
@@ -143,6 +172,15 @@ export default function AutoTrade() {
     const syms = Object.keys(loopRef.current.timers || {});
     syms.forEach(stopLoop);
   }
+
+  // Stop everything if access is locked
+  useEffect(() => {
+    if (accessChecked && !allowAutoTrade) {
+      stopAllLoops();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessChecked, allowAutoTrade]);
+
 
   async function runOnce(sym, { navigateToPositions = false } = {}) {
     if (!sym) return { ok: false };
@@ -279,6 +317,20 @@ export default function AutoTrade() {
   useEffect(() => {
     let mounted = true;
 
+    // Wait for feature access check (same as Recommendations page)
+    if (!accessChecked) {
+      return () => {
+        mounted = false;
+      };
+    }
+    if (!allowAutoTrade) {
+      // Access denied: show locked popup (no alerts)
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
     async function load() {
       setLoading(true);
       try {
@@ -310,13 +362,19 @@ export default function AutoTrade() {
     return () => {
       mounted = false;
     };
-  }, [userId]);
+  }, [userId, accessChecked, allowAutoTrade]);
 
   // -----------------------------
   // Poll backend status
   // -----------------------------
   useEffect(() => {
     let mounted = true;
+
+    if (!accessChecked || !allowAutoTrade) {
+      return () => {
+        mounted = false;
+      };
+    }
     const tick = async () => {
       try {
         const res = await fetch(
@@ -351,7 +409,7 @@ export default function AutoTrade() {
       mounted = false;
       clearInterval(t);
     };
-  }, [userId]);
+  }, [userId, accessChecked, allowAutoTrade]);
 
   // Stop loops when master disabled
   useEffect(() => {
@@ -558,6 +616,39 @@ export default function AutoTrade() {
     } catch (e) {
       alert("Failed to save amounts: " + (e?.message || ""));
     }
+  }
+
+
+  // -----------------------------
+  // Locked screen (same UX as Recommendations)
+  // -----------------------------
+  if (!accessChecked) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-sky-50 to-sky-100 flex items-center justify-center px-4">
+        <div className="flex items-center gap-3 text-slate-700">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span className="font-medium">Checking access…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!allowAutoTrade) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-sky-50 to-sky-100 flex items-center justify-center px-4">
+        <div className="w-full max-w-xl rounded-3xl bg-white/80 backdrop-blur border border-white/70 shadow-2xl p-10 text-center">
+          <h1 className="text-3xl font-extrabold text-slate-900">Auto Trade Locked</h1>
+          <p className="mt-3 text-slate-600">This feature is enabled only for approved users.</p>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mt-8 inline-flex items-center justify-center rounded-xl bg-sky-500 px-10 py-3 font-semibold text-white shadow-lg hover:bg-sky-600 transition"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
