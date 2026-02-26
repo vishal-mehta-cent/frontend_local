@@ -42,9 +42,9 @@ export default function NeuroBotChat({ username }) {
   const apiUsername = useMemo(() => {
     return String(
       username ||
-        localStorage.getItem("username") ||
-        localStorage.getItem("user_id") ||
-        ""
+      localStorage.getItem("username") ||
+      localStorage.getItem("user_id") ||
+      ""
     ).trim();
   }, [username]);
 
@@ -53,15 +53,7 @@ export default function NeuroBotChat({ username }) {
     return prettyName(apiUsername);
   }, [apiUsername]);
 
-  const [messages, setMessages] = useState([
-    {
-      role: "bot",
-      text:
-        "Hi 👋 I’m NeuroBot.\nI can help you understand NeuroCrest features, navigation, recommendations & payments.",
-      images: [],
-      ts: Date.now(),
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
 
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -139,7 +131,7 @@ export default function NeuroBotChat({ username }) {
         let d = {};
         try {
           d = JSON.parse(raw);
-        } catch {}
+        } catch { }
         answer = d?.answer || d?.markdown || `Bot ok but empty response: ${raw}`;
         images = Array.isArray(d?.images) ? d.images : [];
       }
@@ -151,12 +143,12 @@ export default function NeuroBotChat({ username }) {
       m.map((msg) =>
         msg?.id === thinkingId
           ? {
-              ...msg,
-              text: answer || "(No response)",
-              images,
-              thinking: false,
-              ts: Date.now() + 1,
-            }
+            ...msg,
+            text: answer || "(No response)",
+            images,
+            thinking: false,
+            ts: Date.now() + 1,
+          }
           : msg
       )
     );
