@@ -1,0 +1,188 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🔥 Static Gradient Text Class for NeuroCrest Branding */
+.gradient-text {
+  font-weight: bold;
+  background: linear-gradient(90deg, #2378FF, #1EC8C8, #3CDE78, #FFA03C, #FF4646);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ✨ Animated Gradient Text */
+.gradient-text-animated {
+  font-weight: bold;
+  background: linear-gradient(90deg, #2378FF, #1EC8C8, #3CDE78, #FFA03C, #FF4646);
+  background-size: 400% 400%;
+  /* makes the gradient move smoothly */
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  animation: gradientShift 8s ease infinite;
+}
+
+/* Keyframes for gradient animation */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.neurocrest-text {
+  /*font-family: 'Poppins', sans-serif;*/
+  font-weight: 800;
+  background: linear-gradient(90deg,
+      #1e5cc4 0%,
+      /* Deep blue */
+      #00a4a6 25%,
+      /* Teal-green */
+      #59c36a 45%,
+      /* Soft green */
+      #f4b740 65%,
+      /* Yellow-orange */
+      #ef6c2c 85%,
+      /* Orange-red */
+      #d23b3b 100%
+      /* Soft red */
+    );
+
+  /* ✅ Cross-browser compatibility */
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+
+  /* Subtle depth similar to printed look
+  
+  
+  */
+}
+
+/* ✅ Hide scrollbar globally wherever we use `no-scrollbar` */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  /* IE/Edge */
+  scrollbar-width: none;
+  /* Firefox */
+  -webkit-overflow-scrolling: touch;
+  /* smooth mobile scroll */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+  display: none;
+  /* Chrome/Safari */
+}
+
+html,
+body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Hide scrollbar but keep scroll working */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+
+
+/* ✅ Neurocrest styled scrollbar (overlay style) */
+.nc-scrollbar {
+  scrollbar-width: thin;
+  /* Firefox */
+  scrollbar-color: rgba(34, 211, 238, 0.65) transparent;
+  scrollbar-gutter: auto;
+  /* don't reserve space */
+}
+
+/* Chrome / Edge / Safari */
+.nc-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  /* vertical */
+  height: 8px;
+  /* horizontal */
+}
+
+.nc-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  /* ✅ no separate strip */
+}
+
+.nc-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(34, 211, 238, 0.65);
+  border-radius: 999px;
+}
+
+.nc-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(34, 211, 238, 0.9);
+}
+
+/* Neurocrest Toastify styling */
+.Toastify__toast {
+  border-radius: 14px !important;
+  backdrop-filter: blur(10px) !important;
+  font-weight: 600 !important;
+}
+
+.Toastify__toast-theme--dark {
+  background: rgba(10, 18, 32, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  color: #e5e7eb !important;
+}
+
+.Toastify__toast-theme--light {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+}
+
+/* ✅ Force scrollbar visible */
+.show-scrollbar {
+  scrollbar-width: auto;
+  /* Firefox */
+  scrollbar-gutter: stable;
+  /* keeps space for scrollbar */
+}
+
+.show-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 120, 0.65);
+  border-radius: 10px;
+}
+
+.show-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+@layer base {
+  html {
+    font-family: theme('fontFamily.sans');
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
