@@ -353,8 +353,13 @@ export default function Sell() {
           script: symbol.toUpperCase(),
           order_type: "SELL",
 
-          // ✅ Full exit: let backend decide owned_total
+          // exact active position anchor (prevents qty mismatch on merged symbols)
           qty: qtyNum,
+          position_datetime:
+            prefill?.positionDatetime ||
+            prefill?.position_datetime ||
+            prefill?.datetime ||
+            null,
 
           exchange: (exchange || "NSE").toUpperCase(),
           segment: (segment || prefill.segment || "intraday").toLowerCase(),
