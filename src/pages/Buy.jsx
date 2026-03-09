@@ -367,6 +367,13 @@ export default function Buy() {
           exchange: (exchange || "NSE").toUpperCase(),
           segment: (segment || prefill.segment || "intraday").toLowerCase(),
 
+          // exact active position anchor (prevents qty mismatch on merged symbols)
+          position_datetime:
+            prefill?.positionDatetime ||
+            prefill?.position_datetime ||
+            prefill?.datetime ||
+            null,
+
           // safe optional fields
           price: null,
           stoploss: null,
