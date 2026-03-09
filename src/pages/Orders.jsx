@@ -92,34 +92,24 @@ const toNumOrNull = (v) =>
 const pickDateTime = (o) =>
   o?.datetime || o?.updated_at || o?.created_at || o?.time || o?.date || null;
 
+const ASSUME_UTC_FOR_NAIVE = import.meta.env.PROD; // ✅ production/deployed only
+
 const parseDate = (s) => {
   if (!s) return null;
   const raw = String(s).trim();
   if (!raw) return null;
 
+  // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm:ss"
   let isoLike = raw.includes("T") ? raw : raw.replace(" ", "T");
+
+  // trim microseconds to milliseconds (Date() supports 3 digits)
   isoLike = isoLike.replace(/(\.\d{3})\d+/, "$1");
 
+  // if timezone is missing, assume UTC only in production
   const hasTZ = /[zZ]|[+\-]\d{2}:\d{2}$/.test(isoLike);
-  if (hasTZ) {
-    const d = new Date(isoLike);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
+  const safe = hasTZ ? isoLike : (ASSUME_UTC_FOR_NAIVE ? `${isoLike}Z` : isoLike);
 
-  const m = isoLike.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (m) {
-    const yyyy = Number(m[1]);
-    const MM = Number(m[2]);
-    const dd = Number(m[3]);
-    const hh = Number(m[4]);
-    const mm = Number(m[5]);
-    const ss = Number(m[6] || 0);
-    const utcMs = Date.UTC(yyyy, MM - 1, dd, hh, mm, ss) - (5.5 * 60 * 60 * 1000);
-    const d = new Date(utcMs);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-
-  const d = new Date(raw);
+  const d = new Date(safe);
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
@@ -248,6 +238,7 @@ export default function Orders({ username }) {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showActions, setShowActions] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadedOnce, setLoadedOnce] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const intervalRef = useRef(null);
@@ -262,6 +253,8 @@ export default function Orders({ username }) {
   const isOrdersTab = tab === "open";
   const getSymbol = (o) => (o?.script || o?.symbol || "").toString().toUpperCase();
   const who = username || localStorage.getItem("username");
+  const POS_CACHE_KEY = `orders_positions_${who || "guest"}`;
+  const OPEN_CACHE_KEY = `orders_open_${who || "guest"}`;
   const prevPriceRef = useRef({});
   const [priceFlash, setPriceFlash] = useState({});
   const isInactiveSel = Boolean(selectedOrder?.inactive);
@@ -330,6 +323,20 @@ export default function Orders({ username }) {
     }));
   };
 
+  useEffect(() => {
+    if (!who) return;
+    try {
+      const cachedPos = sessionStorage.getItem(POS_CACHE_KEY);
+      const cachedOpen = sessionStorage.getItem(OPEN_CACHE_KEY);
+
+      if (cachedPos) {
+        setPositions(normalize(JSON.parse(cachedPos)));
+        setLoadedOnce(true);
+      }
+      if (cachedOpen) setOpenOrders(normalize(JSON.parse(cachedOpen)));
+    } catch {}
+  }, [who, OPEN_CACHE_KEY, POS_CACHE_KEY]);
+
   const loadData = useCallback(async () => {
     if (!who) {
       setOpenOrders([]);
@@ -364,8 +371,15 @@ export default function Orders({ username }) {
       }
 
       const [openData, posData] = await Promise.all([openRes.json(), posRes.json()]);
-      setOpenOrders(normalize(openData));
-      setPositions(normalize(posData));
+      const normalizedOpen = normalize(openData);
+      const normalizedPos = normalize(posData);
+      setOpenOrders(normalizedOpen);
+      setPositions(normalizedPos);
+      try {
+        sessionStorage.setItem(OPEN_CACHE_KEY, JSON.stringify(normalizedOpen));
+        sessionStorage.setItem(POS_CACHE_KEY, JSON.stringify(normalizedPos));
+      } catch {}
+      setLoadedOnce(true);
       setErrorMsg("");
     } catch (e) {
       // ⛑️ On any error or timeout: stop the spinner (no red message),
@@ -375,7 +389,7 @@ export default function Orders({ username }) {
       clearTimeout(timer);
       setLoading(false);
     }
-  }, [who]);
+  }, [who, OPEN_CACHE_KEY, POS_CACHE_KEY]);
 
   const whoRates = username || localStorage.getItem("username");
   const [rates, setRates] = useState(DEFAULT_RATES);
@@ -413,11 +427,6 @@ export default function Orders({ username }) {
     }
   }, [location.state, loadData]);
 
-  // 🔁 ALSO refresh **whenever the user clicks a tab** (your ask)
-  useEffect(() => {
-    loadData();
-  }, [tab, loadData]);
-
   // lightweight polling of orders/positions
   useEffect(() => {
     if (!who) return;
@@ -429,19 +438,26 @@ export default function Orders({ username }) {
         ]);
         if (!openRes.ok || !posRes.ok) return;
         const [openData, posData] = await Promise.all([openRes.json(), posRes.json()]);
-        setOpenOrders(normalize(openData));
-        setPositions(normalize(posData));
-        setLoading(false); // ensure we leave spinner once any data arrives
+        const normalizedOpen = normalize(openData);
+        const normalizedPos = normalize(posData);
+        setOpenOrders(normalizedOpen);
+        setPositions(normalizedPos);
+        try {
+          sessionStorage.setItem(OPEN_CACHE_KEY, JSON.stringify(normalizedOpen));
+          sessionStorage.setItem(POS_CACHE_KEY, JSON.stringify(normalizedPos));
+        } catch {}
+        setLoadedOnce(true);
+        setLoading(false);
       } catch {
         /* ignore */
       }
     };
-    dataPollRef.current = setInterval(silentRefresh, 3000);
+    dataPollRef.current = setInterval(silentRefresh, 8000);
     return () => {
       if (dataPollRef.current) clearInterval(dataPollRef.current);
       dataPollRef.current = null;
     };
-  }, [who, loadData]);
+  }, [who, OPEN_CACHE_KEY, POS_CACHE_KEY]);
 
   // Live quotes polling
   useEffect(() => {
@@ -863,7 +879,7 @@ export default function Orders({ username }) {
           <div className={`text-center ${textSecondaryClass}`}>Loading...</div>
         ) : errorMsg ? (
           <div className="text-center text-red-400">{errorMsg}</div>
-        ) : ordersToShow.length === 0 ? (
+        ) : !loading && loadedOnce && ordersToShow.length === 0 ? (
           <div className={`text-center ${textSecondaryClass} mt-10`}>
             No {isOrdersTab ? "open trades" : "positions"}.
           </div>
