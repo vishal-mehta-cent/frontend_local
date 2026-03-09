@@ -92,24 +92,34 @@ const toNumOrNull = (v) =>
 const pickDateTime = (o) =>
   o?.datetime || o?.updated_at || o?.created_at || o?.time || o?.date || null;
 
-const ASSUME_UTC_FOR_NAIVE = import.meta.env.PROD; // ✅ production/deployed only
-
 const parseDate = (s) => {
   if (!s) return null;
   const raw = String(s).trim();
   if (!raw) return null;
 
-  // "YYYY-MM-DD HH:mm:ss" -> "YYYY-MM-DDTHH:mm:ss"
   let isoLike = raw.includes("T") ? raw : raw.replace(" ", "T");
-
-  // trim microseconds to milliseconds (Date() supports 3 digits)
   isoLike = isoLike.replace(/(\.\d{3})\d+/, "$1");
 
-  // if timezone is missing, assume UTC only in production
   const hasTZ = /[zZ]|[+\-]\d{2}:\d{2}$/.test(isoLike);
-  const safe = hasTZ ? isoLike : (ASSUME_UTC_FOR_NAIVE ? `${isoLike}Z` : isoLike);
+  if (hasTZ) {
+    const d = new Date(isoLike);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
 
-  const d = new Date(safe);
+  const m = isoLike.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    const yyyy = Number(m[1]);
+    const MM = Number(m[2]);
+    const dd = Number(m[3]);
+    const hh = Number(m[4]);
+    const mm = Number(m[5]);
+    const ss = Number(m[6] || 0);
+    const utcMs = Date.UTC(yyyy, MM - 1, dd, hh, mm, ss) - (5.5 * 60 * 60 * 1000);
+    const d = new Date(utcMs);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  const d = new Date(raw);
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
