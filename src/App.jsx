@@ -224,7 +224,7 @@ function AnimatedRoutes({ username, onLoginSuccess, onLogout }) {
       } catch {
         clearInterval(interval); // silent stop on network fail
       }
-    }, 5000);
+    }, 20000);
 
     return () => {
       active = false;
