@@ -173,17 +173,36 @@ export default function AutoTrade() {
     syms.forEach(stopLoop);
   }
 
+  function lockAutoTradeUi() {
+    stopAllLoops();
+    setAllowAutoTrade(false);
+    setEnabled(false);
+    setRows([]);
+    setGenRunning({});
+    setGenStatus({});
+    setEngineStatus(null);
+  }
+
+  async function readErrorText(res) {
+    try {
+      const txt = await res.text();
+      return txt || `HTTP ${res.status}`;
+    } catch {
+      return `HTTP ${res.status}`;
+    }
+  }
+
   // Stop everything if access is locked
   useEffect(() => {
     if (accessChecked && !allowAutoTrade) {
-      stopAllLoops();
+      lockAutoTradeUi();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessChecked, allowAutoTrade]);
 
 
   async function runOnce(sym, { navigateToPositions = false } = {}) {
-    if (!sym) return { ok: false };
+    if (!sym || !allowAutoTrade || !enabled) return { ok: false };
     if (loopRef.current.inFlight[sym]) return { ok: false };
 
     loopRef.current.inFlight[sym] = true;
@@ -216,6 +235,9 @@ export default function AutoTrade() {
       if (!res.ok) {
         const msg =
           (j && (j.detail?.message || j.detail)) || txt || "Generate failed";
+        if (res.status === 403) {
+          lockAutoTradeUi();
+        }
         setGenStatus((p) => ({
           ...p,
           [sym]: { ok: false, at: new Date().toISOString(), msg: String(msg) },
@@ -279,8 +301,10 @@ export default function AutoTrade() {
       body: JSON.stringify({ user_id: userId, enabled: !!v }),
     });
     if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || `HTTP ${res.status}`);
+      if (res.status === 403) {
+        lockAutoTradeUi();
+      }
+      throw new Error(await readErrorText(res));
     }
     return res.json();
   }
@@ -292,8 +316,10 @@ export default function AutoTrade() {
       body: JSON.stringify({ user_id: userId, amounts: nextAmounts }),
     });
     if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || `HTTP ${res.status}`);
+      if (res.status === 403) {
+        lockAutoTradeUi();
+      }
+      throw new Error(await readErrorText(res));
     }
     return res.json();
   }
@@ -305,8 +331,10 @@ export default function AutoTrade() {
       body: JSON.stringify({ user_id: userId, symbol: sym, patch }),
     });
     if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || `HTTP ${res.status}`);
+      if (res.status === 403) {
+        lockAutoTradeUi();
+      }
+      throw new Error(await readErrorText(res));
     }
     return res.json();
   }
@@ -339,8 +367,10 @@ export default function AutoTrade() {
         );
 
         if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt || `HTTP ${res.status}`);
+          if (res.status === 403) {
+            lockAutoTradeUi();
+          }
+          throw new Error(await readErrorText(res));
         }
 
         const j = await res.json();
@@ -380,7 +410,12 @@ export default function AutoTrade() {
         const res = await fetch(
           `${API}/auto-trade/run-status?user_id=${encodeURIComponent(userId)}`
         );
-        if (!res.ok) return;
+        if (!res.ok) {
+          if (res.status === 403) {
+            lockAutoTradeUi();
+          }
+          return;
+        }
         const j = await res.json();
         setEngineStatus(j);
         const u = j?.user || {};
@@ -413,13 +448,13 @@ export default function AutoTrade() {
 
   // Stop loops when master disabled
   useEffect(() => {
-    if (!enabled) stopAllLoops();
+    if (!enabled || !allowAutoTrade) stopAllLoops();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, allowAutoTrade]);
 
   // Maintain loops for all scripts where generate_signals is ON
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !allowAutoTrade) {
       stopAllLoops();
       return;
     }
