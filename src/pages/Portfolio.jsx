@@ -81,6 +81,7 @@ const SegmentBadge = ({ segment }) => {
   );
 };
 
+const DISPLAY_TZ = import.meta.env.PROD ? "UTC" : "Asia/Kolkata";
 
 // ---------- Brokerage settings helpers (same as Orders.jsx) ----------
 const DEFAULT_RATES = {
@@ -257,37 +258,36 @@ export default function Portfolio({ username }) {
     return Number.isNaN(d.getTime()) ? null : d;
   };
 
-  const fmtTime = (d) =>
-    d
-      ? d.toLocaleTimeString("en-IN", {
-        timeZone: "Asia/Kolkata",
+const fmtTime = (d) =>
+  d
+    ? d.toLocaleTimeString("en-IN", {
+        timeZone: DISPLAY_TZ,
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
         hour12: false,
       })
-      : "—";
+    : "—";
 
-  const fmtDate = (d) =>
-    d
-      ? d.toLocaleDateString("en-IN", {
-        timeZone: "Asia/Kolkata",
+const fmtDate = (d) =>
+  d
+    ? d.toLocaleDateString("en-IN", {
+        timeZone: DISPLAY_TZ,
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
       })
-      : "—";
-  const toISTYMD = (d) => {
-    if (!d) return null;
-    // en-CA gives YYYY-MM-DD format
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(d);
-  };
+    : "—";
 
+const toDisplayYMD = (d) => {
+  if (!d) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: DISPLAY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+};
 
   const filteredOpen = useMemo(() => {
     if (!startDate && !endDate) return data.open;
@@ -296,7 +296,7 @@ export default function Portfolio({ username }) {
     return (data.open || []).filter((p) => {
       const dtRaw = pickDateTime(p);
       const dt = parseDate(dtRaw);
-      const ymd = toISTYMD(dt);
+      const ymd = toDisplayYMD(dt);
       if (!ymd) return false;
       if (start && ymd < start) return false;
       if (end && ymd > end) return false;
