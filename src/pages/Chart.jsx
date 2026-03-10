@@ -806,6 +806,8 @@ export default function ChartPage() {
   const [searchItems, setSearchItems] = useState([]);
   const searchInputRef = useRef(null);
 
+  
+
   useEffect(() => {
   let alive = true;
   const u = localStorage.getItem("username") || "";
@@ -956,6 +958,7 @@ export default function ChartPage() {
 
   const livePriceLine = useRef(null);
   const volSeries = useRef(null);
+  
 
   // ▶ INDICATORS — series managers
   const indSeriesMain = useRef({});
@@ -2894,6 +2897,43 @@ useEffect(() => {
   // ⭐ track recommendation mode in ref (used when button clicked)
   const recoModeRef = useRef(false);
 
+  const stopChartLoopsSilently = useCallback(() => {
+  if (autoRunRef.current) {
+    clearInterval(autoRunRef.current);
+    autoRunRef.current = null;
+  }
+
+  if (recoRunRef.current) {
+    clearInterval(recoRunRef.current);
+    recoRunRef.current = null;
+  }
+
+  isRunningRef.current = false;
+  recoModeRef.current = false;
+
+  const currentSymbol = symbolRef.current || symbol;
+
+  if (currentSymbol) {
+    localStorage.setItem("NC_generateMode_" + currentSymbol, "false");
+    localStorage.setItem("NC_recoMode_" + currentSymbol, "false");
+  }
+}, [symbol]);
+
+useEffect(() => {
+  const handlePageExit = () => {
+    stopChartLoopsSilently();
+  };
+
+  window.addEventListener("beforeunload", handlePageExit);
+  window.addEventListener("pagehide", handlePageExit);
+
+  return () => {
+    handlePageExit(); // important for React route change
+    window.removeEventListener("beforeunload", handlePageExit);
+    window.removeEventListener("pagehide", handlePageExit);
+  };
+}, [stopChartLoopsSilently]);
+
   // ---------------------------------------------------------
   // MERGE SIGNAL DATA (2m + 15m)
   // ---------------------------------------------------------
@@ -2926,23 +2966,23 @@ useEffect(() => {
     // ⭐ 1. OFF MODE (SECOND CLICK)
     // -------------------------------------
     if (isRunningRef.current) {
-      clearInterval(autoRunRef.current);
-      isRunningRef.current = false;
-      setGenerateMode(false);
+  clearInterval(autoRunRef.current);
+  autoRunRef.current = null;
+  isRunningRef.current = false;
+  setGenerateMode(false);
 
-      localStorage.setItem("NC_generateMode_" + symbol, "true");
+  localStorage.setItem("NC_generateMode_" + symbol, "false");
 
-      const btn = document.querySelector("#genBtn");
-      if (btn) {
-        btn.style.background = "";
-        btn.style.color = "";
-        btn.style.borderColor = "";
-      }
+  const btn = document.querySelector("#genBtn");
+  if (btn) {
+    btn.style.background = "";
+    btn.style.color = "";
+    btn.style.borderColor = "";
+  }
 
-      showPopup("Stopped", "Auto generated signals stopped");
-
-      return;
-    }
+  showPopup("Stopped", "Auto generated signals stopped");
+  return;
+}
 
     // -------------------------------------
     // ⭐ 2. VALIDATE TIMEFRAME
