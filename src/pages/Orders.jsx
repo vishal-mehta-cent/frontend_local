@@ -32,7 +32,7 @@ const DEFAULT_RATES = {
   tax_delivery_pct: "0.0011",
 };
 
-
+const DISPLAY_TZ = import.meta.env.PROD ? "UTC" : "Asia/Kolkata";
 const toF = (v, fallback = 0) => {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
@@ -116,22 +116,22 @@ const parseDate = (s) => {
 const fmtTime = (d) =>
   d
     ? d.toLocaleTimeString("en-IN", {
-      timeZone: "Asia/Kolkata",   // ✅ force IST
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    })
+        timeZone: DISPLAY_TZ,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      })
     : "—";
 
 const fmtDate = (d) =>
   d
     ? d.toLocaleDateString("en-IN", {
-      timeZone: "Asia/Kolkata",   // ✅ force IST
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    })
+        timeZone: DISPLAY_TZ,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
     : "—";
 
 
