@@ -322,25 +322,13 @@ export default function NeuroBotChat({ username }) {
 
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setIsMaximized(false)}
-                disabled={!isMaximized}
-                className="p-2 rounded-xl hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Restore to normal size"
-                title="Normal size"
+                onClick={() => setIsMaximized((prev) => !prev)}
+                className="p-2 rounded-xl hover:bg-white/10 transition"
+                aria-label={isMaximized ? "Minimize" : "Maximize"}
+                title={isMaximized ? "Minimize" : "Maximize"}
                 type="button"
               >
-                <Minimize2 size={17} />
-              </button>
-
-              <button
-                onClick={() => setIsMaximized(true)}
-                disabled={isMaximized}
-                className="p-2 rounded-xl hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Open full screen"
-                title="Full screen"
-                type="button"
-              >
-                <Maximize2 size={17} />
+                {isMaximized ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
               </button>
 
               <button
