@@ -1,6 +1,13 @@
 // src/components/NeuroBotChat.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, X, Send, ChevronRight } from "lucide-react";
+import {
+  MessageCircle,
+  X,
+  Send,
+  ChevronRight,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -32,23 +39,21 @@ function ThinkingDots() {
 
 export default function NeuroBotChat({ username }) {
   const [open, setOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  // ✅ lightbox for image zoom
   const [lightbox, setLightbox] = useState({ open: false, src: "", title: "" });
 
-  // ✅ RAW username for backend (do NOT pretty-format)
   const apiUsername = useMemo(() => {
     return String(
       username ||
-      localStorage.getItem("username") ||
-      localStorage.getItem("user_id") ||
-      ""
+        localStorage.getItem("username") ||
+        localStorage.getItem("user_id") ||
+        ""
     ).trim();
   }, [username]);
 
-  // ✅ Pretty name only for display
   const displayName = useMemo(() => {
     return prettyName(apiUsername);
   }, [apiUsername]);
@@ -70,14 +75,22 @@ export default function NeuroBotChat({ username }) {
     }, 50);
   }, [open]);
 
-  // close lightbox on ESC
   useEffect(() => {
     function onKey(e) {
-      if (e.key === "Escape") setLightbox({ open: false, src: "", title: "" });
+      if (e.key === "Escape") {
+        if (lightbox.open) {
+          setLightbox({ open: false, src: "", title: "" });
+          return;
+        }
+        if (isMaximized) {
+          setIsMaximized(false);
+        }
+      }
     }
-    if (lightbox.open) window.addEventListener("keydown", onKey);
+
+    window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox.open]);
+  }, [lightbox.open, isMaximized]);
 
   async function send(qOverride) {
     const q = (qOverride ?? input).trim();
@@ -118,8 +131,8 @@ export default function NeuroBotChat({ username }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question: q,
-          username: apiUsername, // ✅ send raw username (e.g., Neurocrest_jinal)
-          session_id, // ✅ optional helper for backend
+          username: apiUsername,
+          session_id,
         }),
       });
 
@@ -131,7 +144,7 @@ export default function NeuroBotChat({ username }) {
         let d = {};
         try {
           d = JSON.parse(raw);
-        } catch { }
+        } catch {}
         answer = d?.answer || d?.markdown || `Bot ok but empty response: ${raw}`;
         images = Array.isArray(d?.images) ? d.images : [];
       }
@@ -143,12 +156,12 @@ export default function NeuroBotChat({ username }) {
       m.map((msg) =>
         msg?.id === thinkingId
           ? {
-            ...msg,
-            text: answer || "(No response)",
-            images,
-            thinking: false,
-            ts: Date.now() + 1,
-          }
+              ...msg,
+              text: answer || "(No response)",
+              images,
+              thinking: false,
+              ts: Date.now() + 1,
+            }
           : msg
       )
     );
@@ -196,11 +209,14 @@ export default function NeuroBotChat({ username }) {
       label: "Guide on Portfolio",
       q: "Help me understand Portfolio page and P&L calculations.",
     },
-    { icon: "💳", label: "Help with Pricing", q: "Explain pricing, plans, and how payments work." },
+    {
+      icon: "💳",
+      label: "Help with Pricing",
+      q: "Explain pricing, plans, and how payments work.",
+    },
   ];
 
   function normalizeImg(item) {
-    // backend might send ["url1", "url2"] OR [{url,title}, ...]
     if (!item) return null;
     if (typeof item === "string") return { url: item, title: "" };
     const url = item.url || item.src || item.path || "";
@@ -208,9 +224,38 @@ export default function NeuroBotChat({ username }) {
     return url ? { url, title } : null;
   }
 
+  const chatWindowClass = isMaximized
+    ? `
+      fixed z-[9999]
+      inset-0
+      w-screen h-screen [height:100dvh]
+      rounded-none
+      overflow-hidden
+      border border-white/10
+      shadow-[0_25px_80px_rgba(0,0,0,0.65)]
+      text-white
+      bg-gradient-to-b from-[#070a16]/95 via-[#0b1440]/92 to-[#060816]/95
+    `
+    : `
+      fixed z-[9999]
+      inset-0 sm:inset-auto
+      sm:bottom-5 sm:right-5
+      w-screen h-screen [height:100dvh] sm:w-[460px]
+      sm:h-[92vh]
+      rounded-none sm:rounded-[28px]
+      overflow-hidden
+      border border-white/10
+      shadow-[0_25px_80px_rgba(0,0,0,0.65)]
+      text-white
+      bg-gradient-to-b from-[#070a16]/95 via-[#0b1440]/92 to-[#060816]/95
+    `;
+
+  const bodyClass = isMaximized
+    ? "relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] min-h-0"
+    : "relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] sm:h-[calc(92vh-56px)] min-h-0";
+
   return (
     <>
-      {/* ✅ Lightbox (click image to zoom) */}
       {lightbox.open && (
         <div
           className="fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
@@ -243,64 +288,80 @@ export default function NeuroBotChat({ username }) {
         </div>
       )}
 
-      {/* Floating Button */}
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setIsMaximized(false);
+            setOpen(true);
+          }}
           className="fixed bottom-5 right-5 z-[9999]
                      flex items-center gap-2 px-4 py-3
                      rounded-full backdrop-blur-xl
                      bg-black/60 border border-white/10
                      text-white shadow-2xl
                      hover:bg-black/70 transition"
+          type="button"
         >
           <MessageCircle size={18} className="text-cyan-400" />
           <span className="text-sm font-semibold">Neuro bot</span>
         </button>
       )}
 
-      {/* Window */}
       {open && (
-        <div
-          className="
-            fixed z-[9999]
-            inset-0 sm:inset-auto
-            sm:bottom-5 sm:right-5
-            w-screen h-screen [height:100dvh] sm:w-[460px]
-            sm:h-[92vh]
-            rounded-none sm:rounded-[28px]
-            overflow-hidden
-            border border-white/10
-            shadow-[0_25px_80px_rgba(0,0,0,0.65)]
-            text-white
-            bg-gradient-to-b from-[#070a16]/95 via-[#0b1440]/92 to-[#060816]/95
-          "
-        >
+        <div className={chatWindowClass}>
           <div className="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-cyan-500/15 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 -right-28 h-96 w-96 rounded-full bg-fuchsia-500/10 blur-3xl" />
 
-          {/* Header */}
           <div className="relative flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5 backdrop-blur-xl">
             <div>
               <div className="font-bold text-sm">Neuro bot</div>
-              <div className="text-[11px] text-white/70">NeuroCrest Assistant</div>
+              <div className="text-[11px] text-white/70">
+                NeuroCrest Assistant
+              </div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="p-2 rounded-xl hover:bg-white/10 transition"
-              aria-label="Close"
-              type="button"
-            >
-              <X size={18} />
-            </button>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsMaximized(false)}
+                disabled={!isMaximized}
+                className="p-2 rounded-xl hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Restore to normal size"
+                title="Normal size"
+                type="button"
+              >
+                <Minimize2 size={17} />
+              </button>
+
+              <button
+                onClick={() => setIsMaximized(true)}
+                disabled={isMaximized}
+                className="p-2 rounded-xl hover:bg-white/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Open full screen"
+                title="Full screen"
+                type="button"
+              >
+                <Maximize2 size={17} />
+              </button>
+
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setIsMaximized(false);
+                }}
+                className="p-2 rounded-xl hover:bg-white/10 transition"
+                aria-label="Close"
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          <div className="relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] sm:h-[calc(92vh-56px)] min-h-0">
+          <div className={bodyClass}>
             <div
               ref={scrollRef}
               className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3 nc-chat-scroll"
             >
-              {/* OFFERS */}
               <div className="rounded-[26px] border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
                 <button
                   type="button"
@@ -309,9 +370,7 @@ export default function NeuroBotChat({ username }) {
                   }
                   className="w-full flex items-center justify-between px-4 py-3"
                 >
-                  <div className="text-base font-bold">
-                    What NeuroCrest Offers
-                  </div>
+                  <div className="text-base font-bold">What NeuroCrest Offers</div>
                   <ChevronRight size={18} className="text-white/60" />
                 </button>
                 <div className="px-3 pb-3">
@@ -334,7 +393,6 @@ export default function NeuroBotChat({ username }) {
                 </div>
               </div>
 
-              {/* ASSIST */}
               <div className="mt-4 rounded-[26px] border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
                 <button
                   type="button"
@@ -361,7 +419,6 @@ export default function NeuroBotChat({ username }) {
                 </div>
               </div>
 
-              {/* ✅ MESSAGES */}
               <div className="mt-4 space-y-2">
                 {messages.map((m) => {
                   const isUser = m.role === "user";
@@ -377,9 +434,11 @@ export default function NeuroBotChat({ username }) {
                       <div
                         className={`
                           px-3 py-2 text-sm rounded-2xl
-                          ${isUser
-                            ? "bg-cyan-400 text-black shadow-[0_10px_30px_rgba(34,211,238,0.22)] max-w-[85%] whitespace-pre-wrap"
-                            : "bg-white/10 text-white max-w-[92%]"}
+                          ${
+                            isUser
+                              ? "bg-cyan-400 text-black shadow-[0_10px_30px_rgba(34,211,238,0.22)] max-w-[85%] whitespace-pre-wrap"
+                              : "bg-white/10 text-white max-w-[92%]"
+                          }
                         `}
                       >
                         {m.thinking ? (
@@ -389,7 +448,6 @@ export default function NeuroBotChat({ username }) {
                           </div>
                         ) : (
                           <>
-                            {/* ✅ Markdown render for bot so tables show correctly */}
                             {isUser ? (
                               <div className="whitespace-pre-wrap">{m.text}</div>
                             ) : (
@@ -450,7 +508,6 @@ export default function NeuroBotChat({ username }) {
                               </ReactMarkdown>
                             )}
 
-                            {/* ✅ Render images nicely (not cropped) + click to zoom */}
                             {!isUser && imgList.length > 0 && (
                               <div className="mt-3 grid grid-cols-1 gap-3">
                                 {imgList.map((img, idx) => {
@@ -503,7 +560,6 @@ export default function NeuroBotChat({ username }) {
               </div>
             </div>
 
-            {/* Input */}
             <div className="flex items-center gap-2 p-3 border-t border-white/10 bg-white/5 backdrop-blur-xl">
               <textarea
                 value={input}
