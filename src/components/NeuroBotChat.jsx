@@ -1,6 +1,14 @@
 // src/components/NeuroBotChat.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MessageCircle, X, Send, ChevronRight, ChevronDown } from "lucide-react";
+import {
+  MessageCircle,
+  X,
+  Send,
+  ChevronRight,
+  ChevronDown,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -39,6 +47,7 @@ function ThinkingDots() {
 
 export default function NeuroBotChat({ username }) {
   const [open, setOpen] = useState(false);
+  const [isMaximized, setIsMaximized] = useState(false);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -74,11 +83,20 @@ export default function NeuroBotChat({ username }) {
 
   useEffect(() => {
     function onKey(e) {
-      if (e.key === "Escape") setLightbox({ open: false, src: "", title: "" });
+      if (e.key === "Escape") {
+        if (lightbox.open) {
+          setLightbox({ open: false, src: "", title: "" });
+          return;
+        }
+        if (isMaximized) {
+          setIsMaximized(false);
+        }
+      }
     }
-    if (lightbox.open) window.addEventListener("keydown", onKey);
+
+    window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox.open]);
+  }, [lightbox.open, isMaximized]);
 
   function normalizeImg(item) {
     if (!item) return null;
@@ -252,7 +270,10 @@ export default function NeuroBotChat({ username }) {
       });
 
       const streamContentType = streamResponse.headers.get("content-type") || "";
-      const canStream = streamResponse.ok && streamResponse.body && streamContentType.includes("application/x-ndjson");
+      const canStream =
+        streamResponse.ok &&
+        streamResponse.body &&
+        streamContentType.includes("application/x-ndjson");
 
       if (canStream) {
         await readStreamResponse(streamResponse, thinkingId);
@@ -357,6 +378,36 @@ export default function NeuroBotChat({ username }) {
     { icon: "💳", label: "Help with Pricing", q: "Explain pricing, plans, and how payments work." },
   ];
 
+  const chatWindowClass = isMaximized
+    ? `
+      fixed z-[9999]
+      inset-0
+      w-screen h-screen [height:100dvh]
+      rounded-none
+      overflow-hidden
+      border border-white/10
+      shadow-[0_25px_80px_rgba(0,0,0,0.65)]
+      text-white
+      bg-gradient-to-b from-[#070a16]/95 via-[#0b1440]/92 to-[#060816]/95
+    `
+    : `
+      fixed z-[9999]
+      inset-0 sm:inset-auto
+      sm:bottom-5 sm:right-5
+      w-screen h-screen [height:100dvh] sm:w-[460px]
+      sm:h-[92vh]
+      rounded-none sm:rounded-[28px]
+      overflow-hidden
+      border border-white/10
+      shadow-[0_25px_80px_rgba(0,0,0,0.65)]
+      text-white
+      bg-gradient-to-b from-[#070a16]/95 via-[#0b1440]/92 to-[#060816]/95
+    `;
+
+  const bodyClass = isMaximized
+    ? "relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] min-h-0"
+    : "relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] sm:h-[calc(92vh-56px)] min-h-0";
+
   return (
     <>
       {lightbox.open && (
@@ -388,8 +439,12 @@ export default function NeuroBotChat({ username }) {
 
       {!open && (
         <button
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setIsMaximized(false);
+            setOpen(true);
+          }}
           className="fixed bottom-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 rounded-full backdrop-blur-xl bg-black/60 border border-white/10 text-white shadow-2xl hover:bg-black/70 transition"
+          type="button"
         >
           <MessageCircle size={18} className="text-cyan-400" />
           <span className="text-sm font-semibold">Neuro bot</span>
@@ -397,9 +452,7 @@ export default function NeuroBotChat({ username }) {
       )}
 
       {open && (
-        <div
-          className="fixed z-[9999] inset-0 sm:inset-auto sm:bottom-5 sm:right-5 w-screen h-screen [height:100dvh] sm:w-[460px] sm:h-[92vh] rounded-none sm:rounded-[28px] overflow-hidden border border-white/10 shadow-[0_25px_80px_rgba(0,0,0,0.65)] text-white bg-gradient-to-b from-[#070a16]/95 via-[#0b1440]/92 to-[#060816]/95"
-        >
+        <div className={chatWindowClass}>
           <div className="pointer-events-none absolute -top-24 -left-24 h-80 w-80 rounded-full bg-cyan-500/15 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 -right-28 h-96 w-96 rounded-full bg-fuchsia-500/10 blur-3xl" />
 
@@ -408,17 +461,33 @@ export default function NeuroBotChat({ username }) {
               <div className="font-bold text-sm">Neuro bot</div>
               <div className="text-[11px] text-white/70">NeuroCrest Assistant • {displayName}</div>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="p-2 rounded-xl hover:bg-white/10 transition"
-              aria-label="Close"
-              type="button"
-            >
-              <X size={18} />
-            </button>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsMaximized((prev) => !prev)}
+                className="p-2 rounded-xl hover:bg-white/10 transition"
+                aria-label={isMaximized ? "Minimize" : "Maximize"}
+                title={isMaximized ? "Minimize" : "Maximize"}
+                type="button"
+              >
+                {isMaximized ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
+              </button>
+
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  setIsMaximized(false);
+                }}
+                className="p-2 rounded-xl hover:bg-white/10 transition"
+                aria-label="Close"
+                type="button"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          <div className="relative flex flex-col h-[calc(100vh-56px)] [height:calc(100dvh-56px)] sm:h-[calc(92vh-56px)] min-h-0">
+          <div className={bodyClass}>
             <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3 nc-chat-scroll">
               <div className="rounded-[26px] border border-white/10 bg-white/5 backdrop-blur-xl overflow-hidden">
                 <button
@@ -525,16 +594,27 @@ export default function NeuroBotChat({ username }) {
                               </div>
                             )}
 
-                            {m.text ? (
+                            {!!m.text && (
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm, remarkBreaks]}
                                 components={{
-                                  p: ({ node, ...props }) => <p className="whitespace-pre-wrap" {...props} />,
-                                  a: ({ node, ...props }) => (
-                                    <a className="text-cyan-300 underline" target="_blank" rel="noreferrer" {...props} />
+                                  p: ({ node, ...props }) => (
+                                    <p className="whitespace-pre-wrap" {...props} />
                                   ),
-                                  ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-1" {...props} />,
-                                  ol: ({ node, ...props }) => <ol className="list-decimal pl-5 space-y-1" {...props} />,
+                                  a: ({ node, ...props }) => (
+                                    <a
+                                      className="text-cyan-300 underline"
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      {...props}
+                                    />
+                                  ),
+                                  ul: ({ node, ...props }) => (
+                                    <ul className="list-disc pl-5 space-y-1" {...props} />
+                                  ),
+                                  ol: ({ node, ...props }) => (
+                                    <ol className="list-decimal pl-5 space-y-1" {...props} />
+                                  ),
                                   table: ({ node, ...props }) => (
                                     <div className="my-2 overflow-x-auto max-w-full">
                                       <table className="w-full border-collapse text-[12px]" {...props} />
@@ -547,7 +627,10 @@ export default function NeuroBotChat({ username }) {
                                     />
                                   ),
                                   td: ({ node, ...props }) => (
-                                    <td className="border border-white/10 px-2 py-1 align-top" {...props} />
+                                    <td
+                                      className="border border-white/10 px-2 py-1 align-top"
+                                      {...props}
+                                    />
                                   ),
                                   code: ({ node, inline, ...props }) =>
                                     inline ? (
@@ -564,9 +647,9 @@ export default function NeuroBotChat({ username }) {
                               >
                                 {m.text}
                               </ReactMarkdown>
-                            ) : m.thinking ? null : <div className="text-white/70">(No response)</div>}
+                            )}
 
-                            {imgList.length > 0 && (
+                            {!isUser && imgList.length > 0 && (
                               <div className="mt-3 grid grid-cols-1 gap-3">
                                 {imgList.map((img, idx) => {
                                   const src = absUrl(img.url);
@@ -585,7 +668,9 @@ export default function NeuroBotChat({ username }) {
                                         loading="lazy"
                                         className="w-full max-h-[280px] object-contain rounded-xl border border-white/10 bg-black/20 cursor-zoom-in transition duration-200 group-hover:scale-[1.01]"
                                       />
-                                      {title ? <div className="mt-1 text-[11px] text-white/70">{title}</div> : null}
+                                      {title ? (
+                                        <div className="mt-1 text-[11px] text-white/70">{title}</div>
+                                      ) : null}
                                     </button>
                                   );
                                 })}
