@@ -117,9 +117,9 @@ export default function NeuroBotChat({ username }) {
     if (!event?.title) return;
     updateMessage(messageId, (msg) => {
       const current = Array.isArray(msg.activityEvents) ? msg.activityEvents : [];
-      const key = `${event.title}__${event.detail || ""}`;
+      const key = `step__${event.title}__${event.detail || ""}`;
       const exists = current.some(
-        (x) => `${x.title}__${x.detail || ""}` === key
+        (x) => (x.kind || "step") === "step" && `${x.kind || "step"}__${x.title}__${x.detail || ""}` === key
       );
       if (exists) {
         return {
@@ -135,8 +135,33 @@ export default function NeuroBotChat({ username }) {
         activityEvents: [
           ...current,
           {
+            kind: "step",
             title: event.title,
             detail: event.detail || "",
+            ts: Date.now(),
+          },
+        ],
+      };
+    });
+  }
+
+  function appendActivityBlock(messageId, event) {
+    const text = String(event?.text || "").trim();
+    if (!text) return;
+    updateMessage(messageId, (msg) => {
+      const current = Array.isArray(msg.activityEvents) ? msg.activityEvents : [];
+      const stage = event?.stage || "Model output";
+      return {
+        ...msg,
+        activityTitle: stage,
+        hasLiveProgress: true,
+        activityEvents: [
+          ...current,
+          {
+            kind: "llm",
+            stage,
+            text,
+            format: event?.format || "markdown",
             ts: Date.now(),
           },
         ],
@@ -209,6 +234,18 @@ export default function NeuroBotChat({ username }) {
         if (evt.type === "result_meta") {
           updateMessage(thinkingId, {
             resultMeta: evt.meta || null,
+          });
+        }
+
+        if (evt.type === "llm_text") {
+          appendActivityBlock(thinkingId, {
+            stage: evt.stage || "Model output",
+            text: evt.text || "",
+            format: evt.format || "markdown",
+          });
+          updateMessage(thinkingId, {
+            activityOpen: true,
+            thinking: true,
           });
         }
 
@@ -638,21 +675,81 @@ export default function NeuroBotChat({ username }) {
 
                                 {m.activityOpen && (
                                   <div className="px-3 pb-3 pt-1 space-y-3">
-                                    {(m.activityEvents || []).map((evt, idx) => (
-                                      <div key={`${m.id}_evt_${idx}`} className="flex items-start gap-3">
-                                        <div className="mt-1.5 h-2 w-2 rounded-full bg-cyan-300 shrink-0" />
-                                        <div className="min-w-0">
-                                          <div className="text-[13px] font-medium text-white/90">
-                                            {evt.title}
-                                          </div>
-                                          {evt.detail ? (
-                                            <div className="mt-0.5 text-[12px] text-white/55 break-words">
-                                              {evt.detail}
+                                    {(m.activityEvents || []).map((evt, idx) => {
+                                      if ((evt.kind || "step") === "llm") {
+                                        const isJson = (evt.format || "").toLowerCase() === "json";
+                                        return (
+                                          <div key={`${m.id}_evt_${idx}`} className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                                            <div className="px-3 py-2 border-b border-white/10 bg-white/[0.03]">
+                                              <div className="text-[11px] uppercase tracking-[0.16em] text-cyan-300/90">
+                                                {evt.stage || "Model output"}
+                                              </div>
                                             </div>
-                                          ) : null}
+                                            <div className="p-3">
+                                              {isJson ? (
+                                                <pre className="text-[12px] leading-5 whitespace-pre-wrap break-words text-white/85 overflow-x-auto">
+                                                  <code>{evt.text}</code>
+                                                </pre>
+                                              ) : (
+                                                <div className="text-[13px] text-white/90">
+                                                  <ReactMarkdown
+                                                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                                                    components={{
+                                                      p: ({ node, ...props }) => (
+                                                        <p className="whitespace-pre-wrap mb-2 last:mb-0" {...props} />
+                                                      ),
+                                                      a: ({ node, ...props }) => (
+                                                        <a
+                                                          className="text-cyan-300 underline"
+                                                          target="_blank"
+                                                          rel="noreferrer"
+                                                          {...props}
+                                                        />
+                                                      ),
+                                                      ul: ({ node, ...props }) => (
+                                                        <ul className="list-disc pl-5 space-y-1" {...props} />
+                                                      ),
+                                                      ol: ({ node, ...props }) => (
+                                                        <ol className="list-decimal pl-5 space-y-1" {...props} />
+                                                      ),
+                                                      code: ({ node, inline, ...props }) =>
+                                                        inline ? (
+                                                          <code
+                                                            className="px-1 py-0.5 rounded bg-black/30 border border-white/10"
+                                                            {...props}
+                                                          />
+                                                        ) : (
+                                                          <pre className="p-3 rounded-xl bg-black/30 border border-white/10 overflow-x-auto">
+                                                            <code {...props} />
+                                                          </pre>
+                                                        ),
+                                                    }}
+                                                  >
+                                                    {evt.text || ""}
+                                                  </ReactMarkdown>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+
+                                      return (
+                                        <div key={`${m.id}_evt_${idx}`} className="flex items-start gap-3">
+                                          <div className="mt-1.5 h-2 w-2 rounded-full bg-cyan-300 shrink-0" />
+                                          <div className="min-w-0">
+                                            <div className="text-[13px] font-medium text-white/90">
+                                              {evt.title}
+                                            </div>
+                                            {evt.detail ? (
+                                              <div className="mt-0.5 text-[12px] text-white/55 break-words">
+                                                {evt.detail}
+                                              </div>
+                                            ) : null}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      );
+                                    })}
 
                                     {m.resultMeta && (
                                       <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-2">
