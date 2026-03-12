@@ -18,7 +18,7 @@ const API = import.meta.env.VITE_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 const FALLBACK_THINKING_STAGES = [
   "Understanding your question",
   "Checking app and signal context",
-  "Running the agent",
+  "Running the assistant",
   "Preparing the response",
 ];
 
@@ -56,15 +56,13 @@ export default function NeuroBotChat({ username }) {
   const apiUsername = useMemo(() => {
     return String(
       username ||
-        localStorage.getItem("username") ||
-        localStorage.getItem("user_id") ||
-        ""
+      localStorage.getItem("username") ||
+      localStorage.getItem("user_id") ||
+      ""
     ).trim();
   }, [username]);
 
-  const displayName = useMemo(() => {
-    return prettyName(apiUsername);
-  }, [apiUsername]);
+  const displayName = useMemo(() => prettyName(apiUsername), [apiUsername]);
 
   const scrollRef = useRef(null);
   const bottomRef = useRef(null);
@@ -115,14 +113,33 @@ export default function NeuroBotChat({ username }) {
     );
   }
 
-  function appendThinkingStep(messageId, step) {
-    if (!step) return;
+  function appendActivityEvent(messageId, event) {
+    if (!event?.title) return;
     updateMessage(messageId, (msg) => {
-      const current = Array.isArray(msg.thinkingSteps) ? msg.thinkingSteps : [];
-      if (current.includes(step)) return msg;
+      const current = Array.isArray(msg.activityEvents) ? msg.activityEvents : [];
+      const key = `${event.title}__${event.detail || ""}`;
+      const exists = current.some(
+        (x) => `${x.title}__${x.detail || ""}` === key
+      );
+      if (exists) {
+        return {
+          ...msg,
+          activityTitle: event.title,
+          hasLiveProgress: true,
+        };
+      }
       return {
         ...msg,
-        thinkingSteps: [...current, step],
+        activityTitle: event.title,
+        hasLiveProgress: true,
+        activityEvents: [
+          ...current,
+          {
+            title: event.title,
+            detail: event.detail || "",
+            ts: Date.now(),
+          },
+        ],
       };
     });
   }
@@ -155,20 +172,43 @@ export default function NeuroBotChat({ username }) {
           continue;
         }
 
-        if (evt.type === "status") {
+        if (evt.type === "progress") {
+          appendActivityEvent(thinkingId, {
+            title: evt.title || "Working",
+            detail: evt.detail || "",
+          });
           updateMessage(thinkingId, {
-            statusText: evt.text || "Thinking",
+            activityOpen: true,
             thinking: true,
-            thinkingOpen: true,
+          });
+        }
+
+        // Backward compatibility with older stream event formats.
+        if (evt.type === "status") {
+          appendActivityEvent(thinkingId, {
+            title: evt.text || "Working",
+            detail: "",
+          });
+          updateMessage(thinkingId, {
+            activityOpen: true,
+            thinking: true,
           });
         }
 
         if (evt.type === "step") {
-          appendThinkingStep(thinkingId, evt.text);
+          appendActivityEvent(thinkingId, {
+            title: evt.text || "Working",
+            detail: "",
+          });
           updateMessage(thinkingId, {
-            statusText: evt.text || "Thinking",
+            activityOpen: true,
             thinking: true,
-            thinkingOpen: true,
+          });
+        }
+
+        if (evt.type === "result_meta") {
+          updateMessage(thinkingId, {
+            resultMeta: evt.meta || null,
           });
         }
 
@@ -198,8 +238,8 @@ export default function NeuroBotChat({ username }) {
             text: answerText || "(No response)",
             images,
             thinking: false,
-            statusText: "Done",
-            thinkingOpen: false,
+            activityTitle: "Completed",
+            activityOpen: false,
             ts: Date.now() + 1,
           });
         }
@@ -214,8 +254,8 @@ export default function NeuroBotChat({ username }) {
       text: answerText || "(No response)",
       images,
       thinking: false,
-      statusText: "Done",
-      thinkingOpen: false,
+      activityTitle: answerText ? "Completed" : "Failed",
+      activityOpen: false,
       ts: Date.now() + 1,
     });
   }
@@ -238,25 +278,17 @@ export default function NeuroBotChat({ username }) {
         role: "bot",
         text: "",
         thinking: true,
-        statusText: "Thinking",
-        thinkingOpen: true,
-        thinkingSteps: ["Starting assistant"],
+        activityTitle: "Thinking",
+        activityOpen: true,
+        activityEvents: [],
+        hasLiveProgress: false,
+        resultMeta: null,
         images: [],
         ts: now + 1,
       },
     ]);
 
     setIsSending(true);
-
-    let stageIndex = 0;
-    const fallbackTimer = setInterval(() => {
-      stageIndex = (stageIndex + 1) % FALLBACK_THINKING_STAGES.length;
-      const stage = FALLBACK_THINKING_STAGES[stageIndex];
-      appendThinkingStep(thinkingId, stage);
-      updateMessage(thinkingId, {
-        statusText: stage,
-      });
-    }, 1400);
 
     try {
       const streamResponse = await fetch(`${API}/chatbot/ask-stream`, {
@@ -278,52 +310,69 @@ export default function NeuroBotChat({ username }) {
       if (canStream) {
         await readStreamResponse(streamResponse, thinkingId);
       } else {
-        const r = await fetch(`${API}/chatbot/ask`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            question: q,
-            username: apiUsername,
-            session_id,
-          }),
+        let stageIndex = 0;
+        appendActivityEvent(thinkingId, {
+          title: FALLBACK_THINKING_STAGES[0],
+          detail: "Live backend activity is not available on this route.",
         });
 
-        const raw = await r.text();
-        let answer = "";
-        let images = [];
+        const fallbackTimer = setInterval(() => {
+          stageIndex = (stageIndex + 1) % FALLBACK_THINKING_STAGES.length;
+          appendActivityEvent(thinkingId, {
+            title: FALLBACK_THINKING_STAGES[stageIndex],
+            detail: "Using fallback mode while waiting for /chatbot/ask response.",
+          });
+        }, 1400);
 
-        if (!r.ok) {
-          answer = `Bot backend error (${r.status}): ${raw}`;
-        } else {
-          let d = {};
-          try {
-            d = JSON.parse(raw);
-          } catch {
-            d = {};
+        try {
+          const r = await fetch(`${API}/chatbot/ask`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: q,
+              username: apiUsername,
+              session_id,
+            }),
+          });
+
+          const raw = await r.text();
+          let answer = "";
+          let images = [];
+
+          if (!r.ok) {
+            answer = `Bot backend error (${r.status}): ${raw}`;
+          } else {
+            let d = {};
+            try {
+              d = JSON.parse(raw);
+            } catch {
+              d = {};
+            }
+            answer = d?.answer || d?.markdown || `Bot ok but empty response: ${raw}`;
+            images = Array.isArray(d?.images) ? d.images : [];
           }
-          answer = d?.answer || d?.markdown || `Bot ok but empty response: ${raw}`;
-          images = Array.isArray(d?.images) ? d.images : [];
-        }
 
-        updateMessage(thinkingId, {
-          text: answer || "(No response)",
-          images,
-          thinking: false,
-          statusText: "Done",
-          thinkingOpen: false,
-          ts: Date.now() + 1,
-        });
+          updateMessage(thinkingId, {
+            text: answer || "(No response)",
+            images,
+            thinking: false,
+            activityTitle: "Completed",
+            activityOpen: false,
+            ts: Date.now() + 1,
+          });
+        } finally {
+          clearInterval(fallbackTimer);
+        }
       }
     } catch (e) {
       updateMessage(thinkingId, {
         text: `Bot connection failed: ${String(e?.message || e)}`,
         thinking: false,
-        statusText: "Failed",
-        thinkingOpen: false,
+        activityTitle: "Failed",
+        activityOpen: false,
         ts: Date.now() + 1,
       });
     } finally {
-      clearInterval(fallbackTimer);
       setIsSending(false);
     }
   }
@@ -333,10 +382,10 @@ export default function NeuroBotChat({ username }) {
     send(text);
   }
 
-  function toggleThinking(messageId) {
+  function toggleActivity(messageId) {
     updateMessage(messageId, (msg) => ({
       ...msg,
-      thinkingOpen: !msg.thinkingOpen,
+      activityOpen: !msg.activityOpen,
     }));
   }
 
@@ -548,47 +597,97 @@ export default function NeuroBotChat({ username }) {
                   const imgList = Array.isArray(m.images)
                     ? m.images.map(normalizeImg).filter(Boolean)
                     : [];
-                  const hasThinkingPanel = !isUser && Array.isArray(m.thinkingSteps) && m.thinkingSteps.length > 0;
+                  const hasActivityPanel =
+                    !isUser &&
+                    (m.thinking || (Array.isArray(m.activityEvents) && m.activityEvents.length > 0));
 
                   return (
                     <div key={m.id || m.ts} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
                       <div
-                        className={`px-3 py-2 text-sm rounded-2xl ${
-                          isUser
+                        className={`px-3 py-2 text-sm rounded-2xl ${isUser
                             ? "bg-cyan-400 text-black shadow-[0_10px_30px_rgba(34,211,238,0.22)] max-w-[85%] whitespace-pre-wrap"
                             : "bg-white/10 text-white max-w-[92%]"
-                        }`}
+                          }`}
                       >
                         {isUser ? (
                           <div className="whitespace-pre-wrap">{m.text}</div>
                         ) : (
                           <>
-                            {hasThinkingPanel && (
-                              <div className="mb-3 rounded-2xl border border-white/10 bg-black/20 overflow-hidden">
+                            {hasActivityPanel && (
+                              <div className="mb-3 rounded-2xl border border-white/10 bg-[#1b2232]/85 overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
                                 <button
                                   type="button"
-                                  onClick={() => toggleThinking(m.id)}
-                                  className="w-full px-3 py-2 flex items-center justify-between gap-3 text-left hover:bg-white/5 transition"
+                                  onClick={() => toggleActivity(m.id)}
+                                  className="w-full px-3 py-3 flex items-center justify-between gap-3 text-left hover:bg-white/5 transition"
                                 >
-                                  <div className="flex items-center gap-2 text-white/90">
-                                    <span className="font-medium">{m.statusText || "Thinking"}</span>
-                                    {m.thinking ? <ThinkingDots /> : null}
+                                  <div>
+                                    <div className="text-[11px] uppercase tracking-[0.18em] text-white/45">
+                                      Activity
+                                    </div>
+                                    <div className="mt-1 flex items-center gap-2 text-white/95 font-semibold">
+                                      <span>{m.activityTitle || "Thinking"}</span>
+                                      {m.thinking ? <ThinkingDots /> : null}
+                                    </div>
                                   </div>
-                                  {m.thinkingOpen ? (
+                                  {m.activityOpen ? (
                                     <ChevronDown size={16} className="text-white/60 shrink-0" />
                                   ) : (
                                     <ChevronRight size={16} className="text-white/60 shrink-0" />
                                   )}
                                 </button>
 
-                                {m.thinkingOpen && (
-                                  <div className="px-3 pb-3 pt-1 space-y-2">
-                                    {m.thinkingSteps.map((step, idx) => (
-                                      <div key={`${m.id}_step_${idx}`} className="flex items-start gap-2 text-[12px] text-white/75">
-                                        <span className="mt-1 h-1.5 w-1.5 rounded-full bg-cyan-300 shrink-0" />
-                                        <span>{step}</span>
+                                {m.activityOpen && (
+                                  <div className="px-3 pb-3 pt-1 space-y-3">
+                                    {(m.activityEvents || []).map((evt, idx) => (
+                                      <div key={`${m.id}_evt_${idx}`} className="flex items-start gap-3">
+                                        <div className="mt-1.5 h-2 w-2 rounded-full bg-cyan-300 shrink-0" />
+                                        <div className="min-w-0">
+                                          <div className="text-[13px] font-medium text-white/90">
+                                            {evt.title}
+                                          </div>
+                                          {evt.detail ? (
+                                            <div className="mt-0.5 text-[12px] text-white/55 break-words">
+                                              {evt.detail}
+                                            </div>
+                                          ) : null}
+                                        </div>
                                       </div>
                                     ))}
+
+                                    {m.resultMeta && (
+                                      <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-2">
+                                        <div className="text-[11px] uppercase tracking-[0.16em] text-white/40 mb-2">
+                                          Result summary
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 text-[11px]">
+                                          {m.resultMeta.intent ? (
+                                            <span className="px-2 py-1 rounded-full bg-white/8 border border-white/10 text-white/75">
+                                              intent: {String(m.resultMeta.intent)}
+                                            </span>
+                                          ) : null}
+                                          {m.resultMeta.mode ? (
+                                            <span className="px-2 py-1 rounded-full bg-white/8 border border-white/10 text-white/75">
+                                              mode: {String(m.resultMeta.mode)}
+                                            </span>
+                                          ) : null}
+                                          {Number.isFinite(m.resultMeta.rows_loaded) ? (
+                                            <span className="px-2 py-1 rounded-full bg-white/8 border border-white/10 text-white/75">
+                                              rows loaded: {m.resultMeta.rows_loaded}
+                                            </span>
+                                          ) : null}
+                                          {Number.isFinite(m.resultMeta.rows_matched) ? (
+                                            <span className="px-2 py-1 rounded-full bg-white/8 border border-white/10 text-white/75">
+                                              matched: {m.resultMeta.rows_matched}
+                                            </span>
+                                          ) : null}
+                                          {Number.isFinite(m.resultMeta.rows_displayed) ? (
+                                            <span className="px-2 py-1 rounded-full bg-white/8 border border-white/10 text-white/75">
+                                              displayed: {m.resultMeta.rows_displayed}
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
