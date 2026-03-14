@@ -524,18 +524,17 @@ export default function NeuroBotChat({ username }) {
       )}
 
       {!open && (
-        <button
-          onClick={() => {
-            setIsMaximized(false);
-            setOpen(true);
-          }}
-          className="fixed bottom-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 rounded-full backdrop-blur-xl bg-black/60 border border-white/10 text-white shadow-2xl hover:bg-black/70 transition"
-          type="button"
-        >
-          <MessageCircle size={18} className="text-cyan-400" />
-          <span className="text-sm font-semibold">Neuro bot</span>
-        </button>
-      )}
+  <button
+    disabled
+    aria-disabled="true"
+    className="fixed bottom-5 right-5 z-[9999] flex items-center gap-2 px-4 py-3 rounded-full backdrop-blur-xl bg-black/60 border border-white/10 text-white/70 shadow-2xl opacity-70 cursor-not-allowed select-none pointer-events-none"
+    type="button"
+    title="Neuro bot is currently unavailable"
+  >
+    <MessageCircle size={18} className="text-cyan-400/80" />
+    <span className="text-sm font-semibold">Neuro bot</span>
+  </button>
+)}
 
       {open && (
         <div className={chatWindowClass}>
