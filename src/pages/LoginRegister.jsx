@@ -481,8 +481,8 @@ export default function LoginRegister({ onLoginSuccess }) {
 
   const ui = (
     <div
-      className={`fixed inset-0 w-screen h-[100dvh] ${bgClass} ${textClass} flex items-center justify-center px-4 overflow-hidden transition-colors duration-300`}
-      style={{ zIndex: 9999 }}
+      className={`fixed inset-0 w-screen min-h-[100dvh] ${bgClass} ${textClass} flex items-start lg:items-center justify-center px-4 py-4 sm:py-6 overflow-y-auto overflow-x-hidden touch-pan-y transition-colors duration-300`}
+      style={{ zIndex: 9999, WebkitOverflowScrolling: "touch" }}
     >
       {/* Background blobs */}
       <div className="absolute inset-0 pointer-events-none">
@@ -491,7 +491,7 @@ export default function LoginRegister({ onLoginSuccess }) {
         <div className="absolute top-1/2 left-1/2 w-[34rem] h-[34rem] bg-blue-400/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
       </div>
 
-      <div className="relative w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+      <div className="relative w-full max-w-6xl mx-auto my-auto grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-10 items-start lg:items-center">
         {/* BRAND */}
         <div className="hidden lg:flex flex-col items-center">
           <img
@@ -512,7 +512,7 @@ export default function LoginRegister({ onLoginSuccess }) {
         </div>
 
         {/* MAIN CARD */}
-        <div className={`w-full max-w-md mx-auto rounded-3xl ${glassClass} shadow-2xl p-8`}>
+        <div className={`w-full max-w-md mx-auto rounded-3xl ${glassClass} shadow-2xl p-5 sm:p-8`}>
           {/* Mobile brand */}
           <div className="flex flex-col items-center mb-6 lg:hidden">
             <img
