@@ -132,7 +132,7 @@ export default function Recommendations() {
           hasAccess: !c.isLocked,
         };
       }
-    } catch {}
+    } catch { }
 
     return { locked: true, checked: false, hasAccess: false };
   })();
@@ -144,20 +144,17 @@ export default function Recommendations() {
   // ✅ used for live price polling on active signals
   const activeSymbolsRef = useRef([]);
 
-  const [segment, setSegment] = useState("Equity");
-  const [selectedScreener, setSelectedScreener] = useState("All");
-  const [screenerList, setScreenerList] = useState([]);
-
-  const [selectedAlertType, setSelectedAlertType] = useState("All");
-  const [alertTypeList, setAlertTypeList] = useState([]);
+  const [segment, setSegment] = useState([]);
+  const [selectedScreener, setSelectedScreener] = useState([]);
+  const [selectedAlertType, setSelectedAlertType] = useState([]);
+  const [selectedFnoValidation, setSelectedFnoValidation] = useState([]);
 
   const [selectedDate, setSelectedDate] = useState("");
   const [activeType, setActiveType] = useState("Intraday");
   const [signalTab, setSignalTab] = useState("active"); // "active" | "closed"
 
-  const [subIntraday, setSubIntraday] = useState("All");
-  const [priceCloseFilter, setPriceCloseFilter] = useState("All");
-  const [priceCloseList, setPriceCloseList] = useState(["All"]);
+  const [subIntraday, setSubIntraday] = useState([]);
+  const [priceCloseFilter, setPriceCloseFilter] = useState([]);
 
   // ✅ NEW: Date sort order (DESC = newest first, ASC = oldest first)
   const [dateSortOrder, setDateSortOrder] = useState("desc"); // "asc" | "desc"
@@ -228,6 +225,43 @@ export default function Recommendations() {
     return undefined;
   };
 
+  const normalizeFilterValue = (value) =>
+    String(value ?? "")
+      .trim()
+      .toLowerCase();
+
+  const sortFilterOptions = (items = []) =>
+    [...items].sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      })
+    );
+
+  const parseMultiParam = (raw) => {
+    if (!raw) return [];
+    return String(raw)
+      .split(",")
+      .map((part) => part.trim())
+      .filter((part) => part && normalizeFilterValue(part) !== "all");
+  };
+
+  const writeMultiParam = (params, key, values) => {
+    if (Array.isArray(values) && values.length) {
+      params.set(key, values.join(","));
+      return;
+    }
+    params.delete(key);
+  };
+
+  const matchesMulti = (selectedValues, actualValue) => {
+    if (!Array.isArray(selectedValues) || !selectedValues.length) return true;
+    const actual = normalizeFilterValue(actualValue);
+    return selectedValues.some(
+      (selected) => normalizeFilterValue(selected) === actual
+    );
+  };
+
   const pickConfidence = (r) => {
     let raw = getField(r, [
       "backtest_accuracy",
@@ -276,6 +310,33 @@ export default function Recommendations() {
 
   const pickScreener = (r) =>
     getField(r, ["screener", "Screener"]) || "Unknown";
+
+  const pickSegment = (r) => {
+    const raw = getField(r, ["segment", "Segment"]);
+    if (raw !== undefined && raw !== null && String(raw).trim()) {
+      return String(raw).trim();
+    }
+
+    const script = String(getField(r, ["script", "Script", "symbol", "Symbol"]) || "")
+      .trim()
+      .toUpperCase();
+
+    if (/F&O/i.test(script) || /(CE|PE|FUT)$/i.test(script)) return "F&O";
+    if (/\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\d{2}/i.test(script)) {
+      return "F&O";
+    }
+
+    return "Equity";
+  };
+
+  const pickDataInterval = (r) =>
+    getField(r, ["data_interval", "Data_Interval", "interval"]) || "";
+
+  const pickScreenerSide = (r) =>
+    getField(r, ["screener_side", "Screener_side"]) || "";
+
+  const pickFnoValidation = (r) =>
+    getField(r, ["fno_validation", "FNO_Validation"]) || "";
 
   const pickRawDate = (r) =>
     getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
@@ -398,6 +459,10 @@ export default function Recommendations() {
       id: `${script}-${dateVal}-${sigPrice}`,
       script,
       screener: pickScreener(row),
+      segment: pickSegment(row),
+      dataInterval: pickDataInterval(row),
+      screenerSide: pickScreenerSide(row),
+      fnoValidation: pickFnoValidation(row),
       alertType: pickAlertType(row),
       confidence: pickConfidence(row),
       description: pickDescription(row),
@@ -426,12 +491,12 @@ export default function Recommendations() {
   // ----------------------------------------------------
   // FETCH RECOMMENDATION DATA ONCE (NO AUTO-POLLING)
   // ----------------------------------------------------
-  const fetchRecommendationsOnce = async ({ mergeOnlyPrices = false } = {}) => {
+  const fetchRecommendationsOnce = async () => {
     const username = (localStorage.getItem("username") || "").trim();
 
     if (!username) {
       setLocked(true);
-      if (!mergeOnlyPrices) setRows([]);
+      setRows([]);
       setInitialLoading(false);
       setAccessChecked(true);
       return;
@@ -448,14 +513,14 @@ export default function Recommendations() {
 
     if (res.status === 403 || res.status === 401) {
       setLocked(true);
-      if (!mergeOnlyPrices) setRows([]);
+      setRows([]);
       setInitialLoading(false);
       return;
     }
 
     if (res.status === 404) {
       setLocked(false);
-      if (!mergeOnlyPrices) setRows([]);
+      setRows([]);
       setInitialLoading(false);
       return;
     }
@@ -466,7 +531,7 @@ export default function Recommendations() {
 
       if (!hasAccessRef.current) {
         setLocked(true);
-        if (!mergeOnlyPrices) setRows([]);
+        setRows([]);
       }
       setInitialLoading(false);
       return;
@@ -478,29 +543,6 @@ export default function Recommendations() {
 
     const normalized = (Array.isArray(json) ? json : []).map(normalize);
 
-    // ✅ Only refresh LIVE PRICES, keep signals stable
-    if (mergeOnlyPrices) {
-      const priceById = new Map();
-      const priceByScript = new Map();
-
-      for (const r of normalized) {
-        if (r?.id) priceById.set(r.id, r.currentPrice);
-        if (r?.script) priceByScript.set(r.script, r.currentPrice);
-      }
-
-      setRows((prev) =>
-        (prev || []).map((r) => {
-          if (!r || r.isClosed) return r; // ✅ refresh only ACTIVE cards
-          const nextPrice = priceById.get(r.id) ?? priceByScript.get(r.script);
-          return nextPrice === undefined ? r : { ...r, currentPrice: nextPrice };
-        })
-      );
-
-      setLastPriceUpdatedAt(Date.now());
-      return;
-    }
-
-    // ✅ Full load only on page open
     const seen = new Set();
     const ordered = [];
 
@@ -511,20 +553,47 @@ export default function Recommendations() {
       ordered.push(r);
     }
 
-    const uniqueScreeners = ["All", ...new Set(ordered.map((r) => r.screener))];
-    const uniqueAlertTypes = ["All", ...new Set(ordered.map((r) => r.alertType))];
-    const uniquePriceCloseTo = [
-      "All",
-      ...new Set(ordered.map((r) => r.priceCloseTo).filter(Boolean)),
-    ];
-
     startTransition(() => {
-      setScreenerList(uniqueScreeners);
-      setAlertTypeList(uniqueAlertTypes);
-      setPriceCloseList(uniquePriceCloseTo);
       setRows(ordered);
       setInitialLoading(false);
     });
+
+    setLastPriceUpdatedAt(Date.now());
+  };
+
+  const refreshVisiblePrices = async () => {
+    const syms = activeSymbolsRef.current || [];
+    if (!syms.length) return;
+
+    const res = await fetch(
+      `${API}/quotes?symbols=${encodeURIComponent(
+        syms.join(",")
+      )}&ts=${Date.now()}`,
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) return;
+
+    const json = await res.json();
+    const priceMap = new Map();
+
+    if (Array.isArray(json)) {
+      for (const q of json) {
+        const s = (q?.symbol || "").toUpperCase();
+        const p = toNum(q?.price);
+        if (s && p !== undefined) priceMap.set(s, p);
+      }
+    }
+
+    setRows((prev) =>
+      (prev || []).map((r) => {
+        if (!r || r.isClosed) return r;
+        const s = (r.script || "").toUpperCase();
+        const p = priceMap.get(s);
+        if (p === undefined || r.currentPrice === p) return r;
+        return { ...r, currentPrice: p };
+      })
+    );
 
     setLastPriceUpdatedAt(Date.now());
   };
@@ -535,7 +604,7 @@ export default function Recommendations() {
 
     try {
       setPriceRefreshing(true);
-      await fetchRecommendationsOnce({ mergeOnlyPrices: true }); // ✅ price only
+      await refreshVisiblePrices();
     } catch (e) {
       console.error("Price refresh failed:", e);
     } finally {
@@ -563,7 +632,7 @@ export default function Recommendations() {
     restoringScrollRef.current = true;
 
     setActiveType(nextType);
-    setSubIntraday("All");
+    setSubIntraday([]);
     setSignalTab("active");
   };
 
@@ -588,6 +657,7 @@ export default function Recommendations() {
     const qpSegment = searchParams.get("segment");
     const qpScreener = searchParams.get("screener");
     const qpAlertType = searchParams.get("alertType");
+    const qpFnoValidation = searchParams.get("fnoValidation");
     const qpDate = searchParams.get("date");
     const qpActiveType = searchParams.get("type"); // Intraday/BTST/Short-term
     const qpSubIntraday = searchParams.get("subIntraday");
@@ -595,13 +665,14 @@ export default function Recommendations() {
     const qpTab = searchParams.get("tab"); // active/closed
     const qpSort = searchParams.get("sort"); // ✅ asc/desc
 
-    if (qpSegment) setSegment(qpSegment);
-    if (qpScreener) setSelectedScreener(qpScreener);
-    if (qpAlertType) setSelectedAlertType(qpAlertType);
+    if (qpSegment) setSegment(parseMultiParam(qpSegment));
+    if (qpScreener) setSelectedScreener(parseMultiParam(qpScreener));
+    if (qpAlertType) setSelectedAlertType(parseMultiParam(qpAlertType));
+    if (qpFnoValidation) setSelectedFnoValidation(parseMultiParam(qpFnoValidation));
     if (qpDate) setSelectedDate(qpDate);
     if (qpActiveType) setActiveType(qpActiveType);
-    if (qpSubIntraday) setSubIntraday(qpSubIntraday);
-    if (qpPriceClose) setPriceCloseFilter(qpPriceClose);
+    if (qpSubIntraday) setSubIntraday(parseMultiParam(qpSubIntraday));
+    if (qpPriceClose) setPriceCloseFilter(parseMultiParam(qpPriceClose));
     if (qpTab) setSignalTab(qpTab);
     if (qpSort === "asc" || qpSort === "desc") setDateSortOrder(qpSort);
 
@@ -611,18 +682,20 @@ export default function Recommendations() {
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
 
-    next.set("segment", segment || "Equity");
-    next.set("screener", selectedScreener || "All");
-    next.set("alertType", selectedAlertType || "All");
-    next.set("date", selectedDate || "");
+    writeMultiParam(next, "segment", segment);
+    writeMultiParam(next, "screener", selectedScreener);
+    writeMultiParam(next, "alertType", selectedAlertType);
+    next.delete("dataInterval");
+    next.delete("screenerSide");
+    writeMultiParam(next, "fnoValidation", selectedFnoValidation);
+    writeMultiParam(next, "subIntraday", subIntraday);
+    writeMultiParam(next, "priceClose", priceCloseFilter);
     next.set("type", activeType || "Intraday");
-    next.set("subIntraday", subIntraday || "All");
-    next.set("priceClose", priceCloseFilter || "All");
     next.set("tab", signalTab || "active");
-    next.set("sort", dateSortOrder || "desc"); // ✅ keep sort in URL
+    next.set("sort", dateSortOrder || "desc");
 
-    // remove empty date to keep URL clean
-    if (!selectedDate) next.delete("date");
+    if (selectedDate) next.set("date", selectedDate);
+    else next.delete("date");
 
     setSearchParams(next, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -630,6 +703,7 @@ export default function Recommendations() {
     segment,
     selectedScreener,
     selectedAlertType,
+    selectedFnoValidation,
     selectedDate,
     activeType,
     subIntraday,
@@ -644,7 +718,7 @@ export default function Recommendations() {
 
     (async () => {
       try {
-        await fetchRecommendationsOnce({ mergeOnlyPrices: false }); // ✅ full load once
+        await fetchRecommendationsOnce();
       } catch (e) {
         console.error("Fetch failed:", e);
         if (!alive) return;
@@ -666,45 +740,36 @@ export default function Recommendations() {
   // -------------------------------------------------------
   // FILTERING
   // -------------------------------------------------------
-  const filteredRows = useMemo(() => {
-    return rows.filter((r) => {
-      // ✅ DATE FILTER (FINAL FIX)
-      let matchDate = true;
-
-      if (selectedDate) {
-        console.log(
-          "📅 DATE FILTER →",
-          "selectedDate (ISO):",
-          selectedDate,
-          "| row.dateVal:",
-          r.dateVal
-        );
-        matchDate = r.dateVal === selectedDate;
-      }
-
-      // DEBUG (keep this for now)
-      console.log(
-        "DATE CHECK → selected:",
-        selectedDate,
-        "| row.dateVal:",
-        r.dateVal,
-        "| row.rawDateTime:",
-        r.rawDateTime,
-        "| match:",
-        matchDate
+  const filterOptions = useMemo(() => {
+    const collect = (field) =>
+      sortFilterOptions(
+        Array.from(
+          new Set(
+            (rows || [])
+              .map((row) => row?.[field])
+              .filter((value) => value !== undefined && value !== null && String(value).trim())
+          )
+        )
       );
 
-      // ✅ SCREENER
-      const matchScreener =
-        selectedScreener === "All" ||
-        (r.screener || "").toLowerCase() === selectedScreener.toLowerCase();
+    return {
+      segments: collect("segment"),
+      alertTypes: collect("alertType"),
+      screeners: collect("screener"),
+      priceCloseTo: collect("priceCloseTo"),
+      fnoValidation: collect("fnoValidation"),
+    };
+  }, [rows]);
 
-      // ✅ ALERT TYPE
-      const matchAlert =
-        selectedAlertType === "All" ||
-        (r.alertType || "").toLowerCase() === selectedAlertType.toLowerCase();
+  const filteredRows = useMemo(() => {
+    return rows.filter((r) => {
+      const matchDate = selectedDate ? r.dateVal === selectedDate : true;
+      const matchSegment = matchesMulti(segment, r.segment);
+      const matchScreener = matchesMulti(selectedScreener, r.screener);
+      const matchFnoValidation = matchesMulti(selectedFnoValidation, r.fnoValidation);
+      const matchAlert = matchesMulti(selectedAlertType, r.alertType);
+      const matchPriceClose = matchesMulti(priceCloseFilter, r.priceCloseTo);
 
-      // ✅ MAIN TAB STRATEGY
       let matchStrategy = false;
       if (activeType === "Intraday") {
         matchStrategy = ["intraday", "intraday-fast"].includes(r.strategy);
@@ -714,24 +779,21 @@ export default function Recommendations() {
         matchStrategy = r.strategy === "short-term";
       }
 
-      // ✅ Intraday subtype
       let matchSub = true;
-      if (activeType === "Intraday") {
-        if (subIntraday === "Intraday") matchSub = r.strategy === "intraday";
-        else if (subIntraday === "Intraday - Fast Alerts")
-          matchSub = r.strategy === "intraday-fast";
+      if (activeType === "Intraday" && Array.isArray(subIntraday) && subIntraday.length) {
+        const intradayLabel = r.strategy === "intraday-fast"
+          ? "Intraday - Fast Alerts"
+          : r.strategy === "intraday"
+            ? "Intraday"
+            : "";
+        matchSub = matchesMulti(subIntraday, intradayLabel);
       }
-
-      // ✅ Price Close To
-      const matchPriceClose =
-        priceCloseFilter === "All" ||
-        (r.priceCloseTo || "")
-          .toLowerCase()
-          .includes(priceCloseFilter.toLowerCase());
 
       return (
         matchDate &&
+        matchSegment &&
         matchScreener &&
+        matchFnoValidation &&
         matchAlert &&
         matchStrategy &&
         matchSub &&
@@ -741,7 +803,9 @@ export default function Recommendations() {
   }, [
     rows,
     selectedDate,
+    segment,
     selectedScreener,
+    selectedFnoValidation,
     selectedAlertType,
     activeType,
     subIntraday,
@@ -781,75 +845,32 @@ export default function Recommendations() {
     );
   }, [activeSignals]);
 
-  // ✅ Live price polling (same behaviour as Watchlist)
-  // Updates ONLY ACTIVE cards; closed cards stay frozen at close price
+  // ✅ Light live price polling for only the currently rendered ACTIVE cards
   useEffect(() => {
-    if (locked) return;
+    if (locked || initialLoading) return;
 
     let mounted = true;
 
     async function pollOnce() {
-      const syms = activeSymbolsRef.current || [];
-      if (!syms.length) return;
+      if (!mounted || document.visibilityState !== "visible") return;
 
       try {
-        const res = await fetch(
-          `${API}/quotes?symbols=${encodeURIComponent(
-            syms.join(",")
-          )}&ts=${Date.now()}`,
-          { cache: "no-store" }
-        );
-
-        if (!res.ok) return;
-        const json = await res.json();
-
-        const priceMap = new Map();
-        if (Array.isArray(json)) {
-          for (const q of json) {
-            const s = (q?.symbol || "").toUpperCase();
-            const p = toNum(q?.price);
-            if (s && p !== undefined) priceMap.set(s, p);
-          }
-        }
-
-        if (!mounted) return;
-
-        setRows((prev) =>
-          (prev || []).map((r) => {
-            if (!r || r.isClosed) return r;
-            const s = (r.script || "").toUpperCase();
-            const p = priceMap.get(s);
-            if (p === undefined) return r;
-            if (r.currentPrice === p) return r;
-            return { ...r, currentPrice: p };
-          })
-        );
-
-        setLastPriceUpdatedAt(Date.now());
-      } catch (e) {
+        await refreshVisiblePrices();
+      } catch {
         // keep silent — UI should not flicker
-        // console.error("Recommendations live price poll error:", e);
       }
     }
 
-    // run immediately + then every 3s
     pollOnce();
-    const id = setInterval(pollOnce, 3000);
+    const id = setInterval(pollOnce, 12000);
 
     return () => {
       mounted = false;
       clearInterval(id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [API, locked]);
+  }, [API, locked, initialLoading, activeType, signalTab, dateSortOrder, selectedDate]);
 
-  console.table(
-    activeSignals.map((s) => ({
-      script: s.script,
-      rawDateTime: s.rawDateTime,
-      time: s.timeVal,
-    }))
-  );
 
   const closedSignals = useMemo(() => {
     const dir = dateSortOrder === "asc" ? 1 : -1;
@@ -1030,12 +1051,10 @@ export default function Recommendations() {
               placeholderText="mm/dd/yyyy"
               className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
               calendarClassName="nc-date-calendar"
-              popperClassName={`nc-date-popper ${
-                isDark ? "nc-date-dark" : "nc-date-light"
-              }`}
-              wrapperClassName={`nc-date-wrapper ${
-                isDark ? "nc-date-dark" : "nc-date-light"
-              }`}
+              popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"
+                }`}
+              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"
+                }`}
             />
           </div>
 
@@ -1044,55 +1063,87 @@ export default function Recommendations() {
               <label>Intraday Type:</label>
               <CustomDropdown
                 label=""
+                multiple
                 value={subIntraday}
-                options={["All", "Intraday", "Intraday - Fast Alerts"]}
+                options={["Intraday", "Intraday - Fast Alerts"]}
                 onChange={setSubIntraday}
+                placeholder="All"
               />
             </div>
           )}
 
-          <div className="filter-item">
-            <label>Segment:</label>
-            <CustomDropdown
-              label=""
-              value={segment}
-              options={["Equity", "F&O"]}
-              onChange={setSegment}
-            />
-          </div>
+          {!!filterOptions.segments.length && (
+            <div className="filter-item">
+              <label>Segment:</label>
+              <CustomDropdown
+                label=""
+                multiple
+                value={segment}
+                options={filterOptions.segments}
+                onChange={setSegment}
+                placeholder="All"
+              />
+            </div>
+          )}
         </div>
 
         {/* ---------------- DROPDOWN FILTERS ---------------- */}
         <div className="filters-row filters-row-legend">
-          <div className="filter-item">
-            <label>Alert Type:</label>
-            <CustomDropdown
-              label=""
-              value={selectedAlertType}
-              options={alertTypeList}
-              onChange={setSelectedAlertType}
-            />
-          </div>
+          {!!filterOptions.alertTypes.length && (
+            <div className="filter-item">
+              <label>Alert Type:</label>
+              <CustomDropdown
+                label=""
+                multiple
+                value={selectedAlertType}
+                options={filterOptions.alertTypes}
+                onChange={setSelectedAlertType}
+                placeholder="All"
+              />
+            </div>
+          )}
 
-          <div className="filter-item">
-            <label>Screener:</label>
-            <CustomDropdown
-              label=""
-              value={selectedScreener}
-              options={screenerList}
-              onChange={setSelectedScreener}
-            />
-          </div>
+          {!!filterOptions.screeners.length && (
+            <div className="filter-item">
+              <label>Screener:</label>
+              <CustomDropdown
+                label=""
+                multiple
+                value={selectedScreener}
+                options={filterOptions.screeners}
+                onChange={setSelectedScreener}
+                placeholder="All"
+              />
+            </div>
+          )}
 
-          <div className="filter-item">
-            <label>Price Close To:</label>
-            <CustomDropdown
-              label=""
-              value={priceCloseFilter}
-              options={priceCloseList}
-              onChange={setPriceCloseFilter}
-            />
-          </div>
+          {!!filterOptions.priceCloseTo.length && (
+            <div className="filter-item">
+              <label>Price Close To:</label>
+              <CustomDropdown
+                label=""
+                multiple
+                value={priceCloseFilter}
+                options={filterOptions.priceCloseTo}
+                onChange={setPriceCloseFilter}
+                placeholder="All"
+              />
+            </div>
+          )}
+
+          {!!filterOptions.fnoValidation.length && (
+            <div className="filter-item">
+              <label>F&O Validation:</label>
+              <CustomDropdown
+                label=""
+                multiple
+                value={selectedFnoValidation}
+                options={filterOptions.fnoValidation}
+                onChange={setSelectedFnoValidation}
+                placeholder="All"
+              />
+            </div>
+          )}
         </div>
 
         {/* ---------------- LEGEND ---------------- */}
@@ -1133,8 +1184,8 @@ export default function Recommendations() {
                 signalTab === "active"
                   ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-md"
                   : isDark
-                  ? "text-white/85 hover:bg-white/10"
-                  : "text-slate-700 hover:bg-white/70",
+                    ? "text-white/85 hover:bg-white/10"
+                    : "text-slate-700 hover:bg-white/70",
               ].join(" ")}
             >
               Active Signals
@@ -1149,8 +1200,8 @@ export default function Recommendations() {
                 signalTab === "closed"
                   ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-md"
                   : isDark
-                  ? "text-white/85 hover:bg-white/10"
-                  : "text-slate-700 hover:bg-white/70",
+                    ? "text-white/85 hover:bg-white/10"
+                    : "text-slate-700 hover:bg-white/70",
               ].join(" ")}
             >
               Closed Signals
@@ -1602,9 +1653,8 @@ export default function Recommendations() {
   // -------------------------------------------------------
   return (
     <div
-      className={`min-h-screen ${
-        isDark ? "theme-dark" : "theme-light"
-      } ${bgClass} ${textClass} relative transition-colors duration-300`}
+      className={`min-h-screen ${isDark ? "theme-dark" : "theme-light"
+        } ${bgClass} ${textClass} relative transition-colors duration-300`}
     >
       {/* ===== BACKGROUND BLOBS (same as History) ===== */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1657,9 +1707,8 @@ export default function Recommendations() {
                     "shadow-sm",
                     isActiveTab
                       ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white border-white/10 shadow-xl"
-                      : `${glassClass} ${textClass} ${cardHoverClass} ${
-                          isDark ? "border-white/10" : "border-slate-200/60"
-                        }`,
+                      : `${glassClass} ${textClass} ${cardHoverClass} ${isDark ? "border-white/10" : "border-slate-200/60"
+                      }`,
                   ].join(" ")}
                 >
                   {type}
