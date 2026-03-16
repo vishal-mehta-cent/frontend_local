@@ -2828,8 +2828,10 @@ useEffect(() => {
     };
 
     const patchIndicatorStyle = (patch = {}) => {
-      const series = selectedIndicator?.series;
-      const seriesKey = selectedIndicator?.seriesKey;
+      const hit = selectedIndicator;
+      const series = hit?.series;
+      const seriesKey = hit?.seriesKey;
+      const groupKey = hit?.groupKey;
       if (!series || !seriesKey) return;
 
       const nextStyle = {
@@ -2838,20 +2840,43 @@ useEffect(() => {
         ...patch,
       };
 
-      indicatorStyleRef.current[seriesKey] = nextStyle;
+      const applyStyleToMeta = (meta) => {
+        if (!meta?.series || !meta?.seriesKey) return;
 
-      try {
-        series.applyOptions({
-          color: nextStyle.color,
-          lineWidth: nextStyle.lineWidth,
-          lineStyle: toLineStyle(nextStyle.dash),
-        });
-      } catch {
+        indicatorStyleRef.current[meta.seriesKey] = {
+          ...(indicatorStyleRef.current[meta.seriesKey] || {}),
+          ...nextStyle,
+        };
+
         try {
-          series.applyOptions({
+          meta.series.applyOptions({
             color: nextStyle.color,
+            lineWidth: nextStyle.lineWidth,
+            lineStyle: toLineStyle(nextStyle.dash),
           });
-        } catch { }
+        } catch {
+          try {
+            meta.series.applyOptions({
+              color: nextStyle.color,
+            });
+          } catch { }
+        }
+      };
+
+      if (groupKey) {
+        Object.values(indDataMain.current || {}).forEach((arr) => {
+          (arr || []).forEach((meta) => {
+            if (meta?.groupKey === groupKey) applyStyleToMeta(meta);
+          });
+        });
+
+        Object.values(indDataOsc.current || {}).forEach((arr) => {
+          (arr || []).forEach((meta) => {
+            if (meta?.groupKey === groupKey) applyStyleToMeta(meta);
+          });
+        });
+      } else {
+        applyStyleToMeta(hit);
       }
 
       setSelectedIndicator((prev) =>
