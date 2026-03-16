@@ -1035,6 +1035,7 @@ export default function ChartPage() {
     moved: false,
     startX: 0,
     startY: 0,
+    hitOnDown: null,
   });
 
   const normalizeDash = (dash) => (dash === "dash" || dash === "dot" ? dash : "solid");
@@ -2162,7 +2163,7 @@ useEffect(() => {
           const xa = timeToX(a.time), xb = timeToX(b.time);
           const ya = priceToY(series, a.value), yb = priceToY(series, b.value);
           if (xa == null || xb == null || ya == null || yb == null) continue;
-          const dpx = Math.abs((yb - ya) * mouseX - (xb - xa) * mouseY + (xb * ya - yb * xa)) / Math.hypot(yb - ya, xb - xa);
+          const dpx = pointToSegDist(mouseX, mouseY, xa, ya, xb, yb);
           if (dpx <= maxPx) return meta;
         }
       }
@@ -2831,7 +2832,6 @@ useEffect(() => {
       const hit = selectedIndicator;
       const series = hit?.series;
       const seriesKey = hit?.seriesKey;
-      const groupKey = hit?.groupKey;
       if (!series || !seriesKey) return;
 
       const nextStyle = {
@@ -2840,43 +2840,40 @@ useEffect(() => {
         ...patch,
       };
 
-      const applyStyleToMeta = (meta) => {
-        if (!meta?.series || !meta?.seriesKey) return;
-
-        indicatorStyleRef.current[meta.seriesKey] = {
-          ...(indicatorStyleRef.current[meta.seriesKey] || {}),
-          ...nextStyle,
-        };
-
-        try {
-          meta.series.applyOptions({
-            color: nextStyle.color,
-            lineWidth: nextStyle.lineWidth,
-            lineStyle: toLineStyle(nextStyle.dash),
-          });
-        } catch {
-          try {
-            meta.series.applyOptions({
-              color: nextStyle.color,
-            });
-          } catch { }
-        }
+      indicatorStyleRef.current[seriesKey] = {
+        ...(indicatorStyleRef.current[seriesKey] || {}),
+        ...nextStyle,
       };
 
-      if (groupKey) {
-        Object.values(indDataMain.current || {}).forEach((arr) => {
+      const updateStoredMetaStyle = (store) => {
+        Object.values(store || {}).forEach((arr) => {
           (arr || []).forEach((meta) => {
-            if (meta?.groupKey === groupKey) applyStyleToMeta(meta);
+            if (!meta) return;
+            const sameSeries = meta.seriesKey === seriesKey || meta.series === series;
+            if (!sameSeries) return;
+            meta.style = {
+              ...(meta.style || {}),
+              ...nextStyle,
+            };
           });
         });
+      };
 
-        Object.values(indDataOsc.current || {}).forEach((arr) => {
-          (arr || []).forEach((meta) => {
-            if (meta?.groupKey === groupKey) applyStyleToMeta(meta);
-          });
+      updateStoredMetaStyle(indDataMain.current);
+      updateStoredMetaStyle(indDataOsc.current);
+
+      try {
+        series.applyOptions({
+          color: nextStyle.color,
+          lineWidth: nextStyle.lineWidth,
+          lineStyle: toLineStyle(nextStyle.dash),
         });
-      } else {
-        applyStyleToMeta(hit);
+      } catch {
+        try {
+          series.applyOptions({
+            color: nextStyle.color,
+          });
+        } catch { }
       }
 
       setSelectedIndicator((prev) =>
@@ -2972,11 +2969,23 @@ useEffect(() => {
     if (!el) return;
 
     const handlePointerDown = (e) => {
+      const rect = el.getBoundingClientRect();
+      const x = clamp(e.clientX - rect.left, 0, rect.width);
+      const y = clamp(e.clientY - rect.top, 0, rect.height);
+      const hitInd = hitTestIndicatorMain(x, y);
+
       indicatorPointerRef.current = {
         isDown: true,
         moved: false,
         startX: e.clientX,
         startY: e.clientY,
+        hitOnDown: hitInd?.series
+          ? {
+              series: hitInd.series,
+              seriesKey: hitInd.seriesKey || null,
+              groupKey: hitInd.groupKey || null,
+            }
+          : null,
       };
     };
 
@@ -2995,19 +3004,31 @@ useEffect(() => {
         moved: false,
         startX: 0,
         startY: 0,
+        hitOnDown: null,
       };
 
       // only when NOT drawing and only on real clicks (not drag/scroll)
       if (activeTool || toolbarOpen || drawerOpen) return;
       if (state?.moved) return;
+      if (!state?.hitOnDown) {
+        setIndTbOpen(false);
+        setSelectedIndicator(null);
+        return;
+      }
       if (!mainChart.current) return;
 
       const rect = el.getBoundingClientRect();
       const x = clamp(e.clientX - rect.left, 0, rect.width);
       const y = clamp(e.clientY - rect.top, 0, rect.height);
       const hitInd = hitTestIndicatorMain(x, y);
+      const sameHit =
+        hitInd?.series && (
+          (state.hitOnDown.seriesKey && hitInd.seriesKey && state.hitOnDown.seriesKey === hitInd.seriesKey) ||
+          (state.hitOnDown.groupKey && hitInd.groupKey && state.hitOnDown.groupKey === hitInd.groupKey) ||
+          state.hitOnDown.series === hitInd.series
+        );
 
-      if (hitInd?.series) {
+      if (sameHit) {
         setSelectedId(null);
         setSelectedIndicator(hitInd);
         setIndTbOpen(true);
@@ -3025,6 +3046,7 @@ useEffect(() => {
         moved: false,
         startX: 0,
         startY: 0,
+        hitOnDown: null,
       };
     };
 
