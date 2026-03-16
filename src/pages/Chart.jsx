@@ -806,8 +806,6 @@ export default function ChartPage() {
   const [searchItems, setSearchItems] = useState([]);
   const searchInputRef = useRef(null);
 
-  
-
   useEffect(() => {
   let alive = true;
   const u = localStorage.getItem("username") || "";
@@ -958,7 +956,6 @@ export default function ChartPage() {
 
   const livePriceLine = useRef(null);
   const volSeries = useRef(null);
-  
 
   // ▶ INDICATORS — series managers
   const indSeriesMain = useRef({});
@@ -1031,7 +1028,17 @@ export default function ChartPage() {
   // indicator toolbar
   const [indTbOpen, setIndTbOpen] = useState(false);
   const [indTbPos, setIndTbPos] = useState({ x: 0, y: 0 });
-  const [selectedIndicator, setSelectedIndicator] = useState(null); // {series}
+  const [selectedIndicator, setSelectedIndicator] = useState(null); // { series, groupKey, seriesKey, removeFrom, style }
+  const indicatorStyleRef = useRef({});
+  const indicatorPointerRef = useRef({
+    isDown: false,
+    moved: false,
+    startX: 0,
+    startY: 0,
+  });
+
+  const normalizeDash = (dash) => (dash === "dash" || dash === "dot" ? dash : "solid");
+  const toLineStyle = (dash) => (dash === "dash" ? 2 : dash === "dot" ? 3 : 0);
 
   // freeze UI while toolbar is used
   const uiFreezeRef = useRef(false);
@@ -2146,7 +2153,8 @@ useEffect(() => {
     const maxPx = 6;
 
     for (const arr of Object.values(indDataMain.current || {})) {
-      for (const { series, data } of arr) {
+      for (const meta of arr) {
+        const { series, data } = meta || {};
         if (!series || !data?.length) continue;
         for (let i = 1; i < data.length; i++) {
           const a = data[i - 1], b = data[i];
@@ -2155,7 +2163,7 @@ useEffect(() => {
           const ya = priceToY(series, a.value), yb = priceToY(series, b.value);
           if (xa == null || xb == null || ya == null || yb == null) continue;
           const dpx = Math.abs((yb - ya) * mouseX - (xb - xa) * mouseY + (xb * ya - yb * xa)) / Math.hypot(yb - ya, xb - xa);
-          if (dpx <= maxPx) return { series };
+          if (dpx <= maxPx) return meta;
         }
       }
     }
@@ -2199,7 +2207,7 @@ useEffect(() => {
       const hitInd = hitTestIndicatorMain(p.px.x, p.px.y);
       if (hitInd?.series) {
         setSelectedId(null);
-        setSelectedIndicator(hitInd.series);
+        setSelectedIndicator(hitInd);
         setToolbarOpen(false);
         setIndTbOpen(true);
         setIndTbPos({ x: p.client.x, y: p.client.y });
@@ -2459,42 +2467,77 @@ useEffect(() => {
     const closes = candles.map(c => c.close);
     const times = candles.map(c => c.time);
 
-    const addMainLine = (color = "#0ea5e9", width = 1) =>
-      main.addLineSeries({
-        color,
-        lineWidth: width,
-        priceLineVisible: false,
-        crosshairMarkerVisible: false,
-      });
-
-    // 🔥 FORCE ALL OSC INDICATORS TO MAIN CHART
-    const addOscLine = (color, width, scaleId) =>
-      mainChart.current.addLineSeries({
-        color,
-        lineWidth: width,
-        priceLineVisible: false,
-        crosshairMarkerVisible: false,
-        priceScaleId: scaleId,   // 🔥 KEY FIX
-      });
-
-    const addOscHist = (color, scaleId) =>
-      mainChart.current.addHistogramSeries({
-        color,
-        base: 0,
-        priceLineVisible: false,
-        priceScaleId: scaleId,   // 🔥 KEY FIX
-      });
-
-
-
-    const pushMain = (key, series, data) => {
-      indSeriesMain.current[key] = (indSeriesMain.current[key] || []).concat(series);
-      indDataMain.current[key] = (indDataMain.current[key] || []).concat({ series, data });
+    const buildIndicatorStyle = (seriesKey, base = {}) => {
+      const saved = indicatorStyleRef.current?.[seriesKey] || {};
+      return {
+        color: saved.color ?? base.color ?? "#0ea5e9",
+        lineWidth: saved.lineWidth ?? base.lineWidth ?? 1,
+        dash: normalizeDash(saved.dash ?? base.dash ?? "solid"),
+      };
     };
 
-    const pushOsc = (key, series, data) => {
-      indSeriesOsc.current[key] = (indSeriesOsc.current[key] || []).concat(series);
-      indDataOsc.current[key] = (indDataOsc.current[key] || []).concat({ series, data });
+    const addMainLine = (groupKey, seriesKey, color = "#0ea5e9", width = 1, dash = "solid") => {
+      const style = buildIndicatorStyle(seriesKey, { color, lineWidth: width, dash });
+      return {
+        series: main.addLineSeries({
+          color: style.color,
+          lineWidth: style.lineWidth,
+          lineStyle: toLineStyle(style.dash),
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+        }),
+        style,
+        groupKey,
+        seriesKey,
+        removeFrom: "main",
+      };
+    };
+
+    // 🔥 FORCE ALL OSC INDICATORS TO MAIN CHART
+    const addOscLine = (groupKey, seriesKey, color, width, scaleId, dash = "solid") => {
+      const style = buildIndicatorStyle(seriesKey, { color, lineWidth: width, dash });
+      return {
+        series: mainChart.current.addLineSeries({
+          color: style.color,
+          lineWidth: style.lineWidth,
+          lineStyle: toLineStyle(style.dash),
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
+          priceScaleId: scaleId,   // 🔥 KEY FIX
+        }),
+        style,
+        groupKey,
+        seriesKey,
+        removeFrom: "main",
+      };
+    };
+
+    const addOscHist = (groupKey, seriesKey, color, scaleId) => {
+      const style = buildIndicatorStyle(seriesKey, { color, lineWidth: 1, dash: "solid" });
+      return {
+        series: mainChart.current.addHistogramSeries({
+          color: style.color,
+          base: 0,
+          priceLineVisible: false,
+          priceScaleId: scaleId,   // 🔥 KEY FIX
+        }),
+        style,
+        groupKey,
+        seriesKey,
+        removeFrom: "main",
+      };
+    };
+
+
+
+    const pushMain = (key, meta, data) => {
+      indSeriesMain.current[key] = (indSeriesMain.current[key] || []).concat(meta.series);
+      indDataMain.current[key] = (indDataMain.current[key] || []).concat({ ...meta, data });
+    };
+
+    const pushOsc = (key, meta, data) => {
+      indSeriesOsc.current[key] = (indSeriesOsc.current[key] || []).concat(meta.series);
+      indDataOsc.current[key] = (indDataOsc.current[key] || []).concat({ ...meta, data });
     };
 
     const toSeriesData = (values) =>
@@ -2509,12 +2552,12 @@ useEffect(() => {
     // ---------- 52 Week High / Low (MAIN) ----------
     if (active.hi52) {
       const { hi, lo } = highLow52w(candles, 252);
-      const sHi = addMainLine("#f59e0b", 1);
-      const sLo = addMainLine("#10b981", 1);
+      const sHi = addMainLine("hi52", "hi52_hi", "#f59e0b", 1);
+      const sLo = addMainLine("hi52", "hi52_lo", "#10b981", 1);
       const dHi = toSeriesData(hi);
       const dLo = toSeriesData(lo);
-      sHi.setData(dHi);
-      sLo.setData(dLo);
+      sHi.series.setData(dHi);
+      sLo.series.setData(dLo);
       pushMain("hi52", sHi, dHi);
       pushMain("hi52", sLo, dLo);
     }
@@ -2522,9 +2565,9 @@ useEffect(() => {
     // ---------- Average Price (MAIN) ----------
     if (active.avgprice) {
       const avg = AvgPrice(candles, 14);
-      const s = addMainLine("#3b82f6", 1);
+      const s = addMainLine("avgprice", "avgprice_main", "#3b82f6", 1);
       const d = toSeriesData(avg);
-      s.setData(d);
+      s.series.setData(d);
       pushMain("avgprice", s, d);
     }
 
@@ -2538,17 +2581,17 @@ useEffect(() => {
     // ---------- Bollinger Bands (MAIN) ----------
     if (active.bbands) {
       const { ma, upper, lower } = getBB();
-      const midS = addMainLine("#0ea5e9", 1);
-      const upS = addMainLine("rgba(148,163,184,0.9)", 1);
-      const loS = addMainLine("rgba(148,163,184,0.9)", 1);
+      const midS = addMainLine("bbands", "bbands_mid", "#0ea5e9", 1);
+      const upS = addMainLine("bbands", "bbands_upper", "rgba(148,163,184,0.9)", 1);
+      const loS = addMainLine("bbands", "bbands_lower", "rgba(148,163,184,0.9)", 1);
 
       const dMid = toSeriesData(ma);
       const dUp = toSeriesData(upper);
       const dLo = toSeriesData(lower);
 
-      midS.setData(dMid);
-      upS.setData(dUp);
-      loS.setData(dLo);
+      midS.series.setData(dMid);
+      upS.series.setData(dUp);
+      loS.series.setData(dLo);
 
       pushMain("bbands", midS, dMid);
       pushMain("bbands", upS, dUp);
@@ -2559,9 +2602,9 @@ useEffect(() => {
     if (active.bb_pctb) {
       const { pctB } = getBB();
       const scale = "scale_pctb";
-      const s = addOscLine("#6366f1", 1, scale);
+      const s = addOscLine("bb_pctb", "bb_pctb_main", "#6366f1", 1, scale);
       const d = toSeriesData(pctB);
-      s.setData(d);
+      s.series.setData(d);
       pushOsc("bb_pctb", s, d);
     }
 
@@ -2570,9 +2613,9 @@ useEffect(() => {
     if (active.bb_width) {
       const { width } = getBB();
       const scale = "scale_bbw";
-      const s = addOscLine("#f97316", 1, scale);
+      const s = addOscLine("bb_width", "bb_width_main", "#f97316", 1, scale);
       const d = toSeriesData(width);
-      s.setData(d);
+      s.series.setData(d);
       pushOsc("bb_width", s, d);
     }
 
@@ -2583,17 +2626,17 @@ useEffect(() => {
 
       const scale = "scale_adx";
 
-      const sPlus = addOscLine("#22c55e", 1, scale);
-      const sMinus = addOscLine("#ef4444", 1, scale);
-      const sAdx = addOscLine("#0ea5e9", 1, scale);
+      const sPlus = addOscLine("adx", "adx_plus", "#22c55e", 1, scale);
+      const sMinus = addOscLine("adx", "adx_minus", "#ef4444", 1, scale);
+      const sAdx = addOscLine("adx", "adx_main", "#0ea5e9", 1, scale);
 
       const dPlus = toSeriesData(plusDI).filter(p => Number.isFinite(p.value));
       const dMinus = toSeriesData(minusDI).filter(p => Number.isFinite(p.value));
       const dAdx = toSeriesData(adx).filter(p => Number.isFinite(p.value));
 
-      sPlus.setData(dPlus);
-      sMinus.setData(dMinus);
-      sAdx.setData(dAdx);
+      sPlus.series.setData(dPlus);
+      sMinus.series.setData(dMinus);
+      sAdx.series.setData(dAdx);
 
       pushOsc("adx", sPlus, dPlus);
       pushOsc("adx", sMinus, dMinus);
@@ -2607,17 +2650,21 @@ useEffect(() => {
       const { up, down, osc } = Aroon(candles, 25);
       const scale = "scale_aroon";
 
-      const sUp = addOscLine("#22c55e", 1, scale);
-      const sDown = addOscLine("#ef4444", 1, scale);
-      const sOsc = addOscLine("#0ea5e9", 1, scale);
+      const sUp = addOscLine("aroon", "aroon_up", "#22c55e", 1, scale);
+      const sDown = addOscLine("aroon", "aroon_down", "#ef4444", 1, scale);
+      const sOsc = addOscLine("aroon", "aroon_osc", "#0ea5e9", 1, scale);
 
-      sUp.setData(toSeriesData(up));
-      sDown.setData(toSeriesData(down));
-      sOsc.setData(toSeriesData(osc));
+      const dUp = toSeriesData(up);
+      const dDown = toSeriesData(down);
+      const dOsc = toSeriesData(osc);
 
-      pushOsc("aroon", sUp);
-      pushOsc("aroon", sDown);
-      pushOsc("aroon", sOsc);
+      sUp.series.setData(dUp);
+      sDown.series.setData(dDown);
+      sOsc.series.setData(dOsc);
+
+      pushOsc("aroon", sUp, dUp);
+      pushOsc("aroon", sDown, dDown);
+      pushOsc("aroon", sOsc, dOsc);
     }
 
 
@@ -2628,10 +2675,10 @@ useEffect(() => {
 
       const scale = "scale_adline"; // 🔥 separate hidden scale (prevents candle compression)
 
-      const s = addOscLine("#0ea5e9", 1, scale);
+      const s = addOscLine("adline", "adline_main", "#0ea5e9", 1, scale);
       const d = toSeriesData(vals);
 
-      s.setData(d);
+      s.series.setData(d);
       pushOsc("adline", s, d);
     }
 
@@ -2641,10 +2688,10 @@ useEffect(() => {
       const vals = BOP(candles);
       const scale = "scale_bop"; // 🔥 separate hidden scale
 
-      const s = addOscHist("#64748b", scale);
+      const s = addOscHist("bop", "bop_main", "#64748b", scale);
       const d = toSeriesData(vals);
 
-      s.setData(d);
+      s.series.setData(d);
       pushOsc("bop", s, d);
     }
 
@@ -2653,9 +2700,10 @@ useEffect(() => {
     if (active.cci) {
       const vals = CCI(candles, 20);
       const scale = "scale_cci";
-      const s = addOscLine("#22c55e", 1, scale);
-      s.setData(toSeriesData(vals));
-      pushOsc("cci", s);
+      const s = addOscLine("cci", "cci_main", "#22c55e", 1, scale);
+      const d = toSeriesData(vals);
+      s.series.setData(d);
+      pushOsc("cci", s, d);
     }
 
 
@@ -2664,14 +2712,16 @@ useEffect(() => {
       const { k, d } = StochRSI(closes, 14, 14, 3);
       const scale = "scale_stoch";
 
-      const sK = addOscLine("#0ea5e9", 1, scale);
-      const sD = addOscLine("#f97316", 1, scale);
+      const sK = addOscLine("rsi_stoch", "rsi_stoch_k", "#0ea5e9", 1, scale);
+      const sD = addOscLine("rsi_stoch", "rsi_stoch_d", "#f97316", 1, scale);
 
-      sK.setData(toSeriesData(k));
-      sD.setData(toSeriesData(d));
+      const dK = toSeriesData(k);
+      const dD = toSeriesData(d);
+      sK.series.setData(dK);
+      sD.series.setData(dD);
 
-      pushOsc("rsi_stoch", sK);
-      pushOsc("rsi_stoch", sD);
+      pushOsc("rsi_stoch", sK, dK);
+      pushOsc("rsi_stoch", sD, dD);
     }
 
 
@@ -2680,10 +2730,10 @@ useEffect(() => {
       const { ao } = AO_AC(candles);
       const scale = "scale_ao"; // 🔥 separate hidden scale
 
-      const s = addOscHist("#0ea5e9", scale);
+      const s = addOscHist("ao", "ao_main", "#0ea5e9", scale);
       const d = toSeriesData(ao);
 
-      s.setData(d);
+      s.series.setData(d);
       pushOsc("ao", s, d);
     }
 
@@ -2694,10 +2744,10 @@ useEffect(() => {
       const { ac } = AO_AC(candles);
       const scale = "scale_ac"; // 🔥 separate hidden scale
 
-      const s = addOscHist("#22c55e", scale);
+      const s = addOscHist("ac", "ac_main", "#22c55e", scale);
       const d = toSeriesData(ac);
 
-      s.setData(d);
+      s.series.setData(d);
       pushOsc("ac", s, d);
     }
 
@@ -2705,9 +2755,9 @@ useEffect(() => {
     // ---------- Supertrend (MAIN) ----------
     if (active.supertrend) {
       const { trend } = Supertrend(candles, 10, 3);
-      const s = addMainLine("#16a34a", 2);
+      const s = addMainLine("supertrend", "supertrend_main", "#16a34a", 2);
       const d = toSeriesData(trend);
-      s.setData(d);
+      s.series.setData(d);
       pushMain("supertrend", s, d);
     }
   }, [candles, active, mainChart, oscChart]);
@@ -2769,59 +2819,90 @@ useEffect(() => {
 
   /* ---------------- Indicator Toolbar (for overlay indicators) ---------------- */
   const IndicatorToolbar = () => {
-    if (!indTbOpen || !selectedIndicator) return null;
+    if (!indTbOpen || !selectedIndicator?.series) return null;
 
-    const onColor = (e) => {
-      const v = e.target.value;
-      selectedIndicator.applyOptions({ color: v });
+    const currentStyle = {
+      color: selectedIndicator.style?.color || "#3b82f6",
+      lineWidth: selectedIndicator.style?.lineWidth || 2,
+      dash: normalizeDash(selectedIndicator.style?.dash || "solid"),
     };
-    const onWidth = (e) => {
-      const v = Number(e.target.value);
-      selectedIndicator.applyOptions({ lineWidth: v });
+
+    const patchIndicatorStyle = (patch = {}) => {
+      const series = selectedIndicator?.series;
+      const seriesKey = selectedIndicator?.seriesKey;
+      if (!series || !seriesKey) return;
+
+      const nextStyle = {
+        ...currentStyle,
+        ...(indicatorStyleRef.current[seriesKey] || {}),
+        ...patch,
+      };
+
+      indicatorStyleRef.current[seriesKey] = nextStyle;
+
+      try {
+        series.applyOptions({
+          color: nextStyle.color,
+          lineWidth: nextStyle.lineWidth,
+          lineStyle: toLineStyle(nextStyle.dash),
+        });
+      } catch {
+        try {
+          series.applyOptions({
+            color: nextStyle.color,
+          });
+        } catch { }
+      }
+
+      setSelectedIndicator((prev) =>
+        prev ? { ...prev, style: nextStyle } : prev
+      );
     };
-    const onDash = (e) => {
-      const v = e.target.value;
-      selectedIndicator.applyOptions({
-        lineStyle: v === "dash" ? 2 : v === "dot" ? 3 : 0,
-      });
-    };
+
+    const onColor = (e) => patchIndicatorStyle({ color: e.target.value });
+    const onWidth = (e) => patchIndicatorStyle({ lineWidth: Number(e.target.value) });
+    const onDash = (e) => patchIndicatorStyle({ dash: normalizeDash(e.target.value) });
     const onClose = () => setIndTbOpen(false);
 
-    // ✅ Robust delete: always removes the selected series from the chart AND state
+    // ✅ Robust delete: always removes the full indicator group from the correct chart
     const onDeleteIndicator = () => {
-      const s = selectedIndicator;
-      if (!s) return;
+      const hit = selectedIndicator;
+      if (!hit?.groupKey) return;
 
       let deletedKeys = new Set();
 
-      // 🔥 MAIN PANE
-      for (const [key, arr] of Object.entries(indSeriesMain.current)) {
-        if (arr.includes(s)) {
-          // delete ALL series of this indicator
-          arr.forEach(series => {
-            try { mainChart.current?.removeSeries(series); } catch { }
-          });
+      for (const [key, arr] of Object.entries(indDataMain.current)) {
+        if (!arr?.some((meta) => meta.groupKey === hit.groupKey)) continue;
 
-          delete indSeriesMain.current[key];
-          delete indDataMain.current[key];
-          deletedKeys.add(key);
-        }
+        arr.forEach((meta) => {
+          try {
+            const targetChart = meta.removeFrom === "osc" ? oscChart.current : mainChart.current;
+            targetChart?.removeSeries(meta.series);
+          } catch { }
+          if (meta?.seriesKey) delete indicatorStyleRef.current[meta.seriesKey];
+        });
+
+        delete indSeriesMain.current[key];
+        delete indDataMain.current[key];
+        deletedKeys.add(key);
       }
 
-      // 🔥 OSC PANE
-      for (const [key, arr] of Object.entries(indSeriesOsc.current)) {
-        if (arr.includes(s)) {
-          arr.forEach(series => {
-            try { oscChart.current?.removeSeries(series); } catch { }
-          });
+      for (const [key, arr] of Object.entries(indDataOsc.current)) {
+        if (!arr?.some((meta) => meta.groupKey === hit.groupKey)) continue;
 
-          delete indSeriesOsc.current[key];
-          delete indDataOsc.current[key];
-          deletedKeys.add(key);
-        }
+        arr.forEach((meta) => {
+          try {
+            const targetChart = meta.removeFrom === "osc" ? oscChart.current : mainChart.current;
+            targetChart?.removeSeries(meta.series);
+          } catch { }
+          if (meta?.seriesKey) delete indicatorStyleRef.current[meta.seriesKey];
+        });
+
+        delete indSeriesOsc.current[key];
+        delete indDataOsc.current[key];
+        deletedKeys.add(key);
       }
 
-      // 🔥 AUTO-UNTICK CHECKBOX
       if (deletedKeys.size) {
         setActive(prev => {
           const next = { ...prev };
@@ -2839,14 +2920,17 @@ useEffect(() => {
       <div
         className="fixed z-[9994] bg-white/95 border rounded-xl shadow-lg px-2 py-1 flex items-center gap-2"
         style={{ left: indTbPos.x, top: indTbPos.y }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
         onMouseEnter={freezeUI}
         onMouseLeave={unfreezeUI}
       >
-        <input type="color" defaultValue="#3b82f6" onChange={onColor} className="w-8 h-8 p-0 border rounded" title="Color" />
-        <select defaultValue={2} onChange={onWidth} className="text-xs border rounded px-2 py-1" title="Stroke width">
+        <input type="color" value={currentStyle.color} onChange={onColor} className="w-8 h-8 p-0 border rounded" title="Color" />
+        <select value={currentStyle.lineWidth} onChange={onWidth} className="text-xs border rounded px-2 py-1" title="Stroke width">
           {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}px</option>)}
         </select>
-        <select defaultValue="solid" onChange={onDash} className="text-xs border rounded px-2 py-1" title="Line style">
+        <select value={currentStyle.dash} onChange={onDash} className="text-xs border rounded px-2 py-1" title="Line style">
           <option value="solid">Solid</option>
           <option value="dash">Dashed</option>
           <option value="dot">Dotted</option>
@@ -2861,17 +2945,46 @@ useEffect(() => {
   useEffect(() => {
     const el = mainRef.current;
     if (!el) return;
-    const handleMouseDown = (e) => {
-      // only when NOT drawing and not using drawing toolbar
+
+    const handlePointerDown = (e) => {
+      indicatorPointerRef.current = {
+        isDown: true,
+        moved: false,
+        startX: e.clientX,
+        startY: e.clientY,
+      };
+    };
+
+    const handlePointerMove = (e) => {
+      const state = indicatorPointerRef.current;
+      if (!state?.isDown) return;
+      if (Math.hypot(e.clientX - state.startX, e.clientY - state.startY) > 6) {
+        state.moved = true;
+      }
+    };
+
+    const handlePointerUp = (e) => {
+      const state = indicatorPointerRef.current;
+      indicatorPointerRef.current = {
+        isDown: false,
+        moved: false,
+        startX: 0,
+        startY: 0,
+      };
+
+      // only when NOT drawing and only on real clicks (not drag/scroll)
       if (activeTool || toolbarOpen || drawerOpen) return;
+      if (state?.moved) return;
       if (!mainChart.current) return;
+
       const rect = el.getBoundingClientRect();
       const x = clamp(e.clientX - rect.left, 0, rect.width);
       const y = clamp(e.clientY - rect.top, 0, rect.height);
       const hitInd = hitTestIndicatorMain(x, y);
+
       if (hitInd?.series) {
         setSelectedId(null);
-        setSelectedIndicator(hitInd.series);
+        setSelectedIndicator(hitInd);
         setIndTbOpen(true);
         setToolbarOpen(false);
         setIndTbPos({ x: e.clientX, y: e.clientY });
@@ -2880,8 +2993,27 @@ useEffect(() => {
         setSelectedIndicator(null);
       }
     };
-    el.addEventListener("mousedown", handleMouseDown);
-    return () => el.removeEventListener("mousedown", handleMouseDown);
+
+    const handleWheel = () => {
+      indicatorPointerRef.current = {
+        isDown: false,
+        moved: false,
+        startX: 0,
+        startY: 0,
+      };
+    };
+
+    el.addEventListener("pointerdown", handlePointerDown);
+    el.addEventListener("pointermove", handlePointerMove);
+    el.addEventListener("pointerup", handlePointerUp);
+    el.addEventListener("wheel", handleWheel, { passive: true });
+
+    return () => {
+      el.removeEventListener("pointerdown", handlePointerDown);
+      el.removeEventListener("pointermove", handlePointerMove);
+      el.removeEventListener("pointerup", handlePointerUp);
+      el.removeEventListener("wheel", handleWheel);
+    };
   }, [activeTool, toolbarOpen, drawerOpen]); // keep small deps
 
 
@@ -2896,43 +3028,6 @@ useEffect(() => {
 
   // ⭐ track recommendation mode in ref (used when button clicked)
   const recoModeRef = useRef(false);
-
-  const stopChartLoopsSilently = useCallback(() => {
-  if (autoRunRef.current) {
-    clearInterval(autoRunRef.current);
-    autoRunRef.current = null;
-  }
-
-  if (recoRunRef.current) {
-    clearInterval(recoRunRef.current);
-    recoRunRef.current = null;
-  }
-
-  isRunningRef.current = false;
-  recoModeRef.current = false;
-
-  const currentSymbol = symbolRef.current || symbol;
-
-  if (currentSymbol) {
-    localStorage.setItem("NC_generateMode_" + currentSymbol, "false");
-    localStorage.setItem("NC_recoMode_" + currentSymbol, "false");
-  }
-}, [symbol]);
-
-useEffect(() => {
-  const handlePageExit = () => {
-    stopChartLoopsSilently();
-  };
-
-  window.addEventListener("beforeunload", handlePageExit);
-  window.addEventListener("pagehide", handlePageExit);
-
-  return () => {
-    handlePageExit(); // important for React route change
-    window.removeEventListener("beforeunload", handlePageExit);
-    window.removeEventListener("pagehide", handlePageExit);
-  };
-}, [stopChartLoopsSilently]);
 
   // ---------------------------------------------------------
   // MERGE SIGNAL DATA (2m + 15m)
@@ -2966,23 +3061,23 @@ useEffect(() => {
     // ⭐ 1. OFF MODE (SECOND CLICK)
     // -------------------------------------
     if (isRunningRef.current) {
-  clearInterval(autoRunRef.current);
-  autoRunRef.current = null;
-  isRunningRef.current = false;
-  setGenerateMode(false);
+      clearInterval(autoRunRef.current);
+      isRunningRef.current = false;
+      setGenerateMode(false);
 
-  localStorage.setItem("NC_generateMode_" + symbol, "false");
+      localStorage.setItem("NC_generateMode_" + symbol, "true");
 
-  const btn = document.querySelector("#genBtn");
-  if (btn) {
-    btn.style.background = "";
-    btn.style.color = "";
-    btn.style.borderColor = "";
-  }
+      const btn = document.querySelector("#genBtn");
+      if (btn) {
+        btn.style.background = "";
+        btn.style.color = "";
+        btn.style.borderColor = "";
+      }
 
-  showPopup("Stopped", "Auto generated signals stopped");
-  return;
-}
+      showPopup("Stopped", "Auto generated signals stopped");
+
+      return;
+    }
 
     // -------------------------------------
     // ⭐ 2. VALIDATE TIMEFRAME
@@ -3525,7 +3620,7 @@ useEffect(() => {
             inset: 0,
             zIndex: 10,
             // allow chart scroll/pan when not interacting with tools
-            pointerEvents: (activeTool || toolbarOpen || indTbOpen || drawerOpen) ? "auto" : "none",
+            pointerEvents: (activeTool || toolbarOpen || drawerOpen) ? "auto" : "none",
             cursor: activeTool ? "crosshair" : "default",
             transition: "opacity 120ms ease"
           }}
