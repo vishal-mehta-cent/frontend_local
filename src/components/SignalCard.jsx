@@ -22,6 +22,7 @@ export default function SignalCard({
   timeVal,
   dateVal,
   userActions,
+  fnoValidation,
   isClosed = false,
   strategy,
   rawDate,
@@ -456,13 +457,13 @@ export default function SignalCard({
         {isValid(res) && <Marker type="RES" pos={positions.RES} squareOnly />}
       </div>
 
-      {/* ---------------- ALERT + DESCRIPTION ---------------- */}
+      {/* ---------------- ALERT + FNO VALIDATION ---------------- */}
       <div className="alert-description-box">
         <div>
           <strong>Alert:</strong> {alertText || "--"}
         </div>
         <div>
-          <strong>Description:</strong> {userActions || "--"}
+          <strong>FNO Validation:</strong> {fnoValidation || "--"}
         </div>
       </div>
     </div>
