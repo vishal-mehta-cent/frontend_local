@@ -191,6 +191,29 @@ export default function SignalCard({
 
   const formattedCloseDT = formatCloseDateTime(closeTime);
 
+  const formatFnoValidationValue = (value) => {
+    const raw = String(value ?? "")
+      .trim()
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    if (!raw) return "No significant guidance";
+
+    const lowered = raw.toLowerCase();
+    if (lowered === "flat") return "No significant guidance";
+    if (lowered === "no significant guidance") return "No significant guidance";
+
+    const normalized = lowered
+      .replace(/^suggest\s+/i, "")
+      .replace(/\s+direction$/i, "")
+      .trim();
+
+    return normalized ? `Suggest ${normalized} Direction` : "No significant guidance";
+  };
+
+  const formattedFnoValidation = formatFnoValidationValue(fnoValidation);
+
+
   // ============================================================
   // ⭐ UNIVERSAL CORRECT PNL CALCULATION
   // ============================================================
@@ -358,7 +381,7 @@ export default function SignalCard({
           className="nc-card-head-row2"
           style={{
             marginTop: "2px",
-            marginBottom: "20px",
+             marginBottom: "20px", 
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -370,7 +393,7 @@ export default function SignalCard({
             color: "#444",
           }}
         >
-
+          
           {rawDate ? (
             <div style={{ display: "flex", gap: "6px", alignItems: "baseline", whiteSpace: "nowrap" }}>
               <span style={{ opacity: 0.85 }}>Signal Date:</span>
@@ -432,7 +455,7 @@ export default function SignalCard({
           </div>
         )}
       </div>
-
+      
 
       {/* Close time is now shown in the HEADER Row 2 (below Signal Date) */}
 
@@ -463,7 +486,7 @@ export default function SignalCard({
           <strong>Alert:</strong> {alertText || "--"}
         </div>
         <div>
-          <strong>FNO Validation:</strong> {fnoValidation || "--"}
+          <strong>FNO Validation:</strong> {formattedFnoValidation}
         </div>
       </div>
     </div>
