@@ -118,39 +118,70 @@ export default function SignalCard({
   const formatCloseDateTime = (ct) => {
     if (!ct) return "";
 
-    let norm = ct.replace(/-/g, "/").trim();
-    norm = norm.replace(/\s+/g, " ");
+    const raw = String(ct).trim();
+    if (!raw) return "";
 
-    const regex =
-      /(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)?/;
-    const m = norm.match(regex);
+    const normalized = raw.replace("T", " ").replace(/\s+/g, " ");
 
-    if (!m) return ct;
+    let yyyy;
+    let mm;
+    let dd;
+    let hh = 0;
+    let min = 0;
+    let ampm = null;
 
-    let [_, dd, mm, yyyy, hh, min, sec, ampm] = m;
+    // ✅ Handle ISO style first: YYYY-MM-DD HH:mm:ss or YYYY/MM/DD HH:mm:ss
+    let m = normalized.match(
+      /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|am|pm)?)?$/
+    );
 
-    dd = parseInt(dd, 10);
-    mm = parseInt(mm, 10) - 1;
-    yyyy = yyyy.length === 2 ? Number("20" + yyyy) : Number(yyyy);
-    hh = parseInt(hh, 10);
-    min = parseInt(min, 10);
+    if (m) {
+      yyyy = Number(m[1]);
+      mm = Number(m[2]);
+      dd = Number(m[3]);
+      hh = Number(m[4] || 0);
+      min = Number(m[5] || 0);
+      ampm = m[6] || null;
+    } else {
+      // ✅ Handle DD/MM/YYYY or MM/DD/YYYY
+      m = normalized.match(
+        /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|am|pm)?)?$/
+      );
 
-    if (ampm) {
-      ampm = ampm.toUpperCase();
-      if (ampm === "PM" && hh < 12) hh += 12;
-      if (ampm === "AM" && hh === 12) hh = 0;
+      if (!m) return raw;
+
+      const first = Number(m[1]);
+      const second = Number(m[2]);
+      yyyy = Number(m[3].length === 2 ? `20${m[3]}` : m[3]);
+      hh = Number(m[4] || 0);
+      min = Number(m[5] || 0);
+      ampm = m[6] || null;
+
+      // If first part is > 12, it must be DD/MM/YYYY, otherwise default to MM/DD/YYYY
+      if (first > 12) {
+        dd = first;
+        mm = second;
+      } else {
+        mm = first;
+        dd = second;
+      }
     }
 
-    const d = new Date(yyyy, mm, dd, hh, min);
-    if (isNaN(d)) return ct;
+    if (ampm) {
+      const upper = String(ampm).toUpperCase();
+      if (upper === "PM" && hh < 12) hh += 12;
+      if (upper === "AM" && hh === 12) hh = 0;
+    }
 
-    const outDay = d.getDate();
+    const d = new Date(yyyy, mm - 1, dd, hh, min);
+    if (Number.isNaN(d.getTime())) return raw;
+
     const outMonth = d.getMonth() + 1;
-
+    const outDay = d.getDate();
     let outHour = d.getHours();
-    let outMinutes = String(d.getMinutes()).padStart(2, "0");
+    const outMinutes = String(d.getMinutes()).padStart(2, "0");
+    const outAMPM = outHour >= 12 ? "PM" : "AM";
 
-    let outAMPM = outHour >= 12 ? "PM" : "AM";
     if (outHour > 12) outHour -= 12;
     if (outHour === 0) outHour = 12;
 
@@ -326,7 +357,7 @@ export default function SignalCard({
           className="nc-card-head-row2"
           style={{
             marginTop: "2px",
-             marginBottom: "20px", 
+            marginBottom: "20px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
@@ -338,7 +369,7 @@ export default function SignalCard({
             color: "#444",
           }}
         >
-          
+
           {rawDate ? (
             <div style={{ display: "flex", gap: "6px", alignItems: "baseline", whiteSpace: "nowrap" }}>
               <span style={{ opacity: 0.85 }}>Signal Date:</span>
@@ -400,7 +431,7 @@ export default function SignalCard({
           </div>
         )}
       </div>
-      
+
 
       {/* Close time is now shown in the HEADER Row 2 (below Signal Date) */}
 
