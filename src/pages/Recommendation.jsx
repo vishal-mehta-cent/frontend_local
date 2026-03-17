@@ -132,7 +132,7 @@ export default function Recommendations() {
           hasAccess: !c.isLocked,
         };
       }
-    } catch { }
+    } catch {}
 
     return { locked: true, checked: false, hasAccess: false };
   })();
@@ -335,8 +335,28 @@ export default function Recommendations() {
   const pickScreenerSide = (r) =>
     getField(r, ["screener_side", "Screener_side"]) || "";
 
+  const formatFnoValidationValue = (value) => {
+    const raw = String(value ?? "")
+      .trim()
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ");
+
+    if (!raw) return "No significant guidance";
+
+    const lowered = raw.toLowerCase();
+    if (lowered === "flat") return "No significant guidance";
+    if (lowered === "no significant guidance") return "No significant guidance";
+
+    const normalized = lowered
+      .replace(/^suggest\s+/i, "")
+      .replace(/\s+direction$/i, "")
+      .trim();
+
+    return normalized ? `Suggest ${normalized} Direction` : "No significant guidance";
+  };
+
   const pickFnoValidation = (r) =>
-    getField(r, ["fno_validation", "FNO_Validation"]) || "";
+    formatFnoValidationValue(getField(r, ["fno_validation", "FNO_Validation"]));
 
   const pickRawDate = (r) =>
     getField(r, ["raw_datetime", "Date", "date", "signal_date"]);
@@ -784,8 +804,8 @@ export default function Recommendations() {
         const intradayLabel = r.strategy === "intraday-fast"
           ? "Intraday - Fast Alerts"
           : r.strategy === "intraday"
-            ? "Intraday"
-            : "";
+          ? "Intraday"
+          : "";
         matchSub = matchesMulti(subIntraday, intradayLabel);
       }
 
@@ -1051,10 +1071,12 @@ export default function Recommendations() {
               placeholderText="mm/dd/yyyy"
               className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
               calendarClassName="nc-date-calendar"
-              popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"
-                }`}
-              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"
-                }`}
+              popperClassName={`nc-date-popper ${
+                isDark ? "nc-date-dark" : "nc-date-light"
+              }`}
+              wrapperClassName={`nc-date-wrapper ${
+                isDark ? "nc-date-dark" : "nc-date-light"
+              }`}
             />
           </div>
 
@@ -1186,8 +1208,8 @@ export default function Recommendations() {
                 signalTab === "active"
                   ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-md"
                   : isDark
-                    ? "text-white/85 hover:bg-white/10"
-                    : "text-slate-700 hover:bg-white/70",
+                  ? "text-white/85 hover:bg-white/10"
+                  : "text-slate-700 hover:bg-white/70",
               ].join(" ")}
             >
               Active Signals
@@ -1202,8 +1224,8 @@ export default function Recommendations() {
                 signalTab === "closed"
                   ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white shadow-md"
                   : isDark
-                    ? "text-white/85 hover:bg-white/10"
-                    : "text-slate-700 hover:bg-white/70",
+                  ? "text-white/85 hover:bg-white/10"
+                  : "text-slate-700 hover:bg-white/70",
               ].join(" ")}
             >
               Closed Signals
@@ -1655,8 +1677,9 @@ export default function Recommendations() {
   // -------------------------------------------------------
   return (
     <div
-      className={`min-h-screen ${isDark ? "theme-dark" : "theme-light"
-        } ${bgClass} ${textClass} relative transition-colors duration-300`}
+      className={`min-h-screen ${
+        isDark ? "theme-dark" : "theme-light"
+      } ${bgClass} ${textClass} relative transition-colors duration-300`}
     >
       {/* ===== BACKGROUND BLOBS (same as History) ===== */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1709,8 +1732,9 @@ export default function Recommendations() {
                     "shadow-sm",
                     isActiveTab
                       ? "bg-gradient-to-r from-[#1ea7ff] to-[#22d3ee] text-white border-white/10 shadow-xl"
-                      : `${glassClass} ${textClass} ${cardHoverClass} ${isDark ? "border-white/10" : "border-slate-200/60"
-                      }`,
+                      : `${glassClass} ${textClass} ${cardHoverClass} ${
+                          isDark ? "border-white/10" : "border-slate-200/60"
+                        }`,
                   ].join(" ")}
                 >
                   {type}
