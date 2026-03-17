@@ -17,8 +17,8 @@ import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import HeaderActions from "../components/HeaderActions";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
-import "./datepicker-neurocrest.css";
+import "react-datepicker/dist/react-datepicker.css"; // base
+import "./datepicker-neurocrest.css"; // ✅ same file used in History
 import AppHeader from "../components/AppHeader";
 
 const AccuracyGauge = ({ value, label }) => {
@@ -35,6 +35,7 @@ const AccuracyGauge = ({ value, label }) => {
       viewBox="0 0 140 120"
       className="accuracy-gauge"
     >
+      {/* RED zone */}
       <path
         d="M10 80 A60 60 0 0 1 50 20"
         fill="none"
@@ -42,6 +43,7 @@ const AccuracyGauge = ({ value, label }) => {
         strokeWidth="12"
       />
 
+      {/* YELLOW */}
       <path
         d="M50 20 A60 60 0 0 1 90 20"
         fill="none"
@@ -49,6 +51,7 @@ const AccuracyGauge = ({ value, label }) => {
         strokeWidth="12"
       />
 
+      {/* GREEN */}
       <path
         d="M90 20 A60 60 0 0 1 130 80"
         fill="none"
@@ -56,6 +59,7 @@ const AccuracyGauge = ({ value, label }) => {
         strokeWidth="12"
       />
 
+      {/* Needle */}
       <line
         x1="70"
         y1="80"
@@ -65,8 +69,10 @@ const AccuracyGauge = ({ value, label }) => {
         strokeWidth="3"
       />
 
+      {/* Dot */}
       <circle cx="70" cy="80" r="4" fill="black" />
 
+      {/* % Value */}
       <text
         x="70"
         y="100"
@@ -78,6 +84,7 @@ const AccuracyGauge = ({ value, label }) => {
         {value.toFixed(2)}%
       </text>
 
+      {/* Label */}
       <text
         x="70"
         y="115"
@@ -102,6 +109,7 @@ export default function Recommendations() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // ✅ hydrate access state from the daily subscription cache written by RequireSubscription.jsx
   const initialAccess = (() => {
     const username = (localStorage.getItem("username") || "")
       .trim()
@@ -120,7 +128,7 @@ export default function Recommendations() {
       if (fresh) {
         return {
           locked: !!c.isLocked,
-          checked: true,
+          checked: true, // ✅ already checked today
           hasAccess: !c.isLocked,
         };
       }
@@ -133,6 +141,7 @@ export default function Recommendations() {
   const [accessChecked, setAccessChecked] = useState(() => initialAccess.checked);
   const hasAccessRef = useRef(initialAccess.hasAccess);
 
+  // ✅ used for live price polling on active signals
   const activeSymbolsRef = useRef([]);
 
   const [segment, setSegment] = useState([]);
@@ -142,12 +151,13 @@ export default function Recommendations() {
 
   const [selectedDate, setSelectedDate] = useState("");
   const [activeType, setActiveType] = useState("Intraday");
-  const [signalTab, setSignalTab] = useState("active");
+  const [signalTab, setSignalTab] = useState("active"); // "active" | "closed"
 
   const [subIntraday, setSubIntraday] = useState([]);
   const [priceCloseFilter, setPriceCloseFilter] = useState([]);
 
-  const [dateSortOrder, setDateSortOrder] = useState("desc");
+  // ✅ NEW: Date sort order (DESC = newest first, ASC = oldest first)
+  const [dateSortOrder, setDateSortOrder] = useState("desc"); // "asc" | "desc"
 
   const { isDark, toggle } = useTheme();
 
@@ -185,12 +195,14 @@ export default function Recommendations() {
 
     const s = String(raw).trim();
 
+    // ✅ ISO with or without time: 2025-12-15 OR 2025-12-15 12:45:00
     const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (isoMatch) {
       const [, yyyy, mm, dd] = isoMatch;
       return `${yyyy}-${mm}-${dd}`;
     }
 
+    // ✅ MM/DD/YYYY or MM/DD/YYYY HH:MM AM
     const m = s.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
     if (m) {
       const [, mm, dd, yyyy] = m;
@@ -225,24 +237,6 @@ export default function Recommendations() {
         sensitivity: "base",
       })
     );
-
-  const uniqueFilterOptions = (items = [], { caseInsensitive = false } = {}) => {
-    const seen = new Set();
-    const out = [];
-
-    for (const item of items || []) {
-      const raw = String(item ?? "").trim();
-      if (!raw) continue;
-
-      const key = caseInsensitive ? raw.toLowerCase() : raw;
-      if (seen.has(key)) continue;
-
-      seen.add(key);
-      out.push(raw);
-    }
-
-    return sortFilterOptions(out);
-  };
 
   const parseMultiParam = (raw) => {
     if (!raw) return [];
@@ -303,10 +297,8 @@ export default function Recommendations() {
   const pickResistance = (r) =>
     toNum(getField(r, ["resistance", "Resistance", "res", "RES"]));
 
-  const pickAlertType = (r) => {
-    const raw = getField(r, ["signal_type", "Signal_type"]);
-    return raw === undefined || raw === null ? "" : String(raw).trim();
-  };
+  const pickAlertType = (r) =>
+    getField(r, ["signal_type", "Signal_type"]) || "N/A";
 
   const pickDescription = (r) =>
     getField(r, ["Alert_description", "description", "Description"]) || "";
@@ -317,7 +309,7 @@ export default function Recommendations() {
   };
 
   const pickScreener = (r) =>
-    getField(r, ["ALERT"]) || "Unknown";
+    getField(r, ["screener", "Screener"]) || "Unknown";
 
   const pickSegment = (r) => {
     const raw = getField(r, ["segment", "Segment"]);
@@ -329,13 +321,19 @@ export default function Recommendations() {
       .trim()
       .toUpperCase();
 
-    if (/\bF&O\b/i.test(script) || /(CE|PE|FUT)$/i.test(script)) return "F&O";
+    if (/F&O/i.test(script) || /(CE|PE|FUT)$/i.test(script)) return "F&O";
     if (/\d{2}(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\d{2}/i.test(script)) {
       return "F&O";
     }
 
     return "Equity";
   };
+
+  const pickDataInterval = (r) =>
+    getField(r, ["data_interval", "Data_Interval", "interval"]) || "";
+
+  const pickScreenerSide = (r) =>
+    getField(r, ["screener_side", "Screener_side"]) || "";
 
   const pickFnoValidation = (r) =>
     getField(r, ["fno_validation", "FNO_Validation"]) || "";
@@ -353,6 +351,9 @@ export default function Recommendations() {
     let hour = parseInt(match[1], 10);
     const minute = match[2];
 
+    // 🟢 KEY FIX:
+    // Many Short-term rows have time stored as 00:00.
+    // Instead of showing 12:00, treat that as "no specific time".
     if (hour === 0 && minute === "00") {
       return "--:--";
     }
@@ -368,6 +369,8 @@ export default function Recommendations() {
     let raw = getField(r, ["Strategy", "strategy"]) || "";
     raw = String(raw).trim().toLowerCase();
 
+    // handle all variants coming from CSV/backend
+    // ex: "Intraday - Fast Alerts", "Intraday Fast Alerts", "INTRADAY_FAST_ALERTS"
     if (raw.includes("intraday") && raw.includes("fast")) return "intraday-fast";
     if (raw.includes("intraday")) return "intraday";
     if (raw.includes("btst")) return "btst";
@@ -400,20 +403,29 @@ export default function Recommendations() {
     }
   }
 
+  // ----------------------------------------------------
+  // NORMALIZE FUNCTION (FINAL — ONLY CSV decides open/closed)
+  // ----------------------------------------------------
   const normalize = (row) => {
     const script = pickScript(row);
 
     const sigPrice = pickSignalPrice(row);
 
+    // ---- CSV close price ----
     let csvCloseRaw = getField(row, ["signal_closing_price"]);
     let csvClose = Number(csvCloseRaw);
     if (isNaN(csvClose)) csvClose = null;
 
+    // ---- CSV close time ----
     const csvCloseTime = getField(row, ["close_time"]) || "";
 
+    // -------------------------------
+    // FINAL ACTIVE / CLOSED LOGIC
+    // -------------------------------
     const isClosed = csvClose !== null && csvClose > 0;
     const isActive = !isClosed;
 
+    // Freeze price for CLOSED, Live price for ACTIVE
     let live = pickCurrentPrice(row);
     const currentPrice = isClosed ? csvClose : live;
 
@@ -424,6 +436,7 @@ export default function Recommendations() {
 
     const strategy = pickStrategy(row);
 
+    // ✅ FULL datetime (date + time) — DO NOT MODIFY
     const rawDateTime = getField(row, [
       "raw_datetime",
       "signal_date",
@@ -431,6 +444,7 @@ export default function Recommendations() {
       "date",
     ]);
 
+    // ✅ Date only (used for date filter dropdown)
     const dateVal = normalizeToISODate(rawDateTime);
 
     const timeVal = pickTime(row);
@@ -438,6 +452,7 @@ export default function Recommendations() {
     const userActions = pickUserActions(row);
     const priceCloseTo = pickPriceCloseTo(row);
 
+    // outcome only needed to visually color closed blocks
     const outcome = isClosed ? "CLOSED" : null;
 
     return {
@@ -445,6 +460,8 @@ export default function Recommendations() {
       script,
       screener: pickScreener(row),
       segment: pickSegment(row),
+      dataInterval: pickDataInterval(row),
+      screenerSide: pickScreenerSide(row),
       fnoValidation: pickFnoValidation(row),
       alertType: pickAlertType(row),
       confidence: pickConfidence(row),
@@ -458,8 +475,11 @@ export default function Recommendations() {
       currentPrice,
       outcome,
       isClosed,
-      dateVal,
-      rawDateTime,
+
+      // 🔥 CRITICAL FIELDS
+      dateVal, // YYYY-MM-DD → for filtering
+      rawDateTime, // YYYY-MM-DD HH:MM:SS → for sorting
+
       timeVal,
       alertText,
       userActions,
@@ -468,6 +488,9 @@ export default function Recommendations() {
     };
   };
 
+  // ----------------------------------------------------
+  // FETCH RECOMMENDATION DATA ONCE (NO AUTO-POLLING)
+  // ----------------------------------------------------
   const fetchRecommendationsOnce = async () => {
     const username = (localStorage.getItem("username") || "").trim();
 
@@ -575,6 +598,7 @@ export default function Recommendations() {
     setLastPriceUpdatedAt(Date.now());
   };
 
+  // ✅ manual refresh button: fetch ONLY prices once
   const onRefreshPrices = async () => {
     if (priceRefreshing) return;
 
@@ -588,10 +612,14 @@ export default function Recommendations() {
     }
   };
 
+  // =====================================================
+  // ✅ FIX: prevent scroll jumping on tab changes
+  // =====================================================
   const scrollYBeforeSwitchRef = useRef(0);
   const restoringScrollRef = useRef(false);
 
   const setSignalTabKeepScroll = (nextTab) => {
+    // Save current position, then switch tab
     scrollYBeforeSwitchRef.current =
       window.scrollY || document.documentElement.scrollTop || 0;
     restoringScrollRef.current = true;
@@ -608,6 +636,7 @@ export default function Recommendations() {
     setSignalTab("active");
   };
 
+  // Restore scroll immediately after React commits DOM updates
   useLayoutEffect(() => {
     if (!restoringScrollRef.current) return;
 
@@ -615,6 +644,7 @@ export default function Recommendations() {
 
     const y = scrollYBeforeSwitchRef.current || 0;
 
+    // 2 RAFs makes it stable in mobile chrome
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         window.scrollTo({ top: y, left: 0, behavior: "auto" });
@@ -623,16 +653,17 @@ export default function Recommendations() {
   }, [signalTab, activeType]);
 
   useEffect(() => {
+    // Hydrate filters from URL only on first mount
     const qpSegment = searchParams.get("segment");
     const qpScreener = searchParams.get("screener");
     const qpAlertType = searchParams.get("alertType");
     const qpFnoValidation = searchParams.get("fnoValidation");
     const qpDate = searchParams.get("date");
-    const qpActiveType = searchParams.get("type");
+    const qpActiveType = searchParams.get("type"); // Intraday/BTST/Short-term
     const qpSubIntraday = searchParams.get("subIntraday");
     const qpPriceClose = searchParams.get("priceClose");
-    const qpTab = searchParams.get("tab");
-    const qpSort = searchParams.get("sort");
+    const qpTab = searchParams.get("tab"); // active/closed
+    const qpSort = searchParams.get("sort"); // ✅ asc/desc
 
     if (qpSegment) setSegment(parseMultiParam(qpSegment));
     if (qpScreener) setSelectedScreener(parseMultiParam(qpScreener));
@@ -644,6 +675,8 @@ export default function Recommendations() {
     if (qpPriceClose) setPriceCloseFilter(parseMultiParam(qpPriceClose));
     if (qpTab) setSignalTab(qpTab);
     if (qpSort === "asc" || qpSort === "desc") setDateSortOrder(qpSort);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -652,11 +685,11 @@ export default function Recommendations() {
     writeMultiParam(next, "segment", segment);
     writeMultiParam(next, "screener", selectedScreener);
     writeMultiParam(next, "alertType", selectedAlertType);
+    next.delete("dataInterval");
+    next.delete("screenerSide");
     writeMultiParam(next, "fnoValidation", selectedFnoValidation);
     writeMultiParam(next, "subIntraday", subIntraday);
     writeMultiParam(next, "priceClose", priceCloseFilter);
-    next.delete("dataInterval");
-    next.delete("screenerSide");
     next.set("type", activeType || "Intraday");
     next.set("tab", signalTab || "active");
     next.set("sort", dateSortOrder || "desc");
@@ -665,6 +698,7 @@ export default function Recommendations() {
     else next.delete("date");
 
     setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     segment,
     selectedScreener,
@@ -678,6 +712,7 @@ export default function Recommendations() {
     dateSortOrder,
   ]);
 
+  // ✅ fetch once when page opens (NO polling)
   useEffect(() => {
     let alive = true;
 
@@ -699,20 +734,27 @@ export default function Recommendations() {
     return () => {
       alive = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API]);
 
+  // -------------------------------------------------------
+  // FILTERING
+  // -------------------------------------------------------
   const filterOptions = useMemo(() => {
-    const collect = (field, opts = {}) =>
-      uniqueFilterOptions(
-        (rows || [])
-          .map((row) => row?.[field])
-          .filter((value) => value !== undefined && value !== null && String(value).trim()),
-        opts
+    const collect = (field) =>
+      sortFilterOptions(
+        Array.from(
+          new Set(
+            (rows || [])
+              .map((row) => row?.[field])
+              .filter((value) => value !== undefined && value !== null && String(value).trim())
+          )
+        )
       );
 
     return {
       segments: collect("segment"),
-      alertTypes: collect("alertType", { caseInsensitive: true }),
+      alertTypes: collect("alertType"),
       screeners: collect("screener"),
       priceCloseTo: collect("priceCloseTo"),
       fnoValidation: collect("fnoValidation"),
@@ -770,15 +812,20 @@ export default function Recommendations() {
     priceCloseFilter,
   ]);
 
+  // -------------------------------------------------------
+  // ACTIVE & CLOSED SIGNALS
+  // -------------------------------------------------------
   const activeSignals = useMemo(() => {
     const dir = dateSortOrder === "asc" ? 1 : -1;
 
     return filteredRows
       .filter((r) => !r.outcome)
       .sort((a, b) => {
+        // Sort ONLY by date (YYYY-MM-DD)
         const d = String(a.dateVal || "").localeCompare(String(b.dateVal || ""));
         if (d !== 0) return d * dir;
 
+        // optional tie-breaker (keeps same-day order stable without Date parsing)
         return (
           String(a.rawDateTime || "").localeCompare(String(b.rawDateTime || "")) *
           dir
@@ -787,6 +834,7 @@ export default function Recommendations() {
       .slice(0, 30);
   }, [filteredRows, dateSortOrder]);
 
+  // ✅ keep a stable list of active symbols for polling
   useEffect(() => {
     activeSymbolsRef.current = Array.from(
       new Set(
@@ -797,6 +845,7 @@ export default function Recommendations() {
     );
   }, [activeSignals]);
 
+  // ✅ Light live price polling for only the currently rendered ACTIVE cards
   useEffect(() => {
     if (locked || initialLoading) return;
 
@@ -808,6 +857,7 @@ export default function Recommendations() {
       try {
         await refreshVisiblePrices();
       } catch {
+        // keep silent — UI should not flicker
       }
     }
 
@@ -818,7 +868,9 @@ export default function Recommendations() {
       mounted = false;
       clearInterval(id);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [API, locked, initialLoading, activeType, signalTab, dateSortOrder, selectedDate]);
+
 
   const closedSignals = useMemo(() => {
     const dir = dateSortOrder === "asc" ? 1 : -1;
@@ -832,6 +884,9 @@ export default function Recommendations() {
       });
   }, [filteredRows, dateSortOrder]);
 
+  // -------------------------------------------------------
+  // BUY/SELL COUNTS
+  // -------------------------------------------------------
   const totalBuySignals = activeSignals.filter(
     (r) => String(r.alertType).toLowerCase() === "buy"
   ).length;
@@ -840,6 +895,9 @@ export default function Recommendations() {
     (r) => String(r.alertType).toLowerCase() === "sell"
   ).length;
 
+  // -------------------------------------------------------
+  // BUY / SELL Closed Signals
+  // -------------------------------------------------------
   const buyClosedSignals = closedSignals.filter(
     (s) => String(s.alertType).toLowerCase() === "buy"
   );
@@ -848,6 +906,8 @@ export default function Recommendations() {
     (s) => String(s.alertType).toLowerCase() === "sell"
   );
 
+  // ⭐ NEW ACCURACY CALCULATION ⭐
+  // Accuracy = (Number of PROFIT signals / Total signals) × 100
   const computeAccuracy = (list) => {
     if (!list.length) return 0;
 
@@ -860,12 +920,17 @@ export default function Recommendations() {
     return Number.isFinite(accuracy) ? accuracy : 0;
   };
 
+  // BUY accuracy
   const buyClosedAccuracy = computeAccuracy(buyClosedSignals);
+
+  // SELL accuracy
   const sellClosedAccuracy = computeAccuracy(sellClosedSignals);
 
+  // COUNTS for showing below the speedometer
   const buyClosedCount = buyClosedSignals.length;
   const sellClosedCount = sellClosedSignals.length;
 
+  // ✅ Show locked screen ONLY after access is confirmed
   if (locked && accessChecked) {
     return (
       <div
@@ -891,11 +956,12 @@ export default function Recommendations() {
     );
   }
 
+  // ✅ STICKY refresh button component (used under Active Signals title)
   const StickyRefreshBar = () => (
     <div
       style={{
         position: "sticky",
-        top: "86px",
+        top: "86px", // ✅ adjust if your AppHeader height is different
         zIndex: 50,
         paddingTop: "8px",
         paddingBottom: "8px",
@@ -959,9 +1025,14 @@ export default function Recommendations() {
     </div>
   );
 
+  // -------------------------------------------------------
+  // SIGNALS LAYOUT
+  // -------------------------------------------------------
   const renderSignalLayout = () => (
     <div className="intraday-section">
+      {/* ================= ADVANCED FILTER CONTAINER ================= */}
       <div className="advanced-filter-wrapper">
+        {/* ---------------- DATE ROW ---------------- */}
         <div className="filters-row date-row-centered">
           <div className="filter-item">
             <label>Date:</label>
@@ -974,7 +1045,7 @@ export default function Recommendations() {
                 const m = String(d.getMonth() + 1).padStart(2, "0");
                 const day = String(d.getDate()).padStart(2, "0");
 
-                setSelectedDate(`${y}-${m}-${day}`);
+                setSelectedDate(`${y}-${m}-${day}`); // ✅ local YYYY-MM-DD (no UTC shift)
               }}
               dateFormat="MM/dd/yyyy"
               placeholderText="mm/dd/yyyy"
@@ -1014,8 +1085,10 @@ export default function Recommendations() {
               />
             </div>
           )}
+
         </div>
 
+        {/* ---------------- DROPDOWN FILTERS ---------------- */}
         <div className="filters-row filters-row-legend">
           {!!filterOptions.alertTypes.length && (
             <div className="filter-item">
@@ -1044,6 +1117,7 @@ export default function Recommendations() {
               />
             </div>
           )}
+
 
           {!!filterOptions.priceCloseTo.length && (
             <div className="filter-item">
@@ -1074,6 +1148,7 @@ export default function Recommendations() {
           )}
         </div>
 
+        {/* ---------------- LEGEND ---------------- */}
         <div className="legend-row">
           <div className="legend-box">
             <h4>Acronyms</h4>
@@ -1087,8 +1162,11 @@ export default function Recommendations() {
           </div>
         </div>
       </div>
+      {/* ================= END ADVANCED FILTER CONTAINER ================= */}
 
+      {/* ---------------- SIGNALS SECTION ---------------- */}
       <div className="signals-section">
+        {/* ✅ MOBILE TABS (pill style like Open Trades / Positions) */}
         <div className="md:hidden w-full flex justify-center mb-4">
           <div
             className={[
@@ -1133,9 +1211,11 @@ export default function Recommendations() {
           </div>
         </div>
 
+        {/* ✅ MOBILE VIEW: show only one section */}
         <div className="md:hidden">
           {signalTab === "active" ? (
             <div className="signals-column">
+              {/* ===== ACTIVE SIGNALS ===== */}
               <h3
                 className="section-title active-title"
                 style={{
@@ -1150,6 +1230,7 @@ export default function Recommendations() {
                   Active Signals
                 </span>
 
+                {/* ✅ NEW: Date sort (right side of title) */}
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                   <span
                     style={{
@@ -1172,6 +1253,7 @@ export default function Recommendations() {
                 </span>
               </h3>
 
+              {/* ✅ MOVED HERE: Refresh button (sticky, never disappears) */}
               <StickyRefreshBar />
 
               <div className="signal-count-box">
@@ -1221,7 +1303,7 @@ export default function Recommendations() {
                           res={sig.res}
                           timeVal={sig.timeVal}
                           alertText={sig.alertText}
-                          userActions={sig.userActions}
+                          fnoValidation={sig.fnoValidation}
                           isClosed={false}
                           strategy={sig.strategy}
                           rawDate={sig.dateVal}
@@ -1240,6 +1322,7 @@ export default function Recommendations() {
             </div>
           ) : (
             <div className="signals-column">
+              {/* ===== CLOSED SIGNALS ===== */}
               <h3
                 className="section-title closed-title"
                 style={{
@@ -1254,6 +1337,7 @@ export default function Recommendations() {
                   Closed Signals
                 </span>
 
+                {/* ✅ NEW: Date sort (right side of title) */}
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                   <span
                     style={{
@@ -1326,7 +1410,7 @@ export default function Recommendations() {
                           res={sig.res}
                           timeVal={sig.timeVal}
                           alertText={sig.alertText}
-                          userActions={sig.userActions}
+                          fnoValidation={sig.fnoValidation}
                           isClosed={true}
                           strategy={sig.strategy}
                           rawDate={sig.dateVal}
@@ -1344,8 +1428,10 @@ export default function Recommendations() {
           )}
         </div>
 
+        {/* ✅ DESKTOP VIEW: ORIGINAL 2-COLUMN LAYOUT (DO NOT CHANGE UI) */}
         <div className="hidden md:block w-full">
           <div className="signals-columns">
+            {/* ================= ACTIVE COLUMN ================= */}
             <div className="signals-column">
               <h3
                 className="section-title active-title"
@@ -1361,6 +1447,7 @@ export default function Recommendations() {
                   Active Signals
                 </span>
 
+                {/* ✅ NEW: Date sort (right side of title) */}
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                   <span
                     style={{
@@ -1383,6 +1470,7 @@ export default function Recommendations() {
                 </span>
               </h3>
 
+              {/* ✅ MOVED HERE: Refresh button (sticky, never disappears) */}
               <StickyRefreshBar />
 
               <div className="signal-count-box">
@@ -1432,7 +1520,7 @@ export default function Recommendations() {
                           res={sig.res}
                           timeVal={sig.timeVal}
                           alertText={sig.alertText}
-                          userActions={sig.userActions}
+                          fnoValidation={sig.fnoValidation}
                           isClosed={false}
                           strategy={sig.strategy}
                           rawDate={sig.dateVal}
@@ -1449,6 +1537,7 @@ export default function Recommendations() {
               )}
             </div>
 
+            {/* ================= CLOSED COLUMN ================= */}
             <div className="signals-column">
               <h3
                 className="section-title closed-title"
@@ -1464,6 +1553,7 @@ export default function Recommendations() {
                   Closed Signals
                 </span>
 
+                {/* ✅ NEW: Date sort (right side of title) */}
                 <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                   <span
                     style={{
@@ -1536,7 +1626,7 @@ export default function Recommendations() {
                           res={sig.res}
                           timeVal={sig.timeVal}
                           alertText={sig.alertText}
-                          userActions={sig.userActions}
+                          fnoValidation={sig.fnoValidation}
                           isClosed={true}
                           strategy={sig.strategy}
                           rawDate={sig.dateVal}
@@ -1554,14 +1644,21 @@ export default function Recommendations() {
           </div>
         </div>
       </div>
+
+      {/* end signals-section */}
     </div>
+    /* end intraday-section */
   );
 
+  // -------------------------------------------------------
+  // MAIN PAGE RETURN
+  // -------------------------------------------------------
   return (
     <div
       className={`min-h-screen ${isDark ? "theme-dark" : "theme-light"
         } ${bgClass} ${textClass} relative transition-colors duration-300`}
     >
+      {/* ===== BACKGROUND BLOBS (same as History) ===== */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-3xl"></div>
@@ -1570,6 +1667,7 @@ export default function Recommendations() {
 
       <AppHeader />
 
+      {/* ===== MAIN CONTENT (STEP 5) ===== */}
       <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
@@ -1589,8 +1687,11 @@ export default function Recommendations() {
               </p>
             ) : null}
           </div>
+
+          {/* ✅ Refresh button removed from here (moved below Active Signals) */}
         </div>
 
+        {/* MAIN CATEGORY BUTTONS (UNCHANGED LOGIC) */}
         <div className="w-full flex justify-center mb-6">
           <div className="flex items-center gap-3">
             {["Intraday", "BTST", "Short-term"].map((type) => {
@@ -1619,6 +1720,7 @@ export default function Recommendations() {
           </div>
         </div>
 
+        {/* SIGNALS LAYOUT (UNCHANGED) */}
         <div className="recommendation-content">{renderSignalLayout()}</div>
       </div>
     </div>
