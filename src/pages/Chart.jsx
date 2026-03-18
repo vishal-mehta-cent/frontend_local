@@ -651,10 +651,10 @@ export default function ChartPage() {
   const [desc4, setDesc4] = useState("");
 
   const [features, setFeatures] = useState({
-  allow_generate_signals: false,
-  allow_chart_recommendation: false,
-  allow_recommendation_page: false,
-});
+    allow_generate_signals: false,
+    allow_chart_recommendation: false,
+    allow_recommendation_page: false,
+  });
 
 
   const [latestSignals, setLatestSignals] = useState([]);
@@ -807,35 +807,35 @@ export default function ChartPage() {
   const searchInputRef = useRef(null);
 
   useEffect(() => {
-  let alive = true;
-  const u = localStorage.getItem("username") || "";
-  if (!u) return;
+    let alive = true;
+    const u = localStorage.getItem("username") || "";
+    if (!u) return;
 
-  fetch(`${API}/features/access/${encodeURIComponent(u)}`, { cache: "no-store" })
-    .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-    .then((j) => {
-      if (!alive) return;
-      setFeatures({
-        allow_generate_signals: !!j.allow_generate_signals,
-        allow_chart_recommendation: !!j.allow_chart_recommendation,
-        allow_recommendation_page: !!j.allow_recommendation_page,
+    fetch(`${API}/features/access/${encodeURIComponent(u)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((j) => {
+        if (!alive) return;
+        setFeatures({
+          allow_generate_signals: !!j.allow_generate_signals,
+          allow_chart_recommendation: !!j.allow_chart_recommendation,
+          allow_recommendation_page: !!j.allow_recommendation_page,
+        });
+        setRecoLocked(!j.allow_recommendation_page);
+
+      })
+      .catch(() => {
+        if (!alive) return;
+        setFeatures({
+          allow_generate_signals: false,
+          allow_chart_recommendation: false,
+          allow_recommendation_page: false,
+        });
       });
-      setRecoLocked(!j.allow_recommendation_page);
 
-    })
-    .catch(() => {
-      if (!alive) return;
-      setFeatures({
-        allow_generate_signals: false,
-        allow_chart_recommendation: false,
-        allow_recommendation_page: false,
-      });
-    });
-
-  return () => {
-    alive = false;
-  };
-}, []);
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // 🔒 Check Recommendations page access (backend returns 403 when locked)
 
@@ -1069,8 +1069,8 @@ export default function ChartPage() {
   // LOAD ALL SIGNALS (FINAL VERSION - FULL FIX)
   // ---------------------------------------------------------
   async function loadAllSignals(symbolArg, tfArg) {
-  const tfNow = tfArg || tfRef.current;                 // ✅ latest timeframe
-  const candlesNow = candlesRef.current || [];          // ✅ latest candles
+    const tfNow = tfArg || tfRef.current;                 // ✅ latest timeframe
+    const candlesNow = candlesRef.current || [];          // ✅ latest candles
 
     try {
       console.log("loadAllSignals called for TF:", tf);
@@ -1117,14 +1117,14 @@ export default function ChartPage() {
       // --------------------------------------------------
       // 3) FILTER BASED ON CURRENT TF
       // --------------------------------------------------
-  // 3) FILTER BASED ON CURRENT TF
-let final = [];
+      // 3) FILTER BASED ON CURRENT TF
+      let final = [];
 
-if (tfNow === "2m") {
-  final = js.signals.filter((s) => s.tf === "2m" || s.tf === "15m");
-} else if (tfNow === "15m") {
-  final = js.signals.filter((s) => s.tf === "15m");
-}
+      if (tfNow === "2m") {
+        final = js.signals.filter((s) => s.tf === "2m" || s.tf === "15m");
+      } else if (tfNow === "15m") {
+        final = js.signals.filter((s) => s.tf === "15m");
+      }
 
 
 
@@ -1133,29 +1133,29 @@ if (tfNow === "2m") {
       // --------------------------------------------------
       // 4) CONVERT TO MARKERS  ✅ FIX HERE
       // --------------------------------------------------
-     const toSec = (ts) => {
-  const n = Number(ts);
-  if (!Number.isFinite(n)) return null;
-  // if backend ever sends ms, auto-fix it
-  return n > 1e11 ? Math.floor(n / 1000) : Math.floor(n);
-};
+      const toSec = (ts) => {
+        const n = Number(ts);
+        if (!Number.isFinite(n)) return null;
+        // if backend ever sends ms, auto-fix it
+        return n > 1e11 ? Math.floor(n / 1000) : Math.floor(n);
+      };
 
-const markers = final
-  .map((sig) => {
-    const ts = toSec(sig.timestamp);
-    if (!ts) return null;
+      const markers = final
+        .map((sig) => {
+          const ts = toSec(sig.timestamp);
+          if (!ts) return null;
 
-    const snapped = snapToCandleStart(candlesNow, ts, tfNow);
+          const snapped = snapToCandleStart(candlesNow, ts, tfNow);
 
-    return {
-      time: snapped,
-      position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
-      shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
-      color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
-      text: `${sig.signal} - ${sig.tf} | ${sig.close_price ?? ""}`,
-    };
-  })
-  .filter(Boolean);
+          return {
+            time: snapped,
+            position: sig.signal === "BUY" ? "belowBar" : "aboveBar",
+            shape: sig.signal === "BUY" ? "arrowUp" : "arrowDown",
+            color: sig.signal === "BUY" ? "#16a34a" : "#dc2626",
+            text: `${sig.signal} - ${sig.tf} | ${sig.close_price ?? ""}`,
+          };
+        })
+        .filter(Boolean);
 
 
 
@@ -1398,23 +1398,23 @@ const markers = final
   const [candles, setCandles] = useState([]);
 
   const tfRef = useRef("1m");
-useEffect(() => { tfRef.current = tf; }, [tf]);
+  useEffect(() => { tfRef.current = tf; }, [tf]);
 
-const symbolRef = useRef("");
-useEffect(() => { symbolRef.current = symbol; }, [symbol]);
+  const symbolRef = useRef("");
+  useEffect(() => { symbolRef.current = symbol; }, [symbol]);
 
-const candlesRef = useRef([]);
-useEffect(() => { candlesRef.current = candles; }, [candles]);
+  const candlesRef = useRef([]);
+  useEffect(() => { candlesRef.current = candles; }, [candles]);
 
-const prevClose = useMemo(() => {
-  if (!candles || candles.length < 2) return null;
-  return Number(candles[candles.length - 2]?.close ?? null);
-}, [candles]);
+  const prevClose = useMemo(() => {
+    if (!candles || candles.length < 2) return null;
+    return Number(candles[candles.length - 2]?.close ?? null);
+  }, [candles]);
 
-const isUp = useMemo(() => {
-  if (lastPrice == null || prevClose == null) return null;
-  return Number(lastPrice) >= Number(prevClose);
-}, [lastPrice, prevClose]);
+  const isUp = useMemo(() => {
+    if (lastPrice == null || prevClose == null) return null;
+    return Number(lastPrice) >= Number(prevClose);
+  }, [lastPrice, prevClose]);
 
 
   const mapDataForType = (t, rows) => {
@@ -1612,11 +1612,11 @@ const isUp = useMemo(() => {
         visible: true,
       },
       handleScroll: {
-  mouseWheel: true,
-  pressedMouseMove: true,
-  horzTouchDrag: true,
-  vertTouchDrag: false,
-},
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false,
+      },
 
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: { time: true, price: true } },
       localization: {
@@ -1887,66 +1887,66 @@ const isUp = useMemo(() => {
     let ws = null;
 
     function handleTick(tick) {
-  if (!priceSeries.current) return;
+      if (!priceSeries.current) return;
 
-  const price = tick?.ltp;
-  if (typeof price !== "number" || !isFinite(price)) return;
+      const price = tick?.ltp;
+      if (typeof price !== "number" || !isFinite(price)) return;
 
-  // backend sends UNIX seconds
-  const rawTs =
-    typeof tick?.timestamp === "number" && isFinite(tick.timestamp)
-      ? tick.timestamp
-      : Math.floor(Date.now() / 1000);
+      // backend sends UNIX seconds
+      const rawTs =
+        typeof tick?.timestamp === "number" && isFinite(tick.timestamp)
+          ? tick.timestamp
+          : Math.floor(Date.now() / 1000);
 
-  const ts = Math.floor(rawTs / tfSec) * tfSec;
+      const ts = Math.floor(rawTs / tfSec) * tfSec;
 
-  let c = liveCandleRef.current;
+      let c = liveCandleRef.current;
 
-  // New candle
-  if (!c || c.time !== ts) {
-    c = {
-      time: ts,
-      open: price,
-      high: price,
-      low: price,
-      close: price,
-    };
-  } else {
-    c.high = Math.max(c.high, price);
-    c.low = Math.min(c.low, price);
-    c.close = price;
-  }
+      // New candle
+      if (!c || c.time !== ts) {
+        c = {
+          time: ts,
+          open: price,
+          high: price,
+          low: price,
+          close: price,
+        };
+      } else {
+        c.high = Math.max(c.high, price);
+        c.low = Math.min(c.low, price);
+        c.close = price;
+      }
 
-  liveCandleRef.current = c;
-  lastTickAtRef.current = Date.now();
+      liveCandleRef.current = c;
+      lastTickAtRef.current = Date.now();
 
-  // ✅ Update last candle (this also moves series last-value line)
-  priceSeries.current.update(c);
+      // ✅ Update last candle (this also moves series last-value line)
+      priceSeries.current.update(c);
 
-  // ✅ Header LTP
-  setLastPrice(price);
+      // ✅ Header LTP
+      setLastPrice(price);
 
-  // ✅ Candle-color style for LTP line (same logic as candle color)
-  const up = price >= c.open;
-  const lineColor = up ? "#16a34a" : "#dc2626";
+      // ✅ Candle-color style for LTP line (same logic as candle color)
+      const up = price >= c.open;
+      const lineColor = up ? "#16a34a" : "#dc2626";
 
-  // 1) built-in series last-value line color
-  priceSeries.current.applyOptions({
-    priceLineVisible: true,
-    lastValueVisible: true,
-    priceLineColor: lineColor,
-  });
+      // 1) built-in series last-value line color
+      priceSeries.current.applyOptions({
+        priceLineVisible: true,
+        lastValueVisible: true,
+        priceLineColor: lineColor,
+      });
 
-  // 2) custom "LTP" dotted price line
-  livePriceLine.current?.applyOptions({
-    price,
-    color: lineColor,
-    axisLabelColor: lineColor,
-    axisLabelTextColor: "#ffffff",
-  });
-}
+      // 2) custom "LTP" dotted price line
+      livePriceLine.current?.applyOptions({
+        price,
+        color: lineColor,
+        axisLabelColor: lineColor,
+        axisLabelTextColor: "#ffffff",
+      });
+    }
 
-// Start websocket after initial load
+    // Start websocket after initial load
     ws = startLiveFeed(symbol, handleTick);
 
     cleanupFns.push(() => ws?.close());
@@ -1958,88 +1958,88 @@ const isUp = useMemo(() => {
   }, [symbol, tf, tfSec, chartType, applySeriesData]);
 
   // LIVE PRICE UPDATER (fallback ONLY)
-// ✅ IMPORTANT: don't fight the WebSocket.
-// We poll /ohlc only if WS hasn't delivered a tick recently.
-useEffect(() => {
-  if (!priceSeries.current) return;
+  // ✅ IMPORTANT: don't fight the WebSocket.
+  // We poll /ohlc only if WS hasn't delivered a tick recently.
+  useEffect(() => {
+    if (!priceSeries.current) return;
 
-  const timer = setInterval(async () => {
-    // If WS is healthy, do nothing (prevents candle/LTP mismatch)
-    if (Date.now() - (lastTickAtRef.current || 0) < 2500) return;
-
-    try {
-      const res = await fetch(
-        `${API}/market/ohlc?symbol=${encodeURIComponent(symbol)}&interval=${tf}&limit=2`
-      );
-      const js = await res.json();
-      if (!Array.isArray(js) || js.length === 0) return;
-
-      const live = js[js.length - 1];
-      if (!live || typeof live.close !== "number") return;
-
-      const price = live.close;
-      const candleTime =
-        typeof live.time === "number" && isFinite(live.time)
-          ? live.time
-          : Math.floor(Math.floor(Date.now() / 1000) / tfSec) * tfSec;
-
-      let c = liveCandleRef.current;
-
-      if (!c || c.time !== candleTime) {
-        c = {
-          time: candleTime,
-          open: typeof live.open === "number" ? live.open : price,
-          high: typeof live.high === "number" ? live.high : price,
-          low: typeof live.low === "number" ? live.low : price,
-          close: price,
-        };
-      } else {
-        c.high = Math.max(c.high, price);
-        c.low = Math.min(c.low, price);
-        c.close = price;
-      }
-
-      liveCandleRef.current = c;
-
-      priceSeries.current.update(c);
-      setLastPrice(price);
-
-      const up = price >= c.open;
-      const lineColor = up ? "#16a34a" : "#dc2626";
-
-      priceSeries.current.applyOptions({
-        priceLineVisible: true,
-        lastValueVisible: true,
-        priceLineColor: lineColor,
-      });
-
-      livePriceLine.current?.applyOptions({
-        price,
-        color: lineColor,
-        axisLabelColor: lineColor,
-        axisLabelTextColor: "#ffffff",
-      });
-
-      volSeries.current?.update({
-        time: c.time,
-        value: typeof live.volume === "number" ? live.volume : 0,
-        color: up ? "rgba(16,185,129,0.7)" : "rgba(239,68,68,0.7)",
-      });
+    const timer = setInterval(async () => {
+      // If WS is healthy, do nothing (prevents candle/LTP mismatch)
+      if (Date.now() - (lastTickAtRef.current || 0) < 2500) return;
 
       try {
-        const tsScale = mainChart.current?.timeScale();
-        if (tsScale && autoFollowRef.current) tsScale.scrollToRealTime();
-      } catch {}
-    } catch (e) {
-      console.error("Live price fallback error:", e);
-    }
-  }, 1000);
+        const res = await fetch(
+          `${API}/market/ohlc?symbol=${encodeURIComponent(symbol)}&interval=${tf}&limit=2`
+        );
+        const js = await res.json();
+        if (!Array.isArray(js) || js.length === 0) return;
 
-  return () => clearInterval(timer);
-}, [symbol, tf, tfSec]);
+        const live = js[js.length - 1];
+        if (!live || typeof live.close !== "number") return;
+
+        const price = live.close;
+        const candleTime =
+          typeof live.time === "number" && isFinite(live.time)
+            ? live.time
+            : Math.floor(Math.floor(Date.now() / 1000) / tfSec) * tfSec;
+
+        let c = liveCandleRef.current;
+
+        if (!c || c.time !== candleTime) {
+          c = {
+            time: candleTime,
+            open: typeof live.open === "number" ? live.open : price,
+            high: typeof live.high === "number" ? live.high : price,
+            low: typeof live.low === "number" ? live.low : price,
+            close: price,
+          };
+        } else {
+          c.high = Math.max(c.high, price);
+          c.low = Math.min(c.low, price);
+          c.close = price;
+        }
+
+        liveCandleRef.current = c;
+
+        priceSeries.current.update(c);
+        setLastPrice(price);
+
+        const up = price >= c.open;
+        const lineColor = up ? "#16a34a" : "#dc2626";
+
+        priceSeries.current.applyOptions({
+          priceLineVisible: true,
+          lastValueVisible: true,
+          priceLineColor: lineColor,
+        });
+
+        livePriceLine.current?.applyOptions({
+          price,
+          color: lineColor,
+          axisLabelColor: lineColor,
+          axisLabelTextColor: "#ffffff",
+        });
+
+        volSeries.current?.update({
+          time: c.time,
+          value: typeof live.volume === "number" ? live.volume : 0,
+          color: up ? "rgba(16,185,129,0.7)" : "rgba(239,68,68,0.7)",
+        });
+
+        try {
+          const tsScale = mainChart.current?.timeScale();
+          if (tsScale && autoFollowRef.current) tsScale.scrollToRealTime();
+        } catch { }
+      } catch (e) {
+        console.error("Live price fallback error:", e);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [symbol, tf, tfSec]);
 
 
-/* ---------------- Overlay drawing helpers ---------------- */
+  /* ---------------- Overlay drawing helpers ---------------- */
   const pickTool = (key) => {
     setActiveTool(key);
     setDrawerOpen(false);
@@ -2981,10 +2981,10 @@ useEffect(() => {
         startY: e.clientY,
         hitOnDown: hitInd?.series
           ? {
-              series: hitInd.series,
-              seriesKey: hitInd.seriesKey || null,
-              groupKey: hitInd.groupKey || null,
-            }
+            series: hitInd.series,
+            seriesKey: hitInd.seriesKey || null,
+            groupKey: hitInd.groupKey || null,
+          }
           : null,
       };
     };
@@ -3100,9 +3100,9 @@ useEffect(() => {
   async function generateSignal() {
     console.log("=== GENERATE SIGNAL CLICKED ===");
     if (!features.allow_generate_signals) {
-  showPopup("Locked", "Generate Signals is enabled only for approved users.");
-  return;
-}
+      showPopup("Locked", "Generate Signals is enabled only for approved users.");
+      return;
+    }
 
     // -------------------------------------
     // ⭐ 1. OFF MODE (SECOND CLICK)
@@ -3198,14 +3198,14 @@ useEffect(() => {
     }
   }
 
-useEffect(() => {
-  // ✅ If user already started Generate Mode, switching TF should refresh markers
-  if (!generateMode) return;
+  useEffect(() => {
+    // ✅ If user already started Generate Mode, switching TF should refresh markers
+    if (!generateMode) return;
 
-  // This will re-fetch + re-filter markers for the new tf
-  loadAllSignals(symbol, tf);
+    // This will re-fetch + re-filter markers for the new tf
+    loadAllSignals(symbol, tf);
 
-}, [tf, symbol, generateMode]);
+  }, [tf, symbol, generateMode]);
 
   // --------------------------------------------------
   // UNIVERSAL MARKER MERGER (STEP-4)
@@ -3244,7 +3244,7 @@ useEffect(() => {
   // ======================================================================
   async function openRecommendations() {
     console.log("📌 Recommendation button clicked");
-        if (recoLocked) {
+    if (recoLocked) {
       showPopup("Locked", "Recommendations are available only for approved users.");
       return;
     }
@@ -3368,10 +3368,10 @@ useEffect(() => {
 
   /* --------------------------- UI --------------------------- */
   return (
-  <div
-    className={`h-[100dvh] ${bgClass} ${textClass} relative overflow-x-hidden overflow-y-scroll show-scrollbar transition-colors duration-300`}
-    style={{ scrollbarGutter: "stable" }}
-  >
+    <div
+      className={`h-[100dvh] ${bgClass} ${textClass} relative overflow-x-hidden overflow-y-scroll show-scrollbar transition-colors duration-300`}
+      style={{ scrollbarGutter: "stable" }}
+    >
 
 
 
@@ -3387,7 +3387,7 @@ useEffect(() => {
       <div className={`sticky top-0 z-[10020] ${glassClass} shadow-xl pointer-events-auto`}>
 
         {/* Row 1: Back + Symbol/TF/Price + Search/WA/Theme */}
-        <div className="flex items-center justify-between gap-2 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 px-3 pt-5 pb-2">
           <button
             onClick={() => navigate(-1)}
             className={`text-xl px-3 py-1  ${glassClass} hover:scale-105 transition-transform`}
@@ -3833,7 +3833,7 @@ useEffect(() => {
 
       {/* Oscillator pane */}
       <div className="mt-2 border-t touch-pan-y">
-         <div ref={oscRef} style={{ width: "100%", touchAction: "pan-y" }} />
+        <div ref={oscRef} style={{ width: "100%", touchAction: "pan-y" }} />
       </div>
 
       {/* status */}
