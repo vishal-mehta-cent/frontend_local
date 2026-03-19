@@ -1,5 +1,4 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
-
 import { moneyINR } from "../utils/format";
 import {
   NotebookPen,
@@ -9,14 +8,11 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
-import SwipeNav from "../components/SwipeNav";
 import { useTheme } from "../context/ThemeContext";
-import BackButton from "../components/BackButton";
-import HeaderActions from "../components/HeaderActions";
 import { formatToIST_YMDHMS } from "../utils/time";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css"; // keep for base structure (we override styles)
-import "./datepicker-neurocrest.css"; // ✅ create this file (next step)
+import "react-datepicker/dist/react-datepicker.css";
+import "./datepicker-neurocrest.css";
 import AppHeader from "../components/AppHeader";
 
 const API =
@@ -65,15 +61,13 @@ const calcAdditionalCost = ({ rates, segment, investment }) => {
 
 export default function History({ username }) {
   const { isDark } = useTheme();
-  // ✅ Desktop: convert vertical mouse wheel to horizontal scroll inside table
+
   const handleHorizontalWheel = useCallback((e) => {
     const el = e.currentTarget;
     if (!el) return;
 
-    // only when horizontal scroll is possible
     if (el.scrollWidth <= el.clientWidth) return;
 
-    // if user isn't already scrolling horizontally, use vertical wheel to scroll x
     if (!e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
       el.scrollLeft += e.deltaY;
       e.preventDefault();
@@ -84,13 +78,13 @@ export default function History({ username }) {
   const [loadingActivity, setLoadingActivity] = useState(false);
 
   const [history, setHistory] = useState([]);
-  const [activity, setActivity] = useState([]); // ✅ all trade_activity rows
+  const [activity, setActivity] = useState([]);
 
   const [error, setError] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const [tab, setTab] = useState("history"); // "history" | "all"
+  const [tab, setTab] = useState("history");
 
   const params = useParams();
   const navigate = useNavigate();
@@ -131,11 +125,14 @@ export default function History({ username }) {
   const textSecondaryClass = isDark ? "text-slate-300" : "text-slate-600";
   const cardHoverClass = isDark ? "hover:bg-white/10" : "hover:bg-white/80";
 
-  const brandGradient =
-    "bg-gradient-to-r from-[#1ea7ff] via-[#22d3ee] via-[#22c55e] to-[#f59e0b]";
-  // ✅ Horizontal scroll ref (for desktop drag + wheel)
   const xScrollRef = useRef(null);
   const dragState = useRef({ down: false, startX: 0, startLeft: 0 });
+
+  const trackerGridCols =
+    "minmax(170px,1.05fr) minmax(260px,1.55fr) minmax(130px,0.85fr) minmax(110px,0.7fr) minmax(170px,1fr) minmax(95px,0.65fr) minmax(120px,0.8fr) minmax(140px,0.9fr) minmax(170px,1fr)";
+
+  const historyGridCols =
+    "minmax(230px,1.45fr) minmax(110px,0.7fr) minmax(160px,0.95fr) minmax(150px,0.9fr) minmax(150px,0.9fr) minmax(170px,1fr) minmax(180px,1.05fr) minmax(210px,1.2fr) minmax(190px,1.05fr)";
 
   const onDragStart = (e) => {
     const el = xScrollRef.current;
@@ -156,7 +153,7 @@ export default function History({ username }) {
     dragState.current.down = false;
   };
 
-  // -------------------- Fetch CLOSED history (BUY+SELL completed rows) --------------------
+  // -------------------- Fetch CLOSED history --------------------
   useEffect(() => {
     if (!who) {
       setError("Username missing");
@@ -187,8 +184,7 @@ export default function History({ username }) {
       .finally(() => setLoading(false));
   }, [who]);
 
-  // -------------------- Fetch POSITIONS (so BUY shows in All History) --------------------
-  // -------------------- Fetch ACTIVITY (All trades + adds + exits + sell-first etc) --------------------
+  // -------------------- Fetch ACTIVITY --------------------
   useEffect(() => {
     if (!who) return;
     if (tab !== "all") return;
@@ -214,8 +210,6 @@ export default function History({ username }) {
       })
       .finally(() => setLoadingActivity(false));
   }, [who, tab]);
-
-  // -------------------- Helpers --------------------
 
   const asNum = (v) => {
     if (v === null || v === undefined) return null;
@@ -252,7 +246,6 @@ export default function History({ username }) {
     return sellQty > 0 || !!sellDate;
   };
 
-  // ✅ stable key to remove duplicates (prefer closed rows)
   const dedupeKey = (t) => {
     const sym = normSym(t.symbol || t.script || t.tradingsymbol);
 
@@ -303,7 +296,6 @@ export default function History({ username }) {
       const exClosed = isClosedRow(existing);
       const rClosed = isClosedRow(r);
 
-      // ✅ keep closed row if one is closed
       if (!exClosed && rClosed) {
         map.set(key, r);
       }
@@ -326,18 +318,10 @@ export default function History({ username }) {
     });
   };
 
-  // -------------------- Filtered history (date range) --------------------
   const filteredHistory = useMemo(() => {
     return applyDateFilter(history || []);
   }, [history, startDate, endDate]);
 
-  // -------------------- Convert POSITIONS -> rows that match your table --------------------
-
-  // -------------------- All History (positions + closed history) --------------------
-
-  // ✅ Apply date filter to All History also
-
-  // -------------------- Ledger view for "All History" (BUY/SELL rows only) --------------------
   const normalizeMarket = (v) => {
     const s = String(v || "").toUpperCase().trim();
     if (!s) return "—";
@@ -400,67 +384,6 @@ export default function History({ username }) {
     ].join("|");
   };
 
-  const buildLedgerRows = (baseRows) => {
-    const out = [];
-
-    for (const t of baseRows || []) {
-      const symbol = normSym(t.symbol || t.script || t.tradingsymbol);
-      const market = normalizeMarket(pickExchange(t));
-      const segment = normalizeSegment(pickSegment(t));
-
-      const addTax = pickAdditionalTax(t);
-
-      const buyQty = asNum(t.buy_qty) ?? 0;
-      const buyPrice = asNum(t.buy_price);
-      const buyDT = pickDateTimeAny(t.buy_date || t.time || t.datetime || "");
-
-      const sellQty = asNum(t.sell_qty) ?? 0;
-      const sellPrice = asNum(t.sell_avg_price);
-      const sellDT = pickDateTimeAny(t.sell_date || t.time || t.datetime || "");
-
-      if (buyQty > 0 && buyPrice !== null) {
-        const inv = buyQty * buyPrice;
-        out.push({
-          datetime: buyDT,
-          symbol,
-          side: "BUY",
-          market,
-          segment,
-          qty: buyQty,
-          price: buyPrice,
-          additional_tax: addTax,
-          investment: Number.isFinite(inv) ? inv : null,
-        });
-      }
-
-      if (sellQty > 0 && sellPrice !== null) {
-        const inv = sellQty * sellPrice;
-        out.push({
-          datetime: sellDT,
-          symbol,
-          side: "SELL",
-          market,
-          segment,
-          qty: sellQty,
-          price: sellPrice,
-          additional_tax: addTax,
-          investment: Number.isFinite(inv) ? inv : null,
-        });
-      }
-    }
-
-    // dedupe + sort
-    const map = new Map();
-    for (const r of out) {
-      const k = ledgerKey(r);
-      if (!map.has(k)) map.set(k, r);
-    }
-
-    const arr = Array.from(map.values());
-    arr.sort((a, b) => String(b.datetime || "").localeCompare(String(a.datetime || "")));
-    return arr;
-  };
-
   const applyLedgerDateFilter = (rows) => {
     if (!startDate && !endDate) return rows || [];
 
@@ -479,7 +402,6 @@ export default function History({ username }) {
       const symbol = normSym(a.script || a.symbol || a.tradingsymbol);
       const dt = String(a.datetime || a.time || "").trim();
 
-      // ✅ show activity_type (ADD / EXIT / SELL_FIRST etc) not only BUY/SELL
       const type = String(a.activity_type || a.action || "")
         .toUpperCase()
         .trim();
@@ -493,19 +415,16 @@ export default function History({ username }) {
       const inv =
         qty > 0 && price !== null && Number.isFinite(qty * price) ? qty * price : null;
 
-      // ✅ Prefer backend values if present; otherwise compute like Orders.jsx
       let addTax = pickAdditionalTax(a);
       if (addTax === null && inv !== null) {
         const segKey = segment === "Intraday" ? "intraday" : "delivery";
         addTax = calcAdditionalCost({ rates, segment: segKey, investment: inv });
       }
 
-      // detect sell-side
       const typ = String(a.activity_type ?? a.action ?? "").toUpperCase().trim();
       const isSell =
         typ.includes("SELL_FIRST") || typ === "EXIT" || typ.startsWith("SELL");
 
-      // ✅ YOUR RULE (fallback if backend doesn't send it)
       let netInv = asNum(a.net_investment ?? a.netInvestment);
       if (netInv === null && inv !== null) {
         netInv = isSell ? inv - (addTax || 0) : inv + (addTax || 0);
@@ -521,43 +440,35 @@ export default function History({ username }) {
         price,
         additional_tax: addTax,
         net_investment: netInv,
-        // (optional) keep gross investment only if you need it later
         gross_investment: inv,
         notes: a.notes || "",
       };
     });
 
-    // sort latest first
     rows.sort((x, y) => String(y.datetime || "").localeCompare(String(x.datetime || "")));
-
-    // date filter
     return applyLedgerDateFilter(rows);
   }, [activity, startDate, endDate, rates]);
 
-  // -------------------- What to render --------------------
   const displayHistory = useMemo(() => {
     return tab === "all" ? allHistoryLedgerRows : filteredHistory;
   }, [tab, allHistoryLedgerRows, filteredHistory]);
 
-  // -------------------- Excel export (exports current view) --------------------
   const escapeHTML = (s) =>
     String(s ?? "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
-  // ✅ Orders.jsx-aligned closed-trade calculator for History rows
   const computeHistoryCosts = (t) => {
-    const qty = asNum(t.buy_qty) ?? 0;              // entry qty (positive)
+    const qty = asNum(t.buy_qty) ?? 0;
     const segKey = (t.segment || "delivery").toLowerCase();
 
     const entryPrice = asNum(t.buy_price) ?? 0;
     const exitPrice = asNum(t.exit_price) ?? asNum(t.sell_avg_price) ?? 0;
 
-    const investment = entryPrice * qty;           // entryInvestment
-    const exitInvestment = exitPrice * qty;        // exitInvestment
+    const investment = entryPrice * qty;
+    const exitInvestment = exitPrice * qty;
 
-    // entry + exit charges (same calc as Orders.jsx)
     const entryAdd = calcAdditionalCost({
       rates,
       segment: segKey,
@@ -570,7 +481,6 @@ export default function History({ username }) {
       investment: exitInvestment,
     });
 
-    // ✅ detect short (SELL_FIRST) entry
     const entrySide = String(t.entry_side || t.entrySide || "").toUpperCase();
     const isShort =
       Boolean(t.short_first) ||
@@ -579,25 +489,16 @@ export default function History({ username }) {
 
     const isBuy = !isShort;
 
-    // ✅ Prefer backend if present, else compute exactly like Orders.jsx
     const backendAddCost = asNum(t.additional_cost);
     const backendNetInv = asNum(t.net_investment);
     const backendExitNetInv = asNum(t.exit_net_investment);
 
     const addCost = backendAddCost ?? (entryAdd + exitAdd);
 
-    // Orders.jsx netInvestment:
-    // BUY  : investment + entryAdd
-    // SELL : investment - entryAdd
     const netInv =
-      backendNetInv ??
-      (isBuy ? (investment + entryAdd) : (investment - entryAdd));
+      backendNetInv ?? (isBuy ? investment + entryAdd : investment - entryAdd);
 
-    // Orders.jsx exitNetInvestment display:
-    // exitInvestment - exitAdd
-    const exitNetInv =
-      backendExitNetInv ??
-      (exitInvestment - exitAdd);
+    const exitNetInv = backendExitNetInv ?? (exitInvestment - exitAdd);
 
     return {
       isBuy,
@@ -615,7 +516,6 @@ export default function History({ username }) {
   };
 
   const buildExcelHtml = () => {
-    // ✅ Export matches what user is seeing
     if (tab === "all") {
       const headers = [
         "DateTime",
@@ -702,7 +602,6 @@ export default function History({ username }) {
 </html>`;
     }
 
-    // ✅ History export (UPDATED with Orders grey-row values)
     const headers = [
       "Symbol",
       "Row Date",
@@ -731,8 +630,8 @@ export default function History({ username }) {
           const invested = c.investment;
 
           const pnl = c.isBuy
-            ? (c.exitNetInv - c.netInv)
-            : (c.investment - c.exitInvestment - c.addCost);
+            ? c.exitNetInv - c.netInv
+            : c.investment - c.exitInvestment - c.addCost;
 
           const exitPrice = c.exitPrice;
           const addCost = c.addCost;
@@ -812,7 +711,7 @@ export default function History({ username }) {
     const stamp = new Date().toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "");
     const a = document.createElement("a");
     a.href = url;
-    a.download = `history_${(who || "user")}_${stamp}.xls`;
+    a.download = `history_${who || "user"}_${stamp}.xls`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -834,15 +733,15 @@ export default function History({ username }) {
       <AppHeader />
 
       <div className="w-full px-3 sm:px-4 md:px-6 py-6 relative pb-24">
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className={`text-4xl font-bold ${textClass}`}>History</h2>
+        <div className="mb-6 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
+          <div className="min-w-0">
+            <h2 className={`text-3xl sm:text-4xl font-bold ${textClass}`}>History</h2>
             <p className={`${textSecondaryClass}`}>Your trading history and analytics</p>
 
-            <div className={`mt-4 inline-flex p-1 rounded-2xl ${glassClass}`}>
+            <div className={`mt-4 inline-flex w-full sm:w-auto p-1 rounded-2xl ${glassClass}`}>
               <button
                 onClick={() => setTab("history")}
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "history"
+                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "history"
                   ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                   : `${textSecondaryClass} hover:opacity-90`
                   }`}
@@ -852,7 +751,7 @@ export default function History({ username }) {
 
               <button
                 onClick={() => setTab("all")}
-                className={`px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "all"
+                className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 rounded-xl text-sm font-semibold transition-all ${tab === "all"
                   ? "bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg"
                   : `${textSecondaryClass} hover:opacity-90`
                   }`}
@@ -862,21 +761,20 @@ export default function History({ username }) {
             </div>
           </div>
 
-          {/* ✅ Date filters now work for BOTH tabs */}
-          <div className="flex flex-wrap md:flex-nowrap items-center gap-3">
+          <div className="flex w-full xl:w-auto flex-col sm:flex-row items-stretch sm:items-center gap-3 xl:justify-end">
             <DatePicker
               selected={startDate ? new Date(startDate) : null}
               onChange={(d) => {
                 if (!d) return setStartDate("");
-                const ymd = d.toISOString().slice(0, 10); // YYYY-MM-DD
+                const ymd = d.toISOString().slice(0, 10);
                 setStartDate(ymd);
               }}
               dateFormat="MM/dd/yyyy"
               placeholderText="Start date"
-              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
+              className={`w-full px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
               calendarClassName="nc-date-calendar"
               popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
-              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              wrapperClassName={`w-full sm:w-[180px] nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
               isClearable
             />
 
@@ -884,21 +782,21 @@ export default function History({ username }) {
               selected={endDate ? new Date(endDate) : null}
               onChange={(d) => {
                 if (!d) return setEndDate("");
-                const ymd = d.toISOString().slice(0, 10); // YYYY-MM-DD
+                const ymd = d.toISOString().slice(0, 10);
                 setEndDate(ymd);
               }}
               dateFormat="MM/dd/yyyy"
               placeholderText="End date"
-              className={`px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
+              className={`w-full px-3 py-2 rounded-xl ${glassClass} ${textClass} text-sm shadow-lg transition-all focus:ring-2 focus:ring-blue-500 nc-date-input`}
               calendarClassName="nc-date-calendar"
               popperClassName={`nc-date-popper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
-              wrapperClassName={`nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
+              wrapperClassName={`w-full sm:w-[180px] nc-date-wrapper ${isDark ? "nc-date-dark" : "nc-date-light"}`}
               isClearable
             />
 
             <button
               onClick={handleDownloadExcel}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-xl transition-all shadow-lg font-medium mx-auto md:mx-0"
+              className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:shadow-xl transition-all shadow-lg font-medium"
             >
               <Download size={18} />
               <span>Export</span>
@@ -913,7 +811,6 @@ export default function History({ username }) {
         ) : displayHistory.length === 0 ? (
           <div className={`text-center ${textSecondaryClass} mt-20`}>No history available.</div>
         ) : tab === "all" ? (
-          // ✅ NEW: All History ledger view (only requested columns)
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
             <div
               ref={xScrollRef}
@@ -924,8 +821,11 @@ export default function History({ username }) {
               onMouseUp={onDragEnd}
               onMouseLeave={onDragEnd}
             >
-              <div className="min-w-[1200px]">
-                <div className="grid grid-cols-9 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
+              <div className="min-w-[1500px]">
+                <div
+                  className="grid items-center bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center text-sm md:text-base sticky top-0 z-10"
+                  style={{ gridTemplateColumns: trackerGridCols }}
+                >
                   <div>Date &amp; Time</div>
                   <div>Script</div>
                   <div>BUY / SELL</div>
@@ -946,28 +846,33 @@ export default function History({ username }) {
                       side.includes("COVER") ||
                       side.includes("LONG");
 
-                    const isSell =
-                      side.includes("SELL") || side === "EXIT" || side.includes("SHORT");
-
                     return (
                       <div
                         key={`${ledgerKey(r)}-${idx}`}
-                        className={`grid grid-cols-9 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
+                        className={`grid items-center gap-x-3 p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
                           }`}
+                        style={{ gridTemplateColumns: trackerGridCols }}
                       >
-                        <div className="text-center text-sm">
-                          <div className="font-medium">{formatToIST_YMDHMS(r.datetime)}</div>
+                        <div className="min-w-0 text-left text-sm leading-tight">
+                          <div className="font-medium whitespace-nowrap">
+                            {formatToIST_YMDHMS(r.datetime)}
+                          </div>
                         </div>
 
-                        <div className="flex items-center justify-center gap-2">
-                          <span className="font-bold text-lg">{r.symbol}</span>
+                        <div className="min-w-0 flex items-center justify-start gap-2">
+                          <span
+                            title={r.symbol || ""}
+                            className="block max-w-full truncate font-bold text-base md:text-lg cursor-help"
+                          >
+                            {r.symbol}
+                          </span>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               goNotes(r.symbol || "");
                             }}
                             title="Notes"
-                            className={`p-1 rounded-lg ${cardHoverClass} ${textSecondaryClass} transition-all`}
+                            className={`shrink-0 p-1 rounded-lg ${cardHoverClass} ${textSecondaryClass} transition-all`}
                           >
                             <NotebookPen size={14} />
                           </button>
@@ -1023,7 +928,6 @@ export default function History({ username }) {
             </div>
           </div>
         ) : (
-          // ✅ History view (UPDATED to show Orders grey-row values)
           <div className={`${glassClass} rounded-3xl overflow-hidden shadow-2xl`}>
             <div
               ref={xScrollRef}
@@ -1034,9 +938,11 @@ export default function History({ username }) {
               onMouseUp={onDragEnd}
               onMouseLeave={onDragEnd}
             >
-              <div className="min-w-[1500px]">
-                {/* ✅ 9-column header */}
-                <div className="grid grid-cols-9 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center sticky top-0 z-10">
+              <div className="min-w-[1750px]">
+                <div
+                  className="grid items-center bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold p-4 text-center text-sm md:text-base sticky top-0 z-10"
+                  style={{ gridTemplateColumns: historyGridCols }}
+                >
                   <div>Symbol &amp; Time</div>
                   <div>Quantity</div>
                   <div>Buy Details</div>
@@ -1053,60 +959,57 @@ export default function History({ username }) {
                     const symbolUpper = normSym(t.symbol || t.script || t.tradingsymbol || "—");
                     const buyQty = asNum(t.buy_qty) ?? 0;
 
-                    // ✅ Prefer backend net_pnl if present; else fallback to pnl
                     const sellQty = asNum(t.sell_qty) ?? 0;
                     const sellAvg = asNum(t.sell_avg_price);
                     const costs = computeHistoryCosts(t);
                     const exitPrice = costs.exitPrice;
 
                     const investment = Number.isFinite(costs.investment) ? costs.investment : 0;
-                    const exitInvestment = Number.isFinite(costs.exitInvestment) ? costs.exitInvestment : 0;
                     const addCost = Number.isFinite(costs.addCost) ? costs.addCost : 0;
 
                     const netInv = Number.isFinite(costs.netInv) ? costs.netInv : 0;
                     const exitNetInv = Number.isFinite(costs.exitNetInv) ? costs.exitNetInv : 0;
 
-                    // ✅ Orders.jsx CLOSED formulas:
-                    // BUY  : pnl = exitNetInv - netInv
-                    // SELL : pnl = investment - exitInvestment - addCost   ✅ your required sell formula
                     const pnlNum = costs.isBuy
-                      ? (exitNetInv - netInv)
-                      : (investment - exitInvestment - addCost);
+                      ? exitNetInv - netInv
+                      : investment - costs.exitInvestment - addCost;
 
-                    // ✅ Invested column should match Orders "Investment"
                     const investedValue = investment;
 
                     return (
                       <div
                         key={`${dedupeKey(t)}-${idx}`}
-                        className={`grid grid-cols-9 items-center p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
+                        className={`grid items-center gap-x-3 p-4 border-t ${isDark ? "border-white/10" : "border-white/40"
                           }`}
+                        style={{ gridTemplateColumns: historyGridCols }}
                       >
-                        {/* 1) Symbol & Time */}
-                        <div className="flex flex-col items-center text-center">
-                          <div className="inline-flex items-center justify-center gap-2">
-                            <span className="font-bold text-lg">{symbolUpper}</span>
+                        <div className="min-w-0 flex flex-col items-start text-left">
+                          <div className="inline-flex max-w-full items-center gap-2">
+                            <span
+                              title={symbolUpper || ""}
+                              className="block max-w-full truncate font-bold text-base md:text-lg cursor-help"
+                            >
+                              {symbolUpper}
+                            </span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 goNotes(t.symbol || "");
                               }}
                               title="Notes"
-                              className={`p-1 rounded-lg ${cardHoverClass} ${textSecondaryClass} transition-all`}
+                              className={`shrink-0 p-1 rounded-lg ${cardHoverClass} ${textSecondaryClass} transition-all`}
                             >
                               <NotebookPen size={14} />
                             </button>
                           </div>
-                          <span className={`text-xs ${textSecondaryClass} mt-1`}>
+                          <span className={`text-xs ${textSecondaryClass} mt-1 whitespace-nowrap`}>
                             {formatToIST_YMDHMS(t.time || t.datetime)}
                           </span>
                         </div>
 
-                        {/* 2) Quantity */}
                         <div className="font-semibold text-center">{buyQty || "—"}</div>
 
-                        {/* 3) Buy Details */}
-                        <div className="text-sm leading-tight text-center">
+                        <div className="text-sm leading-tight text-center whitespace-nowrap">
                           {t.buy_date ? (
                             <>
                               <div className={textSecondaryClass}>
@@ -1119,22 +1022,18 @@ export default function History({ username }) {
                           )}
                         </div>
 
-                        {/* 4) Invested */}
                         <div className="text-center font-medium">
                           {investedValue !== null ? fmtMoney(investedValue) : "—"}
                         </div>
 
-                        {/* 5) Additional Cost */}
                         <div className="text-center font-medium">
                           {addCost !== null && addCost !== undefined ? fmtMoney(addCost) : "—"}
                         </div>
 
-                        {/* 6) Net Investment */}
                         <div className="text-center font-extrabold">
                           {netInv !== null && netInv !== undefined ? fmtMoney(netInv) : "—"}
                         </div>
 
-                        {/* 7) P&L */}
                         <div className="flex justify-center">
                           <div
                             className={[
@@ -1204,8 +1103,7 @@ export default function History({ username }) {
                           </div>
                         </div>
 
-                        {/* 8) Sell Details */}
-                        <div className="text-sm leading-tight text-center">
+                        <div className="text-sm leading-tight text-center whitespace-nowrap">
                           {sellQty > 0 ? (
                             <>
                               <div className={textSecondaryClass}>
@@ -1225,7 +1123,6 @@ export default function History({ username }) {
                           )}
                         </div>
 
-                        {/* 9) Exit Net Investment */}
                         <div className="text-center font-extrabold">
                           {exitNetInv !== null && exitNetInv !== undefined ? fmtMoney(exitNetInv) : "—"}
                         </div>
@@ -1234,7 +1131,6 @@ export default function History({ username }) {
                   })}
                 </div>
               </div>
-
             </div>
           </div>
         )}
